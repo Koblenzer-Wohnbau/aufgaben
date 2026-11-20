@@ -92,7 +92,7 @@ export function ListMenu({ list }: { list: TaskList }) {
               <DialogTitle>Liste umbenennen</DialogTitle>
               <DialogContent>
                 <Field label="Name der Liste">
-                  <Input value={name} maxLength={100} autoFocus onChange={(_, d) => setName(d.value)} />
+                  <Input value={name} maxLength={120} autoFocus onChange={(_, d) => setName(d.value)} />
                 </Field>
               </DialogContent>
               <DialogActions>

@@ -40,6 +40,12 @@ public sealed class AuthOptions
     /// <summary>Gültigkeit der Browser-Sitzung in Stunden.</summary>
     public int SessionHours { get; set; } = 10;
 
+    /// <summary>
+    /// Höchstdauer einer Browser-Sitzung ab der Anmeldung in Stunden, auch bei ständiger Nutzung.
+    /// Danach ist eine neue Anmeldung nötig – so kommen in Entra geänderte Rollen spätestens dann an.
+    /// </summary>
+    public int MaxSessionHours { get; set; } = 24;
+
     public bool IsDev => string.Equals(Mode, "Dev", StringComparison.OrdinalIgnoreCase);
 }
 

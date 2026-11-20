@@ -191,7 +191,7 @@ function AccessSection() {
                   Widerrufen
                 </Button>
               )}
-              {g.status !== "entwurf" && (
+              {(g.status !== "entwurf" || g.accessCount > 0) && (
                 <Button size="small" icon={<HistoryRegular />} onClick={() => setLogFor(g)}>
                   Protokoll ({g.accessCount})
                 </Button>
