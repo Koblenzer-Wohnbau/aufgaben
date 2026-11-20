@@ -93,7 +93,8 @@ Die Bestätigungsmails laufen über die SMTP-Einstellungen unter `Aufgaben__Mail
 1. Als bekannte Person eine Mail mit Betreff `Test Mail an Aufgabe morgen` an die Adresse schicken.
 2. Bis zu einer Minute warten – oder als Verwaltung sofort abrufen: `POST /api/admin/mail-inbox/poll`.
 3. Die Aufgabe erscheint in *Mein Tag* bzw. *Geplant*; die Mail liegt im Ordner `Verarbeitet`.
-4. Landet die Mail in `Abgelehnt`, steht der Grund im Log (`docker compose logs app`) und unter `GET /api/admin/status`.
+4. Landet die Mail in `Abgelehnt`, steht der Grund im Log (`docker compose logs app`). Verwaltung → System zeigt
+   nur die Zahl der abgelehnten Mails der letzten 7 Tage und das Ergebnis des letzten Abrufs.
 
 **Hinweis zur Absenderprüfung:** Die Kopfzeile `X-MS-Exchange-Organization-AuthAs` wird von Exchange
 gesetzt. Sollte sie in eurer Umgebung beim Abruf per IMAP fehlen (alle Mails landen mit „Nicht als interne

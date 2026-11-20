@@ -8,6 +8,7 @@ export interface AppData {
   users: UserRef[];
   lists: TaskList[];
   openTask: (id: number | null) => void;
+  selectedTaskId: number | null;
   notify: (title: string, intent?: "success" | "error" | "info") => void;
 }
 

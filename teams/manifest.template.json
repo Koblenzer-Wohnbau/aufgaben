@@ -69,6 +69,16 @@
         "templateText": "Erinnerung: {taskTitle}"
       },
       {
+        "type": "listShared",
+        "description": "Eine Liste wurde mit dir geteilt",
+        "templateText": "{person} hat die Liste „{taskTitle}“ mit dir geteilt"
+      },
+      {
+        "type": "accessChanged",
+        "description": "Einsichtsrecht in Aufgaben erteilt oder beendet",
+        "templateText": "{summary}"
+      },
+      {
         "type": "dailyDigest",
         "description": "Tagesübersicht am Morgen",
         "templateText": "{summary}"

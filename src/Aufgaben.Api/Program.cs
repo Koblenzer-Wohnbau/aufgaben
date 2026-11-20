@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Threading.RateLimiting;
 using Aufgaben.Api.Auth;
 using Aufgaben.Api.Data;
@@ -8,6 +9,7 @@ using Aufgaben.Api.Services;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -88,6 +90,19 @@ builder.Services.AddRateLimiter(o =>
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
 });
 
+// ---------------------------------------------------------------- Kompression
+// Brotli/Gzip für JSON und Oberfläche. Live-Updates (text/event-stream) bleiben unkomprimiert,
+// damit Nachrichten sofort durchgereicht werden.
+builder.Services.AddResponseCompression(o =>
+{
+    o.EnableForHttps = true;
+    o.Providers.Add<BrotliCompressionProvider>();
+    o.Providers.Add<GzipCompressionProvider>();
+    o.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(["application/manifest+json", "image/svg+xml", "text/calendar"]);
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(o => o.Level = CompressionLevel.Fastest);
+
 // ---------------------------------------------------------------- Dienste
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<AppClock>();
@@ -139,6 +154,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 app.UseForwardedHeaders();
 app.UseMiddleware<ErrorMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
+app.UseResponseCompression();
 if (opts.IsHttps && !app.Environment.IsDevelopment())
 {
     app.UseHsts();
@@ -170,6 +186,7 @@ app.MapCalendarFeed();
 var api = app.MapGroup("/api").RequireAuthorization();
 api.MapTaskEndpoints();
 api.MapAppEndpoints();
+api.MapAccessEndpoints();
 api.MapEventStream();
 
 app.MapFallback("/api/{**rest}", () => Results.NotFound(new { error = "Unbekannter Endpunkt." }));

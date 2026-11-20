@@ -8,6 +8,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<User> Users => Set<User>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<TaskList> TaskLists => Set<TaskList>();
+    public DbSet<TaskListMember> TaskListMembers => Set<TaskListMember>();
     public DbSet<TaskItem> Tasks => Set<TaskItem>();
     public DbSet<ChecklistItem> ChecklistItems => Set<ChecklistItem>();
     public DbSet<TaskEvent> TaskEvents => Set<TaskEvent>();
@@ -17,6 +18,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<TaskAttachment> TaskAttachments => Set<TaskAttachment>();
     public DbSet<AttachmentBlob> AttachmentBlobs => Set<AttachmentBlob>();
     public DbSet<InboundMail> InboundMails => Set<InboundMail>();
+    public DbSet<AccessGrant> AccessGrants => Set<AccessGrant>();
+    public DbSet<AccessLogEntry> AccessLog => Set<AccessLogEntry>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -57,6 +60,15 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             e.Property(x => x.Name).HasMaxLength(120);
             e.Property(x => x.Color).HasMaxLength(16);
             e.HasOne<User>().WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Members).WithOne().HasForeignKey(x => x.ListId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<TaskListMember>(e =>
+        {
+            e.ToTable("task_list_members");
+            e.HasKey(x => new { x.ListId, x.UserId });
+            e.HasIndex(x => x.UserId);
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<TaskItem>(e =>
@@ -98,6 +110,32 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             e.ToTable("attachment_blobs");
             e.HasKey(x => x.AttachmentId);
             e.HasOne<TaskAttachment>().WithOne().HasForeignKey<AttachmentBlob>(x => x.AttachmentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<AccessGrant>(e =>
+        {
+            e.ToTable("access_grants");
+            e.HasIndex(x => new { x.ViewerId, x.Status });
+            e.HasIndex(x => new { x.OwnerId, x.Status });
+            e.Property(x => x.Permission).HasMaxLength(16);
+            e.Property(x => x.Status).HasMaxLength(16);
+            e.Property(x => x.Purpose).HasMaxLength(300);
+            e.Property(x => x.ConsentNote).HasMaxLength(300);
+            e.Property(x => x.RevokeReason).HasMaxLength(300);
+            e.HasOne(x => x.Owner).WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Viewer).WithMany().HasForeignKey(x => x.ViewerId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.CreatedById).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.ConfirmedById).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<User>().WithMany().HasForeignKey(x => x.RevokedById).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<AccessLogEntry>(e =>
+        {
+            e.ToTable("access_log");
+            e.HasIndex(x => new { x.GrantId, x.At });
+            e.HasIndex(x => new { x.OwnerId, x.At });
+            e.Property(x => x.Action).HasMaxLength(16);
+            e.HasOne<AccessGrant>().WithMany().HasForeignKey(x => x.GrantId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<InboundMail>(e =>

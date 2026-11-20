@@ -81,6 +81,7 @@ export interface TaskDetail {
 }
 
 export interface Counts {
+  inbox: number;
   myDay: number;
   important: number;
   planned: number;
@@ -98,6 +99,65 @@ export interface TaskList {
   color: string;
   position: number;
   openCount: number;
+  isOwner: boolean;
+  owner: UserRef;
+  members: UserRef[];
+}
+
+export interface AccessGrant {
+  id: number;
+  owner: UserRef;
+  viewer: UserRef;
+  permission: "lesen" | "bearbeiten";
+  validFrom: string;
+  validUntil: string | null;
+  purpose: string;
+  status: "entwurf" | "aktiv" | "widerrufen";
+  isCurrentlyActive: boolean;
+  createdAt: string;
+  confirmedAt: string | null;
+  consentNote: string;
+  revokedAt: string | null;
+  revokeReason: string;
+  accessCount: number;
+}
+
+export interface AccessLogEntry {
+  id: number;
+  action: string;
+  viewer: UserRef;
+  owner: UserRef;
+  taskId: number | null;
+  at: string;
+}
+
+export interface MyAccess {
+  grantId: number;
+  owner: UserRef;
+  permission: "lesen" | "bearbeiten";
+  validUntil: string | null;
+}
+
+export interface AdminStatus {
+  graphConfigured: boolean;
+  mailConfigured: boolean;
+  teamsNotificationsConfigured: boolean;
+  activeUsers: number;
+  pendingNotifications: number;
+  failedNotifications: number;
+  lastDirectorySync: string | null;
+  lastDirectorySyncResult: string | null;
+  mailInboxConfigured: boolean;
+  lastMailInboxRun: string | null;
+  lastMailInboxResult: string | null;
+  rejectedMailsLast7Days: number;
+}
+
+export interface Suggestions {
+  yesterday: Task[];
+  dueSoon: Task[];
+  important: Task[];
+  recent: Task[];
 }
 
 export interface Me {
@@ -163,6 +223,8 @@ export interface CreateTask {
 
 export type ViewKey =
   | "mein-tag"
+  | "aufgaben"
+  | "person"
   | "wichtig"
   | "geplant"
   | "zugewiesen"

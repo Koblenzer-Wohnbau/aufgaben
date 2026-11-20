@@ -25,20 +25,38 @@ public sealed class DirectorySync(AppDbContext db, GraphClient graph, AppClock c
         {
             throw new InvalidOperationException("Microsoft Graph ist nicht konfiguriert.");
         }
+        // Bewusst ohne $filter, $count und OData-Cast: Diese "Advanced Queries" laufen über einen
+        // nachgelagerten Index (ConsistencyLevel: eventual), in dem neue oder geänderte Konten
+        // verzögert erscheinen. Gefiltert wird hier im Code – bei einigen hundert Personen trivial.
         var groupId = options.Value.Directory.GroupId;
-        var url = string.IsNullOrWhiteSpace(groupId)
-            ? $"users?{Select}&$filter=accountEnabled eq true and userType eq 'Member'&$count=true&$top=999"
-            : $"groups/{Uri.EscapeDataString(groupId)}/transitiveMembers/microsoft.graph.user?{Select}&$top=999";
+        string url;
+        if (string.IsNullOrWhiteSpace(groupId))
+        {
+            url = $"users?{Select}&$top=999";
+        }
+        else if (Guid.TryParse(groupId, out var gid))
+        {
+            url = $"groups/{gid}/transitiveMembers?{Select}&$top=999";
+        }
+        else
+        {
+            throw new InvalidOperationException("Aufgaben:Directory:GroupId ist keine gültige Objekt-ID.");
+        }
 
         var seen = new Dictionary<string, JsonElement>(StringComparer.OrdinalIgnoreCase);
         await foreach (var item in graph.ListAsync(url, ct))
         {
-            var oid = item.GetProperty("id").GetString();
-            var enabled = !item.TryGetProperty("accountEnabled", out var en) || en.ValueKind != JsonValueKind.False;
-            var member = !item.TryGetProperty("userType", out var ut) || ut.GetString() is null or "Member";
-            if (!string.IsNullOrEmpty(oid) && enabled && member)
+            // Gruppenmitglieder können auch Geräte oder Gruppen sein.
+            if (item.TryGetProperty("@odata.type", out var type) && type.GetString() != "#microsoft.graph.user")
             {
-                seen[oid] = item;
+                continue;
+            }
+            var oid = item.TryGetProperty("id", out var idProp) ? idProp.GetString() : null;
+            var enabled = item.TryGetProperty("accountEnabled", out var en) && en.ValueKind == JsonValueKind.True;
+            var member = !item.TryGetProperty("userType", out var ut) || ut.GetString() is null or "Member";
+            if (Guid.TryParse(oid, out var parsed) && enabled && member)
+            {
+                seen[parsed.ToString()] = item;
             }
         }
 

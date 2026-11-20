@@ -150,7 +150,8 @@ public static class AuthSetup
             {
                 return Results.Redirect("/");
             }
-            var props = new AuthenticationProperties { RedirectUri = SafeReturnUrl(returnUrl) };
+            // Kontoauswahl anzeigen: wichtig an gemeinsam genutzten PCs mit mehreren Firmenkonten.
+            var props = new OpenIdConnectChallengeProperties { RedirectUri = SafeReturnUrl(returnUrl), Prompt = "select_account" };
             return Results.Challenge(props, [OpenIdConnectDefaults.AuthenticationScheme]);
         }).AllowAnonymous();
 

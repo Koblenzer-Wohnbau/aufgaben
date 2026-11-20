@@ -22,6 +22,8 @@ public static class NotificationTexts
         NotificationOutbox.Commented => ("taskCommented", $"Neuer Kommentar: {n.Title}", $"{n.ActorName}: {Shorten(n.Body, 120)}"),
         NotificationOutbox.Reminder => ("taskReminder", $"Erinnerung: {n.Title}", $"Erinnerung: {n.Title}"),
         NotificationOutbox.Digest => ("dailyDigest", n.Title, n.Title),
+        NotificationOutbox.Access => ("accessChanged", n.Title, n.Title),
+        NotificationOutbox.ListShared => ("listShared", $"{n.ActorName} hat die Liste „{n.Title}“ mit dir geteilt", $"{n.ActorName} hat die Liste „{n.Title}“ mit dir geteilt"),
         _ => ("taskAssigned", n.Title, n.Title),
     };
 
@@ -56,11 +58,11 @@ public sealed class TeamsNotifier(GraphClient graph, IOptions<AufgabenOptions> o
         {
             new { name = "taskTitle", value = NotificationTexts.Shorten(n.Title, 100) },
         };
-        if (type is "taskAssigned" or "taskCompleted" or "taskCommented")
+        if (type is "taskAssigned" or "taskCompleted" or "taskCommented" or "listShared")
         {
             parameters.Add(new { name = "person", value = n.ActorName });
         }
-        if (type == "dailyDigest")
+        if (type is "dailyDigest" or "accessChanged")
         {
             parameters.Clear();
             parameters.Add(new { name = "summary", value = NotificationTexts.Shorten(n.Title, 100) });

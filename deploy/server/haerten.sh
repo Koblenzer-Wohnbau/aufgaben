@@ -75,6 +75,13 @@ ClientAliveInterval 300
 ClientAliveCountMax 2
 EOF
 sshd -t
+# Ubuntu 24.04 startet SSH über Socket-Aktivierung: Den Port legt dann ssh.socket fest,
+# nicht die sshd-Konfiguration. Ohne Neustart des Sockets lauscht SSH weiter auf dem alten
+# Port – und die Firewall unten sperrt ihn. Deshalb den Socket neu laden.
+if systemctl is-active --quiet ssh.socket; then
+  systemctl daemon-reload
+  systemctl restart ssh.socket
+fi
 systemctl reload ssh || systemctl reload sshd
 
 echo "==> Firewall: alles zu außer SSH, 80 (nur Zertifikat/Weiterleitung) und 443"
@@ -174,5 +181,6 @@ echo
 echo "Fertig. Nächste Schritte:"
 echo "  * In einer NEUEN Sitzung prüfen, dass der SSH-Login noch klappt (alte Sitzung offen lassen!)"
 echo "  * Docker-Ports nie auf 0.0.0.0 veröffentlichen – Docker umgeht ufw. compose.yaml nutzt 127.0.0.1."
-echo "  * Zertifikat holen:  certbot certonly --webroot -w /var/www/certbot -d aufgaben.example.de"
+echo "  * Zertifikat holen:  certbot certonly --webroot -w /var/www/certbot -d aufgaben.example.de \\"
+echo "                        --deploy-hook 'systemctl reload nginx'"
 echo "  * deploy/nginx/aufgaben-oeffentlich.conf einspielen, Backups einrichten (deploy/backup)"

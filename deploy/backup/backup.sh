@@ -34,6 +34,11 @@ docker compose --project-directory "$AUFGABEN_DIR" exec -T db \
 # Konfiguration ohne Klartext-Geheimnisse ist im Repository; .env und secrets/ separat mitsichern.
 cp "$AUFGABEN_DIR/.env" "$work/env-$stamp"
 cp -r "$AUFGABEN_DIR/secrets" "$work/secrets-$stamp" 2>/dev/null || true
+# Eigene TLS-Zertifikate (internes Netz) und die Nginx-Konfiguration gehören zur Wiederherstellung.
+# Das restic-Kennwort (/etc/aufgaben-backup.env) bewusst NICHT – es gehört getrennt verwahrt.
+cp -r "$AUFGABEN_DIR/tls" "$work/tls-$stamp" 2>/dev/null || true
+mkdir -p "$work/nginx-$stamp"
+cp /etc/nginx/sites-available/aufgaben* "$work/nginx-$stamp/" 2>/dev/null || true
 
 restic backup --host aufgaben --tag aufgaben "$work"
 restic forget --host aufgaben --tag aufgaben --keep-daily 14 --keep-weekly 8 --keep-monthly 12 --prune

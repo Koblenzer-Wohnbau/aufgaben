@@ -82,9 +82,41 @@ public sealed record CountsDto(
     int FollowUps,
     int Overdue,
     Dictionary<int, int> Lists,
-    Dictionary<int, int> Projects);
+    Dictionary<int, int> Projects,
+    int Inbox);
 
-public sealed record ListDto(int Id, string Name, string Color, int Position, int OpenCount);
+public sealed record SuggestionsDto(List<TaskDto> Yesterday, List<TaskDto> DueSoon, List<TaskDto> Important, List<TaskDto> Recent);
+
+public sealed record ListDto(int Id, string Name, string Color, int Position, int OpenCount, bool IsOwner, UserRef Owner, List<UserRef> Members);
+
+public sealed record ListMemberRequest(int UserId);
+
+public sealed record AccessGrantRequest(int OwnerId, int ViewerId, string Permission, string? ValidFrom, string? ValidUntil, string? Purpose);
+
+public sealed record AccessDecisionRequest(string? Note);
+
+public sealed record AccessGrantDto(
+    int Id,
+    UserRef Owner,
+    UserRef Viewer,
+    string Permission,
+    string ValidFrom,
+    string? ValidUntil,
+    string Purpose,
+    string Status,
+    bool IsCurrentlyActive,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? ConfirmedAt,
+    string ConsentNote,
+    DateTimeOffset? RevokedAt,
+    string RevokeReason,
+    int AccessCount);
+
+public sealed record AccessLogDto(long Id, string Action, UserRef Viewer, UserRef Owner, int? TaskId, DateTimeOffset At);
+
+public sealed record MyAccessDto(int GrantId, UserRef Owner, string Permission, string? ValidUntil);
+
+public sealed record AccessAboutMeDto(List<AccessGrantDto> Grants, List<AccessLogDto> Log);
 
 public sealed record ListRequest(string? Name, string? Color, int? Position);
 

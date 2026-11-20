@@ -22,6 +22,121 @@ namespace Aufgaben.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Aufgaben.Api.Data.AccessGrant", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("ConfirmedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("ConfirmedById")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ConsentNote")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("CreatedById")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("OwnerId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Permission")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("RevokeReason")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<DateTimeOffset?>("RevokedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("RevokedById")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateOnly>("ValidFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("ValidUntil")
+                        .HasColumnType("date");
+
+                    b.Property<int>("ViewerId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ConfirmedById");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("RevokedById");
+
+                    b.HasIndex("OwnerId", "Status");
+
+                    b.HasIndex("ViewerId", "Status");
+
+                    b.ToTable("access_grants", (string)null);
+                });
+
+            modelBuilder.Entity("Aufgaben.Api.Data.AccessLogEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateTimeOffset>("At")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("GrantId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("OwnerId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("TaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ViewerId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GrantId", "At");
+
+                    b.HasIndex("OwnerId", "At");
+
+                    b.ToTable("access_log", (string)null);
+                });
+
             modelBuilder.Entity("Aufgaben.Api.Data.AttachmentBlob", b =>
                 {
                     b.Property<int>("AttachmentId")
@@ -443,6 +558,24 @@ namespace Aufgaben.Api.Data.Migrations
                     b.ToTable("task_lists", (string)null);
                 });
 
+            modelBuilder.Entity("Aufgaben.Api.Data.TaskListMember", b =>
+                {
+                    b.Property<int>("ListId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("AddedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ListId", "UserId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("task_list_members", (string)null);
+                });
+
             modelBuilder.Entity("Aufgaben.Api.Data.Template", b =>
                 {
                     b.Property<int>("Id")
@@ -612,6 +745,50 @@ namespace Aufgaben.Api.Data.Migrations
                     b.ToTable("data_protection_keys", (string)null);
                 });
 
+            modelBuilder.Entity("Aufgaben.Api.Data.AccessGrant", b =>
+                {
+                    b.HasOne("Aufgaben.Api.Data.User", null)
+                        .WithMany()
+                        .HasForeignKey("ConfirmedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Aufgaben.Api.Data.User", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Aufgaben.Api.Data.User", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Aufgaben.Api.Data.User", null)
+                        .WithMany()
+                        .HasForeignKey("RevokedById")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Aufgaben.Api.Data.User", "Viewer")
+                        .WithMany()
+                        .HasForeignKey("ViewerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Owner");
+
+                    b.Navigation("Viewer");
+                });
+
+            modelBuilder.Entity("Aufgaben.Api.Data.AccessLogEntry", b =>
+                {
+                    b.HasOne("Aufgaben.Api.Data.AccessGrant", null)
+                        .WithMany()
+                        .HasForeignKey("GrantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Aufgaben.Api.Data.AttachmentBlob", b =>
                 {
                     b.HasOne("Aufgaben.Api.Data.TaskAttachment", null)
@@ -734,6 +911,23 @@ namespace Aufgaben.Api.Data.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Aufgaben.Api.Data.TaskListMember", b =>
+                {
+                    b.HasOne("Aufgaben.Api.Data.TaskList", null)
+                        .WithMany("Members")
+                        .HasForeignKey("ListId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Aufgaben.Api.Data.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Aufgaben.Api.Data.Template", b =>
                 {
                     b.HasOne("Aufgaben.Api.Data.User", null)
@@ -756,6 +950,11 @@ namespace Aufgaben.Api.Data.Migrations
                     b.Navigation("Attachments");
 
                     b.Navigation("Checklist");
+                });
+
+            modelBuilder.Entity("Aufgaben.Api.Data.TaskList", b =>
+                {
+                    b.Navigation("Members");
                 });
 
             modelBuilder.Entity("Aufgaben.Api.Data.Template", b =>

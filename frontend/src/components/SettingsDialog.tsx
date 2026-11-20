@@ -19,7 +19,7 @@ import {
   tokens,
 } from "@fluentui/react-components";
 import { CopyRegular, SignOutRegular } from "@fluentui/react-icons";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { useApp } from "../context";
 
@@ -34,6 +34,7 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
   const { me, notify } = useApp();
   const queryClient = useQueryClient();
   const [feedUrl, setFeedUrl] = useState<string | null>(null);
+  const aboutMe = useQuery({ queryKey: ["access-about-me"], queryFn: api.accessAboutMe, enabled: open });
 
   const update = async (body: Parameters<typeof api.updateMe>[0]) => {
     try {
@@ -99,6 +100,29 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
                 </div>
               </Field>
             )}
+
+            <Field label="Wer darf meine Aufgaben sehen?">
+              {aboutMe.data && aboutMe.data.grants.length === 0 && (
+                <Text className={styles.muted}>Niemand – deine persönlichen Aufgaben siehst nur du.</Text>
+              )}
+              {aboutMe.data?.grants.map((g) => (
+                <Text key={g.id} block>
+                  <b>{g.viewer.name}</b> · {g.permission === "bearbeiten" ? "lesen und bearbeiten" : "nur lesen"} ·{" "}
+                  {g.status === "entwurf" ? "wartet auf Unterschrift" : g.validUntil ? `bis ${g.validUntil.split("-").reverse().join(".")}` : "bis zum Widerruf"}
+                  {" · "}
+                  {g.purpose}
+                </Text>
+              ))}
+              {aboutMe.data && aboutMe.data.log.length > 0 && (
+                <Text size={200} className={styles.muted} block style={{ marginTop: 6 }}>
+                  Letzte Zugriffe:{" "}
+                  {aboutMe.data.log
+                    .slice(0, 5)
+                    .map((l) => `${l.viewer.name} (${new Date(l.at).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })})`)
+                    .join(", ")}
+                </Text>
+              )}
+            </Field>
 
             <Field label="Aufgaben im Outlook-Kalender">
               <Text className={styles.muted}>
