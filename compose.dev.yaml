@@ -1,0 +1,18 @@
+# Nur für die lokale Entwicklung: PostgreSQL auf localhost:55432
+#   docker compose -f compose.dev.yaml up -d
+name: aufgaben-dev
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: aufgaben
+      POSTGRES_USER: aufgaben
+      POSTGRES_PASSWORD: aufgaben-dev
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - dev-db:/var/lib/postgresql/data
+
+volumes:
+  dev-db: {}

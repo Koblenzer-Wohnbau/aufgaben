@@ -1,0 +1,78 @@
+# Aufgaben – Betrieb mit Docker Compose
+#
+#   cp .env.example .env      # Werte eintragen
+#   docker compose up -d --build
+#
+# Die App lauscht nur auf 127.0.0.1 – davor gehört ein Reverse Proxy (Nginx, siehe deploy/nginx).
+# Die Datenbank hängt in einem internen Netz ohne Internetzugang und ohne veröffentlichten Port.
+
+name: aufgaben
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: aufgaben
+      POSTGRES_USER: aufgaben
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD in .env setzen}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aufgaben -d aufgaben"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+    shm_size: 128mb
+    mem_limit: 1g
+    logging: &logging
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  app:
+    build: .
+    # Fertiges Image aus GitHub Releases, z. B. ghcr.io/kobi-tools/aufgaben – oder lokal gebaut (--build)
+    image: ${APP_IMAGE:-aufgaben}:${APP_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      ConnectionStrings__Aufgaben: "Host=db;Port=5432;Database=aufgaben;Username=aufgaben;Password=${DB_PASSWORD};Maximum Pool Size=30"
+      ASPNETCORE_ENVIRONMENT: Production
+    ports:
+      - "127.0.0.1:${APP_PORT:-8090}:8080"
+    volumes:
+      # App-Zertifikat für Entra (PFX). Lesbar für UID 1654 (Benutzer "app" im Image).
+      - ./secrets:/certs:ro
+    networks:
+      - backend
+      - egress
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+    pids_limit: 256
+    logging: *logging
+
+networks:
+  # Kein Internet: nur App ↔ Datenbank
+  backend:
+    internal: true
+  # Ausgehend für Microsoft Graph, Entra und SMTP
+  egress: {}
+
+volumes:
+  db-data: {}

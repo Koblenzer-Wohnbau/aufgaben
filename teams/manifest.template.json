@@ -1,0 +1,78 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "{{VERSION}}",
+  "id": "{{APP_ID}}",
+  "developer": {
+    "name": "{{COMPANY}}",
+    "websiteUrl": "{{BASE_URL}}",
+    "privacyUrl": "{{BASE_URL}}/datenschutz.html",
+    "termsOfUseUrl": "{{BASE_URL}}/nutzung.html"
+  },
+  "name": {
+    "short": "Aufgaben",
+    "full": "Aufgaben – persönlich, delegiert und im Projekt"
+  },
+  "description": {
+    "short": "Deine Aufgaben, Delegationen und Projektaufgaben an einem Ort.",
+    "full": "Aufgaben ersetzt Zettel, Kalendereinträge und E-Mail-Erinnerungen: persönliche Aufgaben mit Mein Tag, Fälligkeiten, Erinnerungen und Wiederholungen; Delegieren mit Rückmeldung im Teams-Aktivitätsfeed; Projektaufgaben direkt im Projektkanal; Vorlagen für wiederkehrende Abläufe wie den Mieterwechsel. Funktioniert ohne Exchange Online."
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "accentColor": "#5B5FC7",
+  "staticTabs": [
+    {
+      "entityId": "aufgaben",
+      "name": "Aufgaben",
+      "contentUrl": "{{BASE_URL}}/?inTeams=1#/",
+      "websiteUrl": "{{BASE_URL}}/#/",
+      "scopes": ["personal"]
+    }
+  ],
+  "configurableTabs": [
+    {
+      "configurationUrl": "{{BASE_URL}}/?inTeams=1#/teams/config",
+      "canUpdateConfiguration": true,
+      "scopes": ["team"],
+      "context": ["channelTab"]
+    }
+  ],
+  "permissions": ["identity"],
+  "validDomains": ["{{DOMAIN}}"],
+  "showLoadingIndicator": true,
+  "webApplicationInfo": {
+    "id": "{{CLIENT_ID}}",
+    "resource": "api://{{DOMAIN}}/{{CLIENT_ID}}"
+  },
+  "activities": {
+    "activityTypes": [
+      {
+        "type": "taskAssigned",
+        "description": "Dir wurde eine Aufgabe zugewiesen",
+        "templateText": "{person} hat dir „{taskTitle}“ zugewiesen"
+      },
+      {
+        "type": "taskCompleted",
+        "description": "Eine delegierte Aufgabe wurde erledigt",
+        "templateText": "{person} hat „{taskTitle}“ erledigt"
+      },
+      {
+        "type": "taskCommented",
+        "description": "Neuer Kommentar zu einer Aufgabe",
+        "templateText": "{person} hat „{taskTitle}“ kommentiert"
+      },
+      {
+        "type": "taskReminder",
+        "description": "Erinnerung an eine Aufgabe",
+        "templateText": "Erinnerung: {taskTitle}"
+      },
+      {
+        "type": "dailyDigest",
+        "description": "Tagesübersicht am Morgen",
+        "templateText": "{summary}"
+      }
+    ]
+  }
+}

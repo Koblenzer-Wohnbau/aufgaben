@@ -1,0 +1,332 @@
+using Aufgaben.Api.Auth;
+using Aufgaben.Api.Contracts;
+using Aufgaben.Api.Data;
+using Aufgaben.Api.Infrastructure;
+using Aufgaben.Api.Options;
+using Aufgaben.Api.Services;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+
+namespace Aufgaben.Api.Endpoints;
+
+public static class AppEndpoints
+{
+    public static void MapAppEndpoints(this RouteGroupBuilder api)
+    {
+        MapMe(api);
+        MapUsers(api);
+        MapLists(api);
+        MapProjects(api);
+        MapTemplates(api);
+        MapAdmin(api);
+    }
+
+    // ------------------------------------------------------------------ Ich
+
+    private static void MapMe(RouteGroupBuilder api)
+    {
+        api.MapGet("/me", (CurrentUser me, AppClock clock, TeamsNotifier teams, MailNotifier mail) => ToMe(me.User, clock, teams, mail));
+
+        api.MapPatch("/me", async (MeRequest req, CurrentUser me, AppDbContext db, AppClock clock, TeamsNotifier teams, MailNotifier mail, CancellationToken ct) =>
+        {
+            var user = me.User;
+            if (req.NotifyChannel is not null)
+            {
+                user.NotifyChannel = Values.NotifyChannels.Contains(req.NotifyChannel)
+                    ? req.NotifyChannel
+                    : throw ApiException.Invalid("Benachrichtigung: auto, teams, email oder aus.");
+            }
+            if (req.DigestEnabled is bool digest)
+            {
+                user.DigestEnabled = digest;
+            }
+            await db.SaveChangesAsync(ct);
+            return ToMe(user, clock, teams, mail);
+        });
+
+        api.MapPost("/me/calendar-feed", async (CurrentUser me, AppDbContext db, IOptions<AufgabenOptions> opts, CancellationToken ct) =>
+        {
+            var (token, hash) = CalendarFeed.NewToken();
+            me.User.IcsTokenHash = hash;
+            await db.SaveChangesAsync(ct);
+            return new CalendarFeedDto($"{opts.Value.NormalizedBaseUrl}/kalender/{token}.ics");
+        });
+
+        api.MapDelete("/me/calendar-feed", async (CurrentUser me, AppDbContext db, CancellationToken ct) =>
+        {
+            me.User.IcsTokenHash = null;
+            await db.SaveChangesAsync(ct);
+            return Results.NoContent();
+        });
+    }
+
+    private static MeDto ToMe(User u, AppClock clock, TeamsNotifier teams, MailNotifier mail) => new(
+        u.Id, u.DisplayName, u.Email, u.IsAdmin, u.NotifyChannel, u.DigestEnabled,
+        u.TeamsSeenAt is not null, u.IcsTokenHash is not null, mail.IsAvailable, teams.IsAvailable,
+        clock.Today.ToString("yyyy-MM-dd"));
+
+    // ------------------------------------------------------------------ Personen
+
+    private static void MapUsers(RouteGroupBuilder api)
+    {
+        api.MapGet("/users", async (string? q, AppDbContext db, CancellationToken ct) =>
+        {
+            var query = db.Users.Where(u => u.IsActive);
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var pattern = "%" + TaskService.EscapeLike(q.Trim()) + "%";
+                query = query.Where(u => EF.Functions.ILike(u.DisplayName, pattern, "\\") || (u.Email != null && EF.Functions.ILike(u.Email, pattern, "\\")));
+            }
+            var users = await query.OrderBy(u => u.DisplayName).Take(q is null ? 500 : 25).ToListAsync(ct);
+            return users.Select(UserRef.From);
+        });
+    }
+
+    // ------------------------------------------------------------------ Listen
+
+    private static void MapLists(RouteGroupBuilder api)
+    {
+        var lists = api.MapGroup("/lists");
+
+        lists.MapGet("/", async (CurrentUser me, AppDbContext db, CancellationToken ct) =>
+        {
+            var items = await db.TaskLists.Where(l => l.OwnerId == me.Id).OrderBy(l => l.Position).ThenBy(l => l.Name).ToListAsync(ct);
+            var counts = await db.Tasks
+                .Where(t => t.ListId != null && t.Status == Values.Open && (t.AssigneeId == me.Id || t.CreatedById == me.Id))
+                .GroupBy(t => t.ListId!.Value)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+            return items.Select(l => new ListDto(l.Id, l.Name, l.Color, l.Position, counts.GetValueOrDefault(l.Id)));
+        });
+
+        lists.MapPost("/", async (ListRequest req, CurrentUser me, AppDbContext db, AppClock clock, CancellationToken ct) =>
+        {
+            if (await db.TaskLists.CountAsync(l => l.OwnerId == me.Id, ct) >= 100)
+            {
+                throw ApiException.Invalid("Höchstens 100 eigene Listen.");
+            }
+            var list = new TaskList
+            {
+                OwnerId = me.Id,
+                Name = ListName(req.Name),
+                Color = ListColor(req.Color ?? "blau"),
+                Position = req.Position ?? await db.TaskLists.CountAsync(l => l.OwnerId == me.Id, ct),
+                CreatedAt = clock.UtcNow,
+            };
+            db.TaskLists.Add(list);
+            await db.SaveChangesAsync(ct);
+            return Results.Created($"/api/lists/{list.Id}", new ListDto(list.Id, list.Name, list.Color, list.Position, 0));
+        });
+
+        lists.MapPatch("/{id:int}", async (int id, ListRequest req, CurrentUser me, AppDbContext db, CancellationToken ct) =>
+        {
+            var list = await db.TaskLists.FirstOrDefaultAsync(l => l.Id == id && l.OwnerId == me.Id, ct) ?? throw ApiException.NotFound("Liste");
+            if (req.Name is not null) list.Name = ListName(req.Name);
+            if (req.Color is not null) list.Color = ListColor(req.Color);
+            if (req.Position is int p) list.Position = p;
+            await db.SaveChangesAsync(ct);
+            return new ListDto(list.Id, list.Name, list.Color, list.Position, 0);
+        });
+
+        lists.MapDelete("/{id:int}", async (int id, CurrentUser me, AppDbContext db, CancellationToken ct) =>
+        {
+            var list = await db.TaskLists.FirstOrDefaultAsync(l => l.Id == id && l.OwnerId == me.Id, ct) ?? throw ApiException.NotFound("Liste");
+            db.TaskLists.Remove(list);
+            await db.SaveChangesAsync(ct);
+            return Results.NoContent();
+        });
+    }
+
+    private static string ListName(string? name)
+    {
+        var value = (name ?? "").Trim();
+        return value.Length is 0 or > 120 ? throw ApiException.Invalid("Der Listenname braucht 1 bis 120 Zeichen.") : value;
+    }
+
+    private static string ListColor(string color) =>
+        Values.ListColors.Contains(color) ? color : throw ApiException.Invalid("Unbekannte Farbe.");
+
+    // ------------------------------------------------------------------ Projekte
+
+    private static void MapProjects(RouteGroupBuilder api)
+    {
+        var projects = api.MapGroup("/projects");
+
+        projects.MapGet("/", async (bool? all, AppDbContext db, CancellationToken ct) =>
+        {
+            var query = db.Projects.AsQueryable();
+            if (all != true)
+            {
+                query = query.Where(p => !p.Archived);
+            }
+            var items = await query.OrderBy(p => p.TeamName).ThenBy(p => p.Number).ThenBy(p => p.Name).ToListAsync(ct);
+            var counts = await db.Tasks
+                .Where(t => t.ProjectId != null && t.Status == Values.Open)
+                .GroupBy(t => t.ProjectId!.Value)
+                .Select(g => new { g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
+            return items.Select(p => ProjectDto.From(p, counts.GetValueOrDefault(p.Id)));
+        });
+
+        projects.MapPost("/", async (ProjectRequest req, CurrentUser me, AppDbContext db, AppClock clock, CancellationToken ct) =>
+        {
+            var project = new Project
+            {
+                Number = Clean(req.Number, 32),
+                Name = ProjectName(req.Name),
+                TeamName = Clean(req.TeamName, 200),
+                CreatedById = me.Id,
+                CreatedAt = clock.UtcNow,
+            };
+            db.Projects.Add(project);
+            await db.SaveChangesAsync(ct);
+            return Results.Created($"/api/projects/{project.Id}", ProjectDto.From(project));
+        });
+
+        projects.MapPatch("/{id:int}", async (int id, ProjectRequest req, CurrentUser me, AppDbContext db, CancellationToken ct) =>
+        {
+            var project = await db.Projects.FindAsync([id], ct) ?? throw ApiException.NotFound("Projekt");
+            if (project.CreatedById != me.Id && !me.IsAdmin)
+            {
+                throw ApiException.Forbidden("Projekte ändern kann die Person, die es angelegt hat, oder die Verwaltung.");
+            }
+            if (req.Number is not null) project.Number = Clean(req.Number, 32);
+            if (req.Name is not null) project.Name = ProjectName(req.Name);
+            if (req.TeamName is not null) project.TeamName = Clean(req.TeamName, 200);
+            if (req.Archived is bool archived)
+            {
+                if (!me.IsAdmin)
+                {
+                    throw ApiException.Forbidden("Archivieren darf nur die Verwaltung.");
+                }
+                project.Archived = archived;
+            }
+            await db.SaveChangesAsync(ct);
+            return ProjectDto.From(project);
+        });
+
+        // Wird von der Konfigurationsseite des Kanal-Tabs in Teams aufgerufen.
+        projects.MapPost("/channel", async (ChannelLinkRequest req, CurrentUser me, AppDbContext db, AppClock clock, CancellationToken ct) =>
+        {
+            var channelId = Clean(req.ChannelId, 200) ?? throw ApiException.Invalid("Kanal fehlt.");
+            var linked = await db.Projects.FirstOrDefaultAsync(p => p.TeamsChannelId == channelId, ct);
+            if (req.ProjectId is int pid)
+            {
+                var project = await db.Projects.FindAsync([pid], ct) ?? throw ApiException.NotFound("Projekt");
+                if (linked is not null && linked.Id != project.Id)
+                {
+                    linked.TeamsChannelId = null;
+                }
+                project.TeamsChannelId = channelId;
+                project.TeamsTeamId = Clean(req.TeamId, 100);
+                project.TeamName ??= Clean(req.TeamName, 200);
+                await db.SaveChangesAsync(ct);
+                return ProjectDto.From(project);
+            }
+            if (linked is not null)
+            {
+                return ProjectDto.From(linked);
+            }
+            var (number, name) = SplitChannelName(req.ChannelName ?? "Projekt");
+            var created = new Project
+            {
+                Number = number,
+                Name = name,
+                TeamName = Clean(req.TeamName, 200),
+                TeamsTeamId = Clean(req.TeamId, 100),
+                TeamsChannelId = channelId,
+                CreatedById = me.Id,
+                CreatedAt = clock.UtcNow,
+            };
+            db.Projects.Add(created);
+            await db.SaveChangesAsync(ct);
+            return ProjectDto.From(created);
+        });
+
+        projects.MapGet("/channel/{channelId}", async (string channelId, AppDbContext db, CancellationToken ct) =>
+        {
+            var project = await db.Projects.FirstOrDefaultAsync(p => p.TeamsChannelId == channelId, ct);
+            return project is null ? Results.NotFound(new { error = "Dieser Kanal ist noch keinem Projekt zugeordnet." }) : Results.Ok(ProjectDto.From(project));
+        });
+    }
+
+    /// <summary>"1001 Lindenpark" → ("1001", "Lindenpark"). Viele Organisationen beginnen Kanalnamen mit der Projektnummer.</summary>
+    internal static (string? Number, string Name) SplitChannelName(string channelName)
+    {
+        var value = channelName.Trim();
+        var space = value.IndexOf(' ');
+        if (space > 0 && value[..space].All(char.IsDigit) && space <= 8)
+        {
+            return (value[..space], value[(space + 1)..].Trim());
+        }
+        return (null, value.Length > 200 ? value[..200] : value);
+    }
+
+    private static string ProjectName(string? name)
+    {
+        var value = (name ?? "").Trim();
+        return value.Length is 0 or > 200 ? throw ApiException.Invalid("Der Projektname braucht 1 bis 200 Zeichen.") : value;
+    }
+
+    private static string? Clean(string? value, int max)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+        var v = value.Trim();
+        return v.Length > max ? v[..max] : v;
+    }
+
+    // ------------------------------------------------------------------ Vorlagen
+
+    private static void MapTemplates(RouteGroupBuilder api)
+    {
+        var templates = api.MapGroup("/templates");
+        templates.MapGet("/", (TemplateService svc, CancellationToken ct) => svc.ListAsync(ct));
+        templates.MapPost("/", async (TemplateRequest req, TemplateService svc, CancellationToken ct) =>
+        {
+            var created = await svc.CreateAsync(req, ct);
+            return Results.Created($"/api/templates/{created.Id}", created);
+        });
+        templates.MapPut("/{id:int}", (int id, TemplateRequest req, TemplateService svc, CancellationToken ct) => svc.UpdateAsync(id, req, ct));
+        templates.MapDelete("/{id:int}", async (int id, TemplateService svc, CancellationToken ct) =>
+        {
+            await svc.DeleteAsync(id, ct);
+            return Results.NoContent();
+        });
+        templates.MapPost("/{id:int}/apply", (int id, ApplyTemplateRequest req, TemplateService svc, CancellationToken ct) => svc.ApplyAsync(id, req, ct));
+    }
+
+    // ------------------------------------------------------------------ Verwaltung
+
+    private static void MapAdmin(RouteGroupBuilder api)
+    {
+        var admin = api.MapGroup("/admin").AddEndpointFilter(async (ctx, next) =>
+        {
+            var me = ctx.HttpContext.RequestServices.GetRequiredService<CurrentUser>();
+            if (!me.IsAdmin)
+            {
+                throw ApiException.Forbidden("Nur für die Verwaltung (App-Rolle Aufgaben.Admin).");
+            }
+            return await next(ctx);
+        });
+
+        admin.MapGet("/status", async (AppDbContext db, GraphClient graph, MailNotifier mail, TeamsNotifier teams, CancellationToken ct) =>
+            new AdminStatusDto(
+                graph.IsConfigured,
+                mail.IsAvailable,
+                teams.IsAvailable,
+                await db.Users.CountAsync(u => u.IsActive, ct),
+                await db.Notifications.CountAsync(n => n.SentAt == null && n.Attempts < 6, ct),
+                await db.Notifications.CountAsync(n => n.SentAt == null && n.Attempts >= 6, ct),
+                DirectorySync.LastRun,
+                DirectorySync.LastResult));
+
+        admin.MapPost("/directory-sync", async (DirectorySync sync, CancellationToken ct) =>
+        {
+            var (added, updated, deactivated) = await sync.RunAsync(ct);
+            return new { added, updated, deactivated };
+        });
+    }
+}

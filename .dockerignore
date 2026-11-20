@@ -1,0 +1,17 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/.vs/
+**/.vscode/
+**/*.user
+.git/
+.env
+.env.*
+!.env.example
+secrets/
+backups/
+dist/
+docs/
+tests/
+src/Aufgaben.Api/wwwroot/
+*.md

@@ -1,0 +1,168 @@
+namespace Aufgaben.Api.Data;
+
+/// <summary>Feste Werte, die in der Datenbank als Text gespeichert werden.</summary>
+public static class Values
+{
+    public const string Open = "offen";
+    public const string Done = "erledigt";
+
+    public static readonly string[] Priorities = ["niedrig", "normal", "hoch"];
+    public static readonly string[] Kinds = ["aufgabe", "wiedervorlage"];
+    public static readonly string[] Recurrences = ["", "taeglich", "werktags", "woechentlich", "monatlich", "jaehrlich"];
+    public static readonly string[] NotifyChannels = ["auto", "teams", "email", "aus"];
+    public static readonly string[] ListColors = ["blau", "gruen", "rot", "orange", "lila", "grau"];
+}
+
+public sealed class User
+{
+    public int Id { get; set; }
+    public required string EntraOid { get; set; }
+    public required string DisplayName { get; set; }
+    public string? Email { get; set; }
+    public string? Upn { get; set; }
+    public string? JobTitle { get; set; }
+    public bool IsActive { get; set; } = true;
+    public bool IsAdmin { get; set; }
+    public string NotifyChannel { get; set; } = "auto";
+    public bool DigestEnabled { get; set; } = true;
+    public DateOnly? LastDigestOn { get; set; }
+    public DateTimeOffset? TeamsSeenAt { get; set; }
+    public DateTimeOffset? LastLoginAt { get; set; }
+    public string? IcsTokenHash { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+public sealed class Project
+{
+    public int Id { get; set; }
+    public string? Number { get; set; }
+    public required string Name { get; set; }
+    public string? TeamName { get; set; }
+    public string? TeamsTeamId { get; set; }
+    public string? TeamsChannelId { get; set; }
+    public bool Archived { get; set; }
+    public int? CreatedById { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public string Label => string.IsNullOrWhiteSpace(Number) ? Name : $"{Number} {Name}";
+}
+
+public sealed class TaskList
+{
+    public int Id { get; set; }
+    public int OwnerId { get; set; }
+    public required string Name { get; set; }
+    public string Color { get; set; } = "blau";
+    public int Position { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>
+/// Eine Aufgabe. Jede Aufgabe hat genau eine verantwortliche Person (Assignee).
+/// Persönlich = Ersteller ist verantwortlich. Delegiert = jemand anderes ist verantwortlich.
+/// Projektaufgaben sind für alle angemeldeten Personen sichtbar.
+/// </summary>
+public sealed class TaskItem
+{
+    public int Id { get; set; }
+    public required string Title { get; set; }
+    public string Notes { get; set; } = "";
+    public string Status { get; set; } = Values.Open;
+    public string Kind { get; set; } = "aufgabe";
+    public string Priority { get; set; } = "normal";
+    public int CreatedById { get; set; }
+    public User CreatedBy { get; set; } = null!;
+    public int AssigneeId { get; set; }
+    public User Assignee { get; set; } = null!;
+    public int? ListId { get; set; }
+    public int? ProjectId { get; set; }
+    public Project? Project { get; set; }
+    public DateOnly? DueDate { get; set; }
+    public TimeOnly? DueTime { get; set; }
+    public DateTimeOffset? RemindAt { get; set; }
+    public DateTimeOffset? RemindedAt { get; set; }
+    public DateOnly? MyDayOn { get; set; }
+    public string Recurrence { get; set; } = "";
+    public DateTimeOffset? CompletedAt { get; set; }
+    public int? CompletedById { get; set; }
+    public User? CompletedBy { get; set; }
+    public string Source { get; set; } = "app";
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset UpdatedAt { get; set; }
+    public int Version { get; set; } = 1;
+
+    public List<ChecklistItem> Checklist { get; set; } = [];
+
+    public bool IsDone => Status == Values.Done;
+}
+
+public sealed class ChecklistItem
+{
+    public int Id { get; set; }
+    public int TaskId { get; set; }
+    public required string Title { get; set; }
+    public bool Done { get; set; }
+    public int Position { get; set; }
+}
+
+/// <summary>Verlauf: angelegt, zugewiesen, erledigt, Kommentar …</summary>
+public sealed class TaskEvent
+{
+    public long Id { get; set; }
+    public int TaskId { get; set; }
+    public int? ActorId { get; set; }
+    public User? Actor { get; set; }
+    public required string Kind { get; set; }
+    public string Text { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>Ausgangskorb für Benachrichtigungen (Teams-Aktivitätsfeed oder E-Mail).</summary>
+public sealed class Notification
+{
+    public long Id { get; set; }
+    public int UserId { get; set; }
+    public User User { get; set; } = null!;
+    public int? TaskId { get; set; }
+    public required string Kind { get; set; }
+    public string Title { get; set; } = "";
+    public string Body { get; set; } = "";
+    public string ActorName { get; set; } = "";
+    public string? Channel { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public DateTimeOffset NextAttemptAt { get; set; }
+    public DateTimeOffset? SentAt { get; set; }
+    public int Attempts { get; set; }
+    public string? LastError { get; set; }
+}
+
+/// <summary>Vorlage für wiederkehrende Abläufe (z. B. Mieterwechsel).</summary>
+public sealed class Template
+{
+    public int Id { get; set; }
+    public required string Name { get; set; }
+    public string Description { get; set; } = "";
+    public int? CreatedById { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+    public List<TemplateStep> Steps { get; set; } = [];
+}
+
+public sealed class TemplateStep
+{
+    public int Id { get; set; }
+    public int TemplateId { get; set; }
+    public int Position { get; set; }
+    public required string Title { get; set; }
+    public string Notes { get; set; } = "";
+
+    /// <summary>Fälligkeit relativ zum Stichtag in Tagen (negativ = vorher).</summary>
+    public int OffsetDays { get; set; }
+
+    public string Priority { get; set; } = "normal";
+
+    /// <summary>Zeilen der Checkliste, durch Zeilenumbrüche getrennt.</summary>
+    public string ChecklistText { get; set; } = "";
+
+    /// <summary>Hinweis für die Zuweisung, z. B. "Hausmeister".</summary>
+    public string RoleHint { get; set; } = "";
+}

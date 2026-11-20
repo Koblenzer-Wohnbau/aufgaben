@@ -1,0 +1,13 @@
+# gitleaks: Standardregeln plus Ausnahmen für bewusst eingecheckte lokale Entwicklungswerte.
+# Diese Passwörter gelten nur für die Wegwerf-Datenbank auf localhost (compose.dev.yaml).
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Lokale Entwicklungswerte (nur localhost)"
+paths = [
+  '''compose\.dev\.yaml''',
+  '''appsettings\.Development\.json''',
+  '''DesignTimeDbContextFactory\.cs''',
+]

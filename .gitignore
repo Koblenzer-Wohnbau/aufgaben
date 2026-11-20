@@ -1,0 +1,33 @@
+# Geheimnisse und Betriebsdaten
+.env
+.env.*
+!.env.example
+secrets/
+backups/
+*.pfx
+*.key
+*.pem
+
+# .NET
+bin/
+obj/
+*.user
+.vs/
+TestResults/
+
+# Frontend
+node_modules/
+src/Aufgaben.Api/wwwroot/
+
+# Teams-Paket
+dist/
+
+# Lokale Entwicklung
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+Thumbs.db
+
+# Lokale Werkzeuge
+.claude/
