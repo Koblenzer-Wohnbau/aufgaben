@@ -33,7 +33,7 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 | Backend | C# / ASP.NET Core (.NET 10 LTS), Minimal APIs |
 | Datenbank | PostgreSQL 17 (EF Core, Migrationen beim Start) |
 | Anmeldung | Microsoft Entra ID: OpenID Connect im Browser (Microsoft.Identity.Web), Teams-SSO-Token als Bearer |
-| Microsoft Graph | App-Identität mit Zertifikat (Azure.Identity): Verzeichnisabgleich, Teams-Aktivitätsfeed |
+| Microsoft Graph | App-Identität mit Zertifikat oder Clientschlüssel (Azure.Identity): Verzeichnisabgleich, Teams-Aktivitätsfeed |
 | E-Mail | SMTP (MailKit), z. B. über einen internen Exchange-Relay; Abruf des Aufgaben-Postfachs per IMAP |
 | Frontend | React 19, Fluent UI v9 (Teams-Design, hell/dunkel/Kontrast), TeamsJS v2 |
 | Live-Updates | Server-Sent Events |
@@ -43,7 +43,7 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 src/Aufgaben.Api/     Backend (Program.cs, Auth/, Services/, Endpoints/, Data/)
 frontend/             Oberfläche (React)
 tests/Aufgaben.Tests/ Unit- und API-Tests (PostgreSQL per Testcontainers)
-teams/                Teams-Manifest-Vorlage, Icons, Paket-Skript
+teams/                Teams-Manifest-Vorlage und Icons (in die App eingebettet), Paket-Skript
 deploy/nginx/         Nginx-Beispiele (öffentlicher Server mit Let's Encrypt, internes Netz mit eigener CA)
 deploy/server/        Härtungsskript für einen Ubuntu-Server (Firewall, SSH, fail2ban, Updates, Docker)
 deploy/backup/        Verschlüsselte Sicherung mit restic und automatischer Wiederherstellungstest
@@ -75,23 +75,52 @@ cd frontend; npm test       # Tests der Schnelleingabe und des Freigabe-Formular
 
 1. SSH-Zugang einrichten – Windows: `deploy/server/ssh-zugang-einrichten.ps1 -Server <IP> -User <name>`,
    Linux/macOS (z. B. Fedora): `bash deploy/server/ssh-zugang-einrichten.sh -s <IP> -u <name>`
-   (erzeugt den Schlüssel, trägt ihn ein, testet den Login, legt Kurznamen wie `ssh <hostname>` an)
-2. Server vorbereiten: `deploy/server/haerten.sh` (Firewall, SSH nur mit Schlüssel, optional nur bestimmte IPs)
-2. Repository auf den Server holen, `.env.example` nach `.env` kopieren und ausfüllen (`chmod 600 .env`)
-3. App-Zertifikat als `secrets/app.pfx` ablegen (lesbar für UID 1654, den Benutzer im Container)
-4. Starten: `docker compose pull && docker compose up -d` (selbst bauen statt herunterladen: `compose.build.yaml`)
-5. Nginx-Konfiguration aus `deploy/nginx/` einspielen, TLS-Zertifikat einrichten
-6. Entra-App einrichten (Checkliste unten), Teams-Paket bauen: `teams/build-package.ps1`, im Teams Admin Center hochladen
-7. Sicherung einrichten: `deploy/backup/backup.sh`, Wiederherstellung prüfen: `deploy/backup/restore-test.sh`
+   (erzeugt den Schlüssel, trägt ihn ein, testet den Login, legt Kurznamen wie `ssh <hostname>` an).
+   Aktuelle Fassung mit Import aus der Zwischenablage: <https://github.com/zerox80/ssh-hardening>
+2. Server vorbereiten: `sudo bash deploy/server/haerten.sh` (fragt alles ab: Firewall, SSH nur mit Schlüssel,
+   optional nur bestimmte IPs)
+3. Repository auf den Server holen, `.env.example` nach `.env` kopieren und ausfüllen (`chmod 600 .env`)
+4. Anmeldung der App bei Entra: App-Zertifikat als `secrets/app.pfx` (lesbar für UID 1654, den Benutzer im
+   Container) – oder übergangsweise ein Clientschlüssel (`AzureAd__ClientCredentials__0__SourceType=ClientSecret`,
+   `…__ClientSecret=` mit dem **Wert**, nicht der „Geheimen ID“)
+5. Starten: `docker compose pull && docker compose up -d` (selbst bauen statt herunterladen: `compose.build.yaml`)
+6. TLS-Zertifikat, z. B. per DNS-Challenge über Cloudflare:
+   `sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/zerox80/certbot-sexy/main/zertifikat-cloudflare.sh)"`
+7. Nginx aus `deploy/nginx/` einspielen. Immer von der Vorlage ausgehen (wiederholbar), z. B.:
+
+   ```bash
+   sed -e 's/aufgaben\.example\.de/<domain>/g' \
+       -e 's|^    default 0;|    default 0;\n    <internes Netz> 1;|' \
+       -e '/if (\$aufgaben_firma = 0) {/,/^    }/ s/^/#/' \
+       deploy/nginx/aufgaben-oeffentlich.conf | sudo tee /etc/nginx/sites-available/aufgaben.conf >/dev/null
+   sudo ln -sf /etc/nginx/sites-available/aufgaben.conf /etc/nginx/sites-enabled/aufgaben.conf
+   sudo nginx -t && sudo systemctl reload nginx
+   ```
+
+   Der dritte `-e`-Ausdruck schaltet die Sperre für fremde Adressen aus (öffentlich erreichbar, Schutz durch den
+   Entra-Login). Nicht `sed -i` auf der fertigen Datei wiederholen – das verdoppelt Einträge.
+8. Netz: Im eigenen Netz die Domain per Split-DNS auf die interne Adresse des Servers zeigen lassen. Steht der
+   Server hinter einer Firewall mit Portweiterleitung (VIP), brauchen VPN-Clients eine eigene Regel vom
+   VPN-Tunnel zum Server-Netz mit **dem VIP-Objekt als Ziel** (ein Adressobjekt mit derselben IP passt nicht).
+9. Entra-App einrichten (Checkliste unten). Teams-Paket: in der App unter **Verwaltung → System →
+   „Teams-Paket herunterladen“** (der Server baut es aus seiner `.env`), dann im Teams Admin Center hochladen.
+   Ohne laufenden Server: `teams/build-package.ps1`.
+10. Sicherung einrichten: `deploy/backup/backup.sh`, Wiederherstellung prüfen: `deploy/backup/restore-test.sh`
+
+Die App nimmt Schema und Host im Betrieb immer aus `Aufgaben__BaseUrl` – die Anmeldung funktioniert dadurch
+auch, wenn der Reverse Proxy `Host` oder `X-Forwarded-Proto` nicht richtig weiterreicht.
 
 ### Updates
 
-Jede Version mit Tag `vX.Y.Z` wird von GitHub Actions getestet und als Image veröffentlicht
-(`ghcr.io/koblenzer-wohnbau/aufgaben:X.Y.Z`, mit SBOM und Herkunftsnachweis). Auf dem Server:
+Neue Version veröffentlichen: GitHub → **Actions → „Release“ → „Run workflow“** → Version eintragen
+(z. B. `1.0.4`). Der Lauf legt den Tag an, testet, baut das Image und erstellt das Release
+(`ghcr.io/koblenzer-wohnbau/aufgaben:X.Y.Z`, mit SBOM und Herkunftsnachweis). Ein von Hand gepushter Tag
+`vX.Y.Z` tut dasselbe. Die Versionsnummer steht danach in der App unter Verwaltung → System.
+
+Auf dem Server, im Installationsverzeichnis:
 
 ```bash
-# in .env: APP_IMAGE=ghcr.io/koblenzer-wohnbau/aufgaben  und  APP_VERSION=X.Y.Z
-docker compose pull && docker compose up -d
+sudo sed -i 's/^APP_VERSION=.*/APP_VERSION=X.Y.Z/' .env && sudo docker compose pull && sudo docker compose up -d
 ```
 
 Zurück auf die vorherige Version: alte Nummer in `.env` eintragen und denselben Befehl ausführen.
@@ -104,7 +133,8 @@ auf dem Server – nie im Repository.
 
 1. App-Registrierung „Aufgaben“, nur eigener Mandant
 2. Authentifizierung → Plattform **Web**, Umleitungs-URI `https://<domain>/signin-oidc`
-3. Zertifikate & Geheimnisse → **öffentliches** Zertifikat hochladen (der private Schlüssel bleibt auf dem Server)
+3. Zertifikate & Geheimnisse → **öffentliches** Zertifikat hochladen (der private Schlüssel bleibt auf dem Server);
+   übergangsweise ein geheimer Clientschlüssel – in die `.env` gehört dessen **Wert**
 4. API verfügbar machen → Application ID URI `api://<domain>/<client-id>`, Bereich `access_as_user`,
    autorisierte Client-Apps: `1fec8e78-bce4-4aaf-ab1b-5451cc387264` (Teams Desktop/Mobil) und
    `5e3ce6c0-2b1f-4285-8d4b-75ee78787346` (Teams Web)
@@ -112,7 +142,7 @@ auf dem Server – nie im Repository.
    * delegiert: `openid`, `profile`, `email`, `offline_access`, `User.Read`
    * Anwendung: `User.Read.All`, `TeamsActivity.Send` (bei Gruppenfilter zusätzlich `GroupMember.Read.All`)
    * Administratorzustimmung erteilen
-6. App-Rollen → `Aufgaben.Admin` anlegen und in der Unternehmensanwendung zuweisen
+6. App-Rollen → Rolle mit dem Wert `Aufgaben.Admin` (Benutzer/Gruppen) anlegen und in der Unternehmensanwendung zuweisen
 7. Empfohlen: Conditional Access für die App (MFA, ggf. nur Firmen-IPs)
 
 ## Sicherheit
