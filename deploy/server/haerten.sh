@@ -32,7 +32,13 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-home_dir=$(getent passwd "$ADMIN_USER" | cut -d: -f6)
+# "|| true": getent liefert bei unbekannten Benutzern einen Fehlercode – ohne das würde
+# "set -o pipefail" das Skript lautlos beenden, statt die Meldung unten zu zeigen.
+if ! getent passwd "$ADMIN_USER" >/dev/null; then
+  echo "Abbruch: Benutzer '$ADMIN_USER' gibt es auf diesem Server nicht (ADMIN_USER prüfen)." >&2
+  exit 1
+fi
+home_dir=$(getent passwd "$ADMIN_USER" | cut -d: -f6 || true)
 if [[ -z "$home_dir" || ! -s "$home_dir/.ssh/authorized_keys" ]]; then
   echo "Abbruch: $ADMIN_USER hat keine ~/.ssh/authorized_keys – sonst sperrst du dich aus." >&2
   exit 1
