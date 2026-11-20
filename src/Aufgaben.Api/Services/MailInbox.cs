@@ -329,7 +329,7 @@ public sealed class MailInboxPoller(IServiceScopeFactory scopes, IOptions<Aufgab
         using var client = new ImapClient();
         if (!string.IsNullOrWhiteSpace(o.CaCertificatePath))
         {
-            var ca = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadCertificateFromFile(o.CaCertificatePath);
+            var ca = TlsTrust.LoadCa(o.CaCertificatePath);
             client.ServerCertificateValidationCallback = (_, cert, _, errors) => TlsTrust.ValidateWithCustomCa(cert, errors, ca);
         }
         var security = Enum.TryParse<SecureSocketOptions>(o.Security, true, out var s) ? s : SecureSocketOptions.SslOnConnect;

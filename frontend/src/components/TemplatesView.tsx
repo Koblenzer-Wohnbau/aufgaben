@@ -119,8 +119,10 @@ function ApplyDialog({ template, onClose }: { template: Template; onClose: () =>
       await queryClient.invalidateQueries();
       notify(`${result.created} Aufgaben angelegt`);
       onClose();
+      const people = [defaultPerson, ...Object.values(perStep)].filter((u): u is NonNullable<typeof u> => !!u);
       if (projectId) navigate({ page: "tasks", view: "projekt", id: projectId });
-      else navigate({ page: "tasks", view: "delegiert" });
+      else if (people.some((u) => u.id !== me.id)) navigate({ page: "tasks", view: "delegiert" });
+      else navigate({ page: "tasks", view: "aufgaben" });
     } catch (e) {
       notify(e instanceof Error ? e.message : "Fehler", "error");
     } finally {

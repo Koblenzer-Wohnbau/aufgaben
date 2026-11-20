@@ -1,0 +1,11 @@
+# Nur nötig, wenn das Image selbst gebaut werden soll (z. B. für eigene Änderungen).
+# Im normalen Betrieb reicht das fertige Image aus den GitHub-Releases:
+#   docker compose pull && docker compose up -d
+#
+# Selbst bauen:
+#   docker compose -f compose.yaml -f compose.build.yaml up -d --build
+
+services:
+  app:
+    build: .
+    image: aufgaben-lokal:${APP_VERSION:-dev}

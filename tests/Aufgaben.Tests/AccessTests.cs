@@ -112,7 +112,8 @@ public sealed class AccessTests(AppFixture app)
         {
             ownerId = mariaId, viewerId = jonasId, permission = "lesen", validFrom = "2025-01-01", validUntil = "2025-01-31", purpose = "Alte Vertretung",
         }));
-        await Read<AccessGrantDto>(await admin.PostAsJsonAsync($"/api/admin/access/{grant.Id}/confirm", new { note = "Personalakte" }));
+        // Ein bereits abgelaufener Zeitraum lässt sich nicht mehr aktivieren
+        Assert.Equal(HttpStatusCode.BadRequest, (await admin.PostAsJsonAsync($"/api/admin/access/{grant.Id}/confirm", new { note = "Personalakte" })).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await viewer.GetAsync($"/api/tasks?view=person&id={mariaId}")).StatusCode);
 
         var draft = await Read<AccessGrantDto>(await admin.PostAsJsonAsync("/api/admin/access", new

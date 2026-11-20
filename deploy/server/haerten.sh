@@ -2,41 +2,138 @@
 # =====================================================================
 # Grundhärtung eines frischen Ubuntu-Servers (24.04/26.04) für Aufgaben
 #
-# Aufruf als root bzw. mit sudo, NACHDEM:
-#   1. ein eigener Admin-Benutzer existiert (nicht root),
-#   2. dessen SSH-Schlüssel in ~/.ssh/authorized_keys liegt,
-#   3. ein Login mit diesem Schlüssel in einer ZWEITEN Sitzung getestet wurde.
+# Voraussetzung: Der Admin-Benutzer (nicht root) kann sich schon per SSH-Schlüssel anmelden
+# (z. B. eingerichtet mit https://github.com/zerox80/ssh-hardening).
 #
-#   sudo ADMIN_USER=deinname \
-#        SSH_ALLOW_FROM="203.0.113.10/32" \
-#        HTTPS_ALLOW_FROM="203.0.113.10/32 198.51.100.0/29" ./haerten.sh
+# Einfach starten – das Skript fragt alles Nötige ab und zeigt vor jeder Änderung eine Zusammenfassung:
 #
-# SSH_ALLOW_FROM:   öffentliche IP(s) der Firma für SSH, durch Leerzeichen getrennt.
-#                   Leer = SSH von überall (nur mit Schlüssel) – schwächer.
-# HTTPS_ALLOW_FROM: öffentliche IP(s), die die App überhaupt erreichen dürfen.
-#                   Leer = App öffentlich erreichbar (nur hinter Entra-Login).
-#                   Empfehlung, wenn die Anmeldung per Conditional Access ohnehin auf
-#                   Firmen-IPs beschränkt ist: dieselben IPs hier eintragen.
+#   sudo bash deploy/server/haerten.sh
+#
+# Ohne Rückfragen (Automatisierung) über Variablen, mit --yes ohne Bestätigung:
+#
+#   sudo ADMIN_USER=deinname SSH_ALLOW_FROM="192.168.1.0/24" HTTPS_ALLOW_FROM="" \
+#        bash deploy/server/haerten.sh --yes
+#
+# SSH_ALLOW_FROM:   Netze/IPs für SSH, durch Leerzeichen getrennt. Leer = von überall (nur mit Schlüssel).
+# HTTPS_ALLOW_FROM: Netze/IPs, die die App erreichen dürfen. Leer = öffentlich (nur hinter Entra-Login).
 #
 # Das Skript ist wiederholbar. Es ändert nichts an Docker-Containern.
 # =====================================================================
 set -euo pipefail
 
-ADMIN_USER="${ADMIN_USER:?ADMIN_USER setzen (euer Admin-Benutzer, nicht root)}"
-SSH_ALLOW_FROM="${SSH_ALLOW_FROM:-}"
-HTTPS_ALLOW_FROM="${HTTPS_ALLOW_FROM:-}"
-SSH_PORT="${SSH_PORT:-22}"
+ASSUME_YES=0
+for arg in "$@"; do
+  case "$arg" in
+    -y|--yes) ASSUME_YES=1 ;;
+    -h|--help) sed -n '2,24p' "$0"; exit 0 ;;
+    *) echo "Unbekannte Option: $arg (erlaubt: --yes, --help)" >&2; exit 2 ;;
+  esac
+done
 
 if [[ $EUID -ne 0 ]]; then
-  echo "Bitte mit sudo ausführen." >&2
+  echo "Bitte mit sudo ausführen:  sudo bash $0" >&2
   exit 1
 fi
 
-home_dir=$(getent passwd "$ADMIN_USER" | cut -d: -f6)
-if [[ -z "$home_dir" || ! -s "$home_dir/.ssh/authorized_keys" ]]; then
-  echo "Abbruch: $ADMIN_USER hat keine ~/.ssh/authorized_keys – sonst sperrst du dich aus." >&2
-  exit 1
+# Rückfragen nur mit Terminal – ohne Terminal (Automatisierung) gelten die Variablen.
+interactive=0
+[[ -t 0 && -t 1 ]] && interactive=1
+ask() { # Frage, Vorschlag
+  local answer prompt="$1"
+  [[ -n "${2:-}" ]] && prompt+=" [$2]"
+  read -r -p "$prompt: " answer || true
+  printf '%s' "${answer:-${2:-}}"
+}
+ask_yes() { # Frage, Vorschlag j/n
+  local a; a="$(ask "$1 (j/n)" "$2" | tr '[:upper:]' '[:lower:]')"
+  [[ "$a" =~ ^(j|ja|y|yes)$ ]]
+}
+# Liegt eine IPv4-Adresse in einem Netz (a.b.c.d/nn)? 2 = nicht prüfbar (z. B. IPv6)
+ip_in_net() {
+  local ip="$1" cidr="$2" a b c d ipn netn bits mask
+  [[ "$cidr" == */* ]] || cidr="$cidr/32"
+  bits="${cidr#*/}"
+  [[ "$ip" =~ ^[0-9]+(\.[0-9]+){3}$ && "${cidr%/*}" =~ ^[0-9]+(\.[0-9]+){3}$ && "$bits" =~ ^[0-9]+$ ]] || return 2
+  IFS=. read -r a b c d <<<"$ip"; ipn=$(( (a << 24) | (b << 16) | (c << 8) | d ))
+  IFS=. read -r a b c d <<<"${cidr%/*}"; netn=$(( (a << 24) | (b << 16) | (c << 8) | d ))
+  mask=$(( bits == 0 ? 0 : (0xFFFFFFFF << (32 - bits)) & 0xFFFFFFFF ))
+  (( (ipn & mask) == (netn & mask) ))
+}
+user_ok() { # gibt den Grund aus, wenn der Benutzer nicht passt
+  local home
+  if ! getent passwd "$1" >/dev/null; then echo "Benutzer '$1' gibt es auf diesem Server nicht."; return 1; fi
+  [[ "$1" != root ]] || { echo "Bitte einen eigenen Benutzer statt root nehmen – root wird für SSH gesperrt."; return 1; }
+  home="$(getent passwd "$1" | cut -d: -f6 || true)"
+  if [[ -z "$home" || ! -s "$home/.ssh/authorized_keys" ]]; then
+    echo "'$1' hat keinen SSH-Schlüssel in ~/.ssh/authorized_keys – danach wäre kein Login mehr möglich."
+    return 1
+  fi
+}
+
+# Adresse, von der du gerade per SSH verbunden bist (auch unter sudo)
+client_ip="$(who -m 2>/dev/null | sed -n 's/.*(\([^)]*\)).*/\1/p' | head -n 1 || true)"
+if [[ -z "$client_ip" ]]; then
+  # unter sudo fehlt SSH_CLIENT meist – dann bleibt es leer (kein Abbruch durch "set -u")
+  client_ip="${SSH_CLIENT:-}"
+  client_ip="${client_ip%% *}"
 fi
+suggested_net=""
+[[ "$client_ip" =~ ^([0-9]+)\.([0-9]+)\.([0-9]+)\.[0-9]+$ ]] && suggested_net="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}.0/24"
+
+SSH_PORT="${SSH_PORT:-22}"
+if (( interactive )); then
+  echo "Härtung für Aufgaben – ein paar Fragen, geändert wird erst nach deiner Bestätigung."
+  echo ""
+  # 1. Admin-Benutzer: Vorschlag ist der Benutzer, der sudo aufgerufen hat
+  ADMIN_USER="${ADMIN_USER:-${SUDO_USER:-}}"
+  while true; do
+    ADMIN_USER="$(ask "Admin-Benutzer, der sich danach per SSH-Schlüssel anmeldet" "$ADMIN_USER")"
+    if reason="$(user_ok "$ADMIN_USER")"; then break; fi
+    echo "  -> $reason"
+    ADMIN_USER=""
+  done
+  # 2. SSH nur aus bestimmten Netzen?
+  echo ""
+  [[ -n "$client_ip" ]] && echo "Du bist gerade verbunden von: $client_ip"
+  while true; do
+    SSH_ALLOW_FROM="$(ask "SSH erlauben von (Netze/IPs mit Leerzeichen, '-' = von überall)" "${SSH_ALLOW_FROM:-$suggested_net}")"
+    [[ "$SSH_ALLOW_FROM" == "-" ]] && SSH_ALLOW_FROM=""
+    [[ -z "$SSH_ALLOW_FROM" || -z "$client_ip" ]] && break
+    inside=0
+    for net in $SSH_ALLOW_FROM; do
+      if ip_in_net "$client_ip" "$net"; then inside=1; elif [[ $? -eq 2 ]]; then inside=1; fi
+    done
+    (( inside )) && break
+    echo "  -> Achtung: $client_ip liegt NICHT in '$SSH_ALLOW_FROM' – du würdest dich aussperren."
+    ask_yes "  Trotzdem so übernehmen?" "n" && break
+  done
+  # 3. HTTPS öffentlich oder eingeschränkt?
+  echo ""
+  HTTPS_ALLOW_FROM="$(ask "HTTPS (App) erlauben von (Netze/IPs, '-' = öffentlich, z. B. hinter FortiGate)" "${HTTPS_ALLOW_FROM:--}")"
+  [[ "$HTTPS_ALLOW_FROM" == "-" ]] && HTTPS_ALLOW_FROM=""
+else
+  ADMIN_USER="${ADMIN_USER:-}"
+  SSH_ALLOW_FROM="${SSH_ALLOW_FROM:-}"
+  HTTPS_ALLOW_FROM="${HTTPS_ALLOW_FROM:-}"
+  if [[ -z "$ADMIN_USER" ]]; then
+    echo "Abbruch: ohne Terminal bitte ADMIN_USER setzen (siehe Kopf dieses Skripts)." >&2
+    exit 1
+  fi
+  if ! reason="$(user_ok "$ADMIN_USER")"; then echo "Abbruch: $reason" >&2; exit 1; fi
+fi
+
+echo ""
+echo "==================== Zusammenfassung ===================="
+echo "  Admin-Benutzer:    $ADMIN_USER (einziger SSH-Benutzer, nur mit Schlüssel)"
+echo "  SSH (Port $SSH_PORT):     ${SSH_ALLOW_FROM:-von überall (nur mit Schlüssel, Rate-Limit)}"
+echo "  HTTPS (Port 443):  ${HTTPS_ALLOW_FROM:-öffentlich}"
+echo "  Außerdem:          Updates, automatische Sicherheitsupdates (Neustart 03:30), Firewall neu"
+echo "                     (alle anderen Regeln werden gelöscht), fail2ban, Kernel-Härtung, Docker, Nginx"
+echo "========================================================="
+if (( interactive && ! ASSUME_YES )); then
+  ask_yes "So ausführen?" "j" || { echo "Abgebrochen – nichts geändert."; exit 0; }
+fi
+echo ""
 
 echo "==> Pakete aktualisieren und Grundwerkzeuge installieren"
 export DEBIAN_FRONTEND=noninteractive
@@ -88,16 +185,17 @@ echo "==> Firewall: alles zu außer SSH, 80 (nur Zertifikat/Weiterleitung) und 4
 ufw --force reset >/dev/null
 ufw default deny incoming
 ufw default allow outgoing
+# Kommentare ohne Apostroph und Klammern – ufw meldet sonst "Invalid syntax".
 if [[ -n "$SSH_ALLOW_FROM" ]]; then
   for src in $SSH_ALLOW_FROM; do
     ufw allow from "$src" to any port "$SSH_PORT" proto tcp comment "SSH Firma"
   done
 else
-  ufw limit "$SSH_PORT"/tcp comment "SSH (rate-limited)"
+  ufw limit "$SSH_PORT"/tcp comment "SSH mit Rate-Limit"
 fi
 # Port 80 bleibt offen: Let's Encrypt prüft von wechselnden Adressen aus.
 # Nginx liefert dort nur die Prüfdatei und eine Weiterleitung – keine App.
-ufw allow 80/tcp comment "HTTP (Let's Encrypt, Weiterleitung)"
+ufw allow 80/tcp comment "HTTP Zertifikat und Weiterleitung"
 if [[ -n "$HTTPS_ALLOW_FROM" ]]; then
   for src in $HTTPS_ALLOW_FROM; do
     ufw allow from "$src" to any port 443 proto tcp comment "HTTPS Firma"
@@ -151,6 +249,7 @@ if ! command -v docker >/dev/null; then
   install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
   chmod a+r /etc/apt/keyrings/docker.asc
+  # shellcheck disable=SC1091
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
     > /etc/apt/sources.list.d/docker.list
   apt-get update -q
@@ -181,6 +280,6 @@ echo
 echo "Fertig. Nächste Schritte:"
 echo "  * In einer NEUEN Sitzung prüfen, dass der SSH-Login noch klappt (alte Sitzung offen lassen!)"
 echo "  * Docker-Ports nie auf 0.0.0.0 veröffentlichen – Docker umgeht ufw. compose.yaml nutzt 127.0.0.1."
-echo "  * Zertifikat holen:  certbot certonly --webroot -w /var/www/certbot -d aufgaben.example.de \\"
-echo "                        --deploy-hook 'systemctl reload nginx'"
+echo "  * Zertifikat holen, z. B. per DNS-Challenge (Cloudflare) oder per Webroot:"
+echo "      certbot certonly --webroot -w /var/www/certbot -d <eure-domain> --deploy-hook 'systemctl reload nginx'"
 echo "  * deploy/nginx/aufgaben-oeffentlich.conf einspielen, Backups einrichten (deploy/backup)"

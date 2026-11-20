@@ -12,7 +12,7 @@ import {
 } from "@fluentui/react-icons";
 import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
-import { initials, matchProject, matchUser, useApp } from "../context";
+import { initials, matchProject, matchUser, mentionFor, useApp } from "../context";
 import { RECURRENCE_LABEL, relativeDay } from "../dates";
 import { activeMention, parseQuickAdd } from "../quickadd";
 import type { CreateTask } from "../types";
@@ -118,7 +118,7 @@ export function QuickAdd({ defaults, placeholder }: Props) {
     return users
       .filter((u) => !q || u.name.toLowerCase().includes(q) || u.email?.toLowerCase().startsWith(q))
       .slice(0, 6)
-      .map((u) => ({ key: `u${u.id}`, label: u.name, sub: u.jobTitle ?? "", insert: u.name.split(" ").slice(-1)[0], avatar: u.name }));
+      .map((u) => ({ key: `u${u.id}`, label: u.name, sub: u.jobTitle ?? "", insert: mentionFor(u, users), avatar: u.name }));
   }, [mention, projects, users]);
 
   const applySuggestion = (insert: string) => {

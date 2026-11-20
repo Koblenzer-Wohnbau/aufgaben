@@ -54,6 +54,8 @@ public sealed class TemplateService(AppDbContext db, CurrentUser me, AppClock cl
         var suffix = string.IsNullOrWhiteSpace(req.TitleSuffix) ? "" : " – " + req.TitleSuffix.Trim();
         var created = new List<int>();
 
+        // Alle Schritte oder keiner: Bricht ein Schritt ab, bleiben keine halben Abläufe zurück.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
         foreach (var step in template.Steps.OrderBy(s => s.Position))
         {
             int? assignee = req.Assignees is not null && req.Assignees.TryGetValue(step.Id, out var a) ? a : req.DefaultAssigneeId;
@@ -74,6 +76,7 @@ public sealed class TemplateService(AppDbContext db, CurrentUser me, AppClock cl
                 Checklist: checklist), "vorlage", ct);
             created.Add(dto.Id);
         }
+        await tx.CommitAsync(ct);
         return new ApplyTemplateResult(created.Count, created);
     }
 

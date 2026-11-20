@@ -2,7 +2,6 @@
 
 **Aufgabenverwaltung für Microsoft Teams und den Browser – ohne Exchange Online.**
 
-<img width="3439" height="1251" alt="image" src="https://github.com/user-attachments/assets/6bef9845-3815-4cb6-9197-569c7d08d514" />
 <img width="458" height="916" alt="image" src="https://github.com/user-attachments/assets/c5a4915d-929d-4c1b-9d29-ff1c3a5f86ea" />
 
 
@@ -74,10 +73,13 @@ cd frontend; npm test       # Tests der Schnelleingabe und des Freigabe-Formular
 
 ### Installation
 
-1. Server vorbereiten: `deploy/server/haerten.sh` (Firewall, SSH nur mit Schlüssel, optional nur bestimmte IPs)
+1. SSH-Zugang einrichten – Windows: `deploy/server/ssh-zugang-einrichten.ps1 -Server <IP> -User <name>`,
+   Linux/macOS (z. B. Fedora): `bash deploy/server/ssh-zugang-einrichten.sh -s <IP> -u <name>`
+   (erzeugt den Schlüssel, trägt ihn ein, testet den Login, legt Kurznamen wie `ssh <hostname>` an)
+2. Server vorbereiten: `deploy/server/haerten.sh` (Firewall, SSH nur mit Schlüssel, optional nur bestimmte IPs)
 2. Repository auf den Server holen, `.env.example` nach `.env` kopieren und ausfüllen (`chmod 600 .env`)
 3. App-Zertifikat als `secrets/app.pfx` ablegen (lesbar für UID 1654, den Benutzer im Container)
-4. Starten: `docker compose up -d` (eigenes Image bauen: `--build`)
+4. Starten: `docker compose pull && docker compose up -d` (selbst bauen statt herunterladen: `compose.build.yaml`)
 5. Nginx-Konfiguration aus `deploy/nginx/` einspielen, TLS-Zertifikat einrichten
 6. Entra-App einrichten (Checkliste unten), Teams-Paket bauen: `teams/build-package.ps1`, im Teams Admin Center hochladen
 7. Sicherung einrichten: `deploy/backup/backup.sh`, Wiederherstellung prüfen: `deploy/backup/restore-test.sh`

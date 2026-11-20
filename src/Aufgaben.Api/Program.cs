@@ -71,6 +71,12 @@ builder.Services.AddHsts(o =>
 builder.Services.AddRateLimiter(o =>
 {
     o.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    o.OnRejected = (ctx, token) =>
+    {
+        ctx.HttpContext.Response.ContentType = "application/json; charset=utf-8";
+        return new ValueTask(ctx.HttpContext.Response.WriteAsync(
+            "{\"error\":\"Zu viele Anfragen in kurzer Zeit. Bitte einen Moment warten.\"}", token));
+    };
     // Angemeldet: Limit pro Person. Anonym: pro IP – großzügiger, weil sich in Firmen
     // oft alle Mitarbeitenden eine öffentliche Adresse (NAT) teilen.
     o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>

@@ -98,6 +98,8 @@ public static class AccessEndpoints
             };
             db.AccessGrants.Add(grant);
             await db.SaveChangesAsync(ct);
+            db.AccessLog.Add(new AccessLogEntry { GrantId = grant.Id, ViewerId = me.Id, OwnerId = grant.OwnerId, Action = "angelegt", At = clock.UtcNow });
+            await db.SaveChangesAsync(ct);
             return Results.Created($"/api/admin/access/{grant.Id}", ToDto(grant, clock.Today, 0));
         });
 
@@ -114,16 +116,21 @@ public static class AccessEndpoints
             {
                 throw ApiException.Invalid("Bitte festhalten, wo das unterschriebene Original liegt (z. B. „Personalakte“).");
             }
+            if (grant.ValidUntil is { } end && end < clock.Today)
+            {
+                throw ApiException.Invalid("Der Zeitraum dieser Freigabe ist bereits abgelaufen. Bitte eine neue Freigabe anlegen.");
+            }
             grant.Status = AccessGrant.Active;
             grant.ConfirmedAt = clock.UtcNow;
             grant.ConfirmedById = me.Id;
             grant.ConsentNote = note;
             var until = grant.ValidUntil is { } d ? $" bis {d:dd.MM.yyyy}" : "";
+            var when = grant.ValidFrom > clock.Today ? $"ab {grant.ValidFrom:dd.MM.yyyy}" : "ab jetzt";
             var scope = grant.Permission == "bearbeiten" ? "sehen und bearbeiten" : "sehen";
             outbox.Enqueue(grant.OwnerId, NotificationOutbox.Access, null,
-                $"{grant.Viewer.DisplayName} darf jetzt deine Aufgaben {scope}{until}", grant.Purpose, me.User.DisplayName);
+                $"{grant.Viewer.DisplayName} darf {when} deine Aufgaben {scope}{until}", grant.Purpose, me.User.DisplayName);
             outbox.Enqueue(grant.ViewerId, NotificationOutbox.Access, null,
-                $"Du darfst jetzt die Aufgaben von {grant.Owner.DisplayName} {scope}{until}", grant.Purpose, me.User.DisplayName);
+                $"Du darfst {when} die Aufgaben von {grant.Owner.DisplayName} {scope}{until}", grant.Purpose, me.User.DisplayName);
             db.AccessLog.Add(new AccessLogEntry { GrantId = grant.Id, ViewerId = me.Id, OwnerId = grant.OwnerId, Action = "bestaetigt", At = clock.UtcNow });
             await db.SaveChangesAsync(ct);
             return ToDto(grant, clock.Today, 0);
