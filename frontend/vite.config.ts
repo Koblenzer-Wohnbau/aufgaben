@@ -35,7 +35,4 @@ export default defineConfig({
       "/kalender": { target: "http://localhost:5080", changeOrigin: false },
     },
   },
-  test: {
-    environment: "node",
-  },
 });
