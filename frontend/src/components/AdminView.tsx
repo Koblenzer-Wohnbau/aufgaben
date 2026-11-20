@@ -27,6 +27,7 @@ import {
 } from "@fluentui/react-components";
 import {
   AddRegular,
+  ArrowDownloadRegular,
   ArrowSyncRegular,
   CheckmarkRegular,
   DeleteRegular,
@@ -445,6 +446,14 @@ function SystemSection() {
         >
           Aufgaben-Postfach jetzt abrufen
         </Button>
+        <Button
+          icon={<ArrowDownloadRegular />}
+          disabled={busy !== null}
+          onClick={() => void run("teams", api.downloadTeamsPackage, (name) =>
+            `${name} gespeichert – im Teams Admin Center unter „Apps verwalten“ hochladen.`)}
+        >
+          Teams-Paket herunterladen
+        </Button>
       </div>
       {status.isLoading && <Spinner />}
       {s && (
@@ -452,6 +461,10 @@ function SystemSection() {
           <Card className={styles.stat}>
             <Caption1 className={styles.muted}>Aktive Personen</Caption1>
             <span className={styles.statValue}>{s.activeUsers}</span>
+          </Card>
+          <Card className={styles.stat}>
+            <Caption1 className={styles.muted}>Version</Caption1>
+            <span className={styles.statValue}>{s.version}</span>
           </Card>
           <Card className={styles.stat}>
             <Caption1 className={styles.muted}>Benachrichtigungen</Caption1>

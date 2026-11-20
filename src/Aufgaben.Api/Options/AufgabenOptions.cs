@@ -59,6 +59,9 @@ public sealed class TeamsOptions
 
     /// <summary>entityId des persönlichen Tabs im Manifest.</summary>
     public string PersonalTabEntityId { get; set; } = "aufgaben";
+
+    /// <summary>Herausgeber im Teams-Paket (höchstens 32 Zeichen), z. B. der Name der Organisation.</summary>
+    public string Developer { get; set; } = "";
 }
 
 public sealed class MailOptions

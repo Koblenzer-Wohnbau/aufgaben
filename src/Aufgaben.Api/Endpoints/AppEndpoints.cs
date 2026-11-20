@@ -402,7 +402,23 @@ public static class AppEndpoints
                 inbox.IsConfigured,
                 MailInboxPoller.LastRun,
                 MailInboxPoller.LastResult,
-                await db.InboundMails.CountAsync(m => m.Result == InboundResult.Rejected && m.ProcessedAt >= week, ct));
+                await db.InboundMails.CountAsync(m => m.Result == InboundResult.Rejected && m.ProcessedAt >= week, ct),
+                TeamsPackage.AppVersion);
+        });
+
+        // Teams-App-Paket aus der laufenden Konfiguration – passt immer zu Adresse, Entra-App und Version
+        admin.MapGet("/teams-package", (IOptions<AufgabenOptions> opts, IConfiguration config) =>
+        {
+            var o = opts.Value;
+            var clientId = config["AzureAd:ClientId"] ?? "";
+            var problem = TeamsPackage.Problem(o.NormalizedBaseUrl, clientId, o.Teams.AppId);
+            if (problem is not null)
+            {
+                throw ApiException.Invalid(problem);
+            }
+            var version = TeamsPackage.AppVersion;
+            var zip = TeamsPackage.Build(o.NormalizedBaseUrl, clientId, o.Teams.AppId, o.Teams.Developer, version);
+            return Results.File(zip, "application/zip", $"aufgaben-teams-{version}.zip");
         });
 
         admin.MapPost("/mail-inbox/poll", async (MailInboxPoller inbox, CancellationToken ct) =>

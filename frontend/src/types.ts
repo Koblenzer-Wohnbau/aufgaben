@@ -155,6 +155,7 @@ export interface AdminStatus {
   lastMailInboxRun: string | null;
   lastMailInboxResult: string | null;
   rejectedMailsLast7Days: number;
+  version: string;
 }
 
 export interface Suggestions {

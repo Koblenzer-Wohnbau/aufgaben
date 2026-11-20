@@ -45,6 +45,35 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
   return (await res.json()) as T;
 }
 
+/** Datei vom Server laden und im Browser speichern (Name aus Content-Disposition). */
+async function download(path: string): Promise<string> {
+  const res = await fetch(path, {
+    headers: { "X-Aufgaben-Request": "1", ...(await authHeaders()) },
+    credentials: "same-origin",
+  });
+  if (!res.ok) {
+    let message = `Fehler ${res.status}`;
+    try {
+      const data = await res.json();
+      if (data?.error) message = data.error;
+    } catch {
+      /* keine JSON-Antwort */
+    }
+    throw new ApiError(res.status, message);
+  }
+  const disposition = res.headers.get("Content-Disposition") ?? "";
+  const name = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition)?.[1] ?? "download";
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = decodeURIComponent(name);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  return link.download;
+}
+
 export const api = {
   authConfig: () => request<AuthConfig>("GET", "/api/auth/config"),
   me: () => request<Me>("GET", "/api/me"),
@@ -114,6 +143,7 @@ export const api = {
   adminStatus: () => request<AdminStatus>("GET", "/api/admin/status"),
   directorySync: () => request<{ added: number; updated: number; deactivated: number }>("POST", "/api/admin/directory-sync"),
   pollInbox: () => request<{ created: number; result: string }>("POST", "/api/admin/mail-inbox/poll"),
+  downloadTeamsPackage: () => download("/api/admin/teams-package"),
 
   templates: () => request<Template[]>("GET", "/api/templates"),
   applyTemplate: (id: number, body: { startDate: string; projectId?: number | null; defaultAssigneeId?: number | null; assignees?: Record<number, number>; titleSuffix?: string }) =>

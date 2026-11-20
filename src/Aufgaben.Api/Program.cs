@@ -158,6 +158,16 @@ await using (var scope = app.Services.CreateAsyncScope())
 
 // ---------------------------------------------------------------- Pipeline
 app.UseForwardedHeaders();
+// Im Betrieb: Schema und Host fest aus Aufgaben__BaseUrl – die Anmeldung funktioniert dann auch,
+// wenn der Reverse Proxy Host oder X-Forwarded-Proto nicht (richtig) weiterreicht.
+if (!opts.Auth.IsDev && CanonicalUrl.TryParse(opts.NormalizedBaseUrl, out var publicUri))
+{
+    app.Use((context, next) =>
+    {
+        CanonicalUrl.Apply(context.Request, publicUri);
+        return next(context);
+    });
+}
 app.UseMiddleware<ErrorMiddleware>();
 app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseResponseCompression();

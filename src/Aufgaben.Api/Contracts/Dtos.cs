@@ -168,4 +168,5 @@ public sealed record AdminStatusDto(
     bool MailInboxConfigured,
     DateTimeOffset? LastMailInboxRun,
     string? LastMailInboxResult,
-    int RejectedMailsLast7Days);
+    int RejectedMailsLast7Days,
+    string Version);

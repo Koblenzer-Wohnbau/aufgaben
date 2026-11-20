@@ -15,13 +15,17 @@ RUN npm run build
 
 # ------------------------------------------------------------------ 2. Backend
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# Versionsnummer aus dem Release (z. B. 1.0.3) – erscheint in Verwaltung → System und im Teams-Paket
+ARG APP_VERSION=0.0.0
 WORKDIR /src
 COPY Directory.Build.props Aufgaben.slnx ./
 COPY src/Aufgaben.Api/Aufgaben.Api.csproj src/Aufgaben.Api/
 RUN dotnet restore src/Aufgaben.Api/Aufgaben.Api.csproj
 COPY src/ src/
+# Vorlage und Symbole des Teams-Pakets werden in die Anwendung eingebettet
+COPY teams/ teams/
 COPY --from=frontend /src/src/Aufgaben.Api/wwwroot src/Aufgaben.Api/wwwroot
-RUN dotnet publish src/Aufgaben.Api/Aufgaben.Api.csproj -c Release -o /app --no-restore /p:UseAppHost=false
+RUN dotnet publish src/Aufgaben.Api/Aufgaben.Api.csproj -c Release -o /app --no-restore /p:UseAppHost=false /p:Version=${APP_VERSION}
 
 # ------------------------------------------------------------------ 3. Laufzeit
 # "-extra" enthält ICU und Zeitzonendaten (nötig für Europe/Berlin und deutsche Formate).
