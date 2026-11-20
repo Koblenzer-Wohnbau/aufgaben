@@ -3,6 +3,8 @@ import { Avatar, makeStyles, mergeClasses, Text, Tooltip, tokens } from "@fluent
 import {
   ClockAlarmRegular,
   ArrowRepeatAllRegular,
+  AttachRegular,
+  MailRegular,
   CalendarLtrRegular,
   CheckmarkCircleFilled,
   CheckmarkCircleRegular,
@@ -162,6 +164,16 @@ export function TaskRow({ task, selected, showAssignee }: Props) {
           {task.project && (
             <span className={mergeClasses(styles.metaItem, styles.project)}>
               <NumberSymbolRegular /> {task.project.label}
+            </span>
+          )}
+          {task.source === "mail" && (
+            <span className={styles.metaItem} title="Per E-Mail angelegt">
+              <MailRegular />
+            </span>
+          )}
+          {task.attachments.length > 0 && (
+            <span className={styles.metaItem} title="Anhänge">
+              <AttachRegular /> {task.attachments.length}
             </span>
           )}
           {task.checklist.length > 0 && (

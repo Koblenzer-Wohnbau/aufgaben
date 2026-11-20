@@ -45,7 +45,10 @@ public sealed record TaskDto(
     int Version,
     bool IsDelegated,
     bool IsOverdue,
-    bool CanDelete);
+    bool CanDelete,
+    List<AttachmentDto> Attachments);
+
+public sealed record AttachmentDto(int Id, string FileName, string ContentType, long Size);
 
 public sealed record EventDto(long Id, string Kind, string Text, UserRef? Actor, DateTimeOffset CreatedAt);
 
@@ -100,7 +103,8 @@ public sealed record MeDto(
     bool HasCalendarFeed,
     bool MailAvailable,
     bool TeamsNotificationsAvailable,
-    string Today);
+    string Today,
+    string? MailInboxAddress);
 
 public sealed record MeRequest(string? NotifyChannel, bool? DigestEnabled);
 
@@ -118,4 +122,16 @@ public sealed record ApplyTemplateRequest(string StartDate, int? ProjectId, int?
 
 public sealed record ApplyTemplateResult(int Created, List<int> TaskIds);
 
-public sealed record AdminStatusDto(bool GraphConfigured, bool MailConfigured, bool TeamsNotificationsConfigured, int ActiveUsers, int PendingNotifications, int FailedNotifications, DateTimeOffset? LastDirectorySync, string? LastDirectorySyncResult);
+public sealed record AdminStatusDto(
+    bool GraphConfigured,
+    bool MailConfigured,
+    bool TeamsNotificationsConfigured,
+    int ActiveUsers,
+    int PendingNotifications,
+    int FailedNotifications,
+    DateTimeOffset? LastDirectorySync,
+    string? LastDirectorySyncResult,
+    bool MailInboxConfigured,
+    DateTimeOffset? LastMailInboxRun,
+    string? LastMailInboxResult,
+    int RejectedMailsLast7Days);

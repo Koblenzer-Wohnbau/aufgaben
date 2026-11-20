@@ -70,6 +70,21 @@ export const api = {
   updateChecklist: (id: number, itemId: number, body: { title?: string; done?: boolean }) =>
     request<Task>("PATCH", `/api/tasks/${id}/checklist/${itemId}`, body),
   deleteChecklist: (id: number, itemId: number) => request<Task>("DELETE", `/api/tasks/${id}/checklist/${itemId}`),
+  downloadAttachment: async (taskId: number, attachmentId: number, fileName: string) => {
+    const res = await fetch(`/api/tasks/${taskId}/attachments/${attachmentId}`, {
+      headers: await authHeaders(),
+      credentials: "same-origin",
+    });
+    if (!res.ok) throw new ApiError(res.status, "Anhang konnte nicht geladen werden.");
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  },
   comment: (id: number, text: string) => request<TaskEvent>("POST", `/api/tasks/${id}/comments`, { text }),
 
   users: (q?: string) => request<UserRef[]>("GET", q ? `/api/users?q=${encodeURIComponent(q)}` : "/api/users"),

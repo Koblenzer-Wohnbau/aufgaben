@@ -21,6 +21,13 @@ export interface Project {
   openCount: number;
 }
 
+export interface Attachment {
+  id: number;
+  fileName: string;
+  contentType: string;
+  size: number;
+}
+
 export interface ChecklistItem {
   id: number;
   title: string;
@@ -57,6 +64,7 @@ export interface Task {
   isDelegated: boolean;
   isOverdue: boolean;
   canDelete: boolean;
+  attachments: Attachment[];
 }
 
 export interface TaskEvent {
@@ -104,6 +112,7 @@ export interface Me {
   mailAvailable: boolean;
   teamsNotificationsAvailable: boolean;
   today: string;
+  mailInboxAddress: string | null;
 }
 
 export interface DevUser {

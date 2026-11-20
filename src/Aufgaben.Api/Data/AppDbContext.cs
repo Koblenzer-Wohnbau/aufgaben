@@ -14,6 +14,9 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Template> Templates => Set<Template>();
     public DbSet<TemplateStep> TemplateSteps => Set<TemplateStep>();
+    public DbSet<TaskAttachment> TaskAttachments => Set<TaskAttachment>();
+    public DbSet<AttachmentBlob> AttachmentBlobs => Set<AttachmentBlob>();
+    public DbSet<InboundMail> InboundMails => Set<InboundMail>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder b)
@@ -78,6 +81,35 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             e.HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.SetNull);
             e.HasOne<TaskList>().WithMany().HasForeignKey(x => x.ListId).OnDelete(DeleteBehavior.SetNull);
             e.HasMany(x => x.Checklist).WithOne().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Attachments).WithOne().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<TaskAttachment>(e =>
+        {
+            e.ToTable("task_attachments");
+            e.HasIndex(x => x.TaskId);
+            e.Property(x => x.FileName).HasMaxLength(255);
+            e.Property(x => x.ContentType).HasMaxLength(127);
+            e.Property(x => x.Sha256).HasMaxLength(64);
+        });
+
+        b.Entity<AttachmentBlob>(e =>
+        {
+            e.ToTable("attachment_blobs");
+            e.HasKey(x => x.AttachmentId);
+            e.HasOne<TaskAttachment>().WithOne().HasForeignKey<AttachmentBlob>(x => x.AttachmentId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<InboundMail>(e =>
+        {
+            e.ToTable("inbound_mails");
+            e.HasIndex(x => x.MessageKey).IsUnique();
+            e.Property(x => x.MessageKey).HasMaxLength(64);
+            e.Property(x => x.FromAddress).HasMaxLength(320);
+            e.Property(x => x.Subject).HasMaxLength(500);
+            e.Property(x => x.Result).HasMaxLength(16);
+            e.Property(x => x.Reason).HasMaxLength(500);
+            e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.SetNull);
         });
 
         b.Entity<ChecklistItem>(e =>

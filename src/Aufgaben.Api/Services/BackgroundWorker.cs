@@ -18,6 +18,7 @@ namespace Aufgaben.Api.Services;
 public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<AufgabenOptions> options, ILogger<BackgroundWorker> log) : BackgroundService
 {
     private DateTimeOffset _nextDirectorySync = DateTimeOffset.MinValue;
+    private DateTimeOffset _nextInboxPoll = DateTimeOffset.MinValue;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -36,6 +37,7 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
     {
         await Safe("Erinnerungen", ct, (sp, c) => QueueRemindersAsync(sp, c));
         await Safe("Tagesübersicht", ct, (sp, c) => QueueDigestsAsync(sp, c));
+        await Safe("Aufgaben-Postfach", ct, (sp, c) => PollInboxAsync(sp, c));
         await Safe("Versand", ct, (sp, c) => DispatchAsync(sp, c));
         await Safe("Verzeichnisabgleich", ct, (sp, c) => SyncDirectoryAsync(sp, c));
     }
@@ -218,6 +220,18 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
             _ when teamsAvailable => "teams",
             _ => "keiner",
         };
+    }
+
+    private async Task PollInboxAsync(IServiceProvider sp, CancellationToken ct)
+    {
+        var poller = sp.GetRequiredService<MailInboxPoller>();
+        var clock = sp.GetRequiredService<AppClock>();
+        if (!poller.IsConfigured || clock.UtcNow < _nextInboxPoll)
+        {
+            return;
+        }
+        _nextInboxPoll = clock.UtcNow.AddSeconds(Math.Clamp(options.Value.MailInbox.PollSeconds, 15, 3600));
+        await poller.PollAsync(ct);
     }
 
     private async Task SyncDirectoryAsync(IServiceProvider sp, CancellationToken ct)

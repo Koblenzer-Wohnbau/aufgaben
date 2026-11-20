@@ -25,9 +25,9 @@ public static class AppEndpoints
 
     private static void MapMe(RouteGroupBuilder api)
     {
-        api.MapGet("/me", (CurrentUser me, AppClock clock, TeamsNotifier teams, MailNotifier mail) => ToMe(me.User, clock, teams, mail));
+        api.MapGet("/me", (CurrentUser me, AppClock clock, TeamsNotifier teams, MailNotifier mail, IOptions<AufgabenOptions> opts) => ToMe(me.User, clock, teams, mail, opts.Value));
 
-        api.MapPatch("/me", async (MeRequest req, CurrentUser me, AppDbContext db, AppClock clock, TeamsNotifier teams, MailNotifier mail, CancellationToken ct) =>
+        api.MapPatch("/me", async (MeRequest req, CurrentUser me, AppDbContext db, AppClock clock, TeamsNotifier teams, MailNotifier mail, IOptions<AufgabenOptions> opts, CancellationToken ct) =>
         {
             var user = me.User;
             if (req.NotifyChannel is not null)
@@ -41,7 +41,7 @@ public static class AppEndpoints
                 user.DigestEnabled = digest;
             }
             await db.SaveChangesAsync(ct);
-            return ToMe(user, clock, teams, mail);
+            return ToMe(user, clock, teams, mail, opts.Value);
         });
 
         api.MapPost("/me/calendar-feed", async (CurrentUser me, AppDbContext db, IOptions<AufgabenOptions> opts, CancellationToken ct) =>
@@ -60,10 +60,11 @@ public static class AppEndpoints
         });
     }
 
-    private static MeDto ToMe(User u, AppClock clock, TeamsNotifier teams, MailNotifier mail) => new(
+    private static MeDto ToMe(User u, AppClock clock, TeamsNotifier teams, MailNotifier mail, AufgabenOptions o) => new(
         u.Id, u.DisplayName, u.Email, u.IsAdmin, u.NotifyChannel, u.DigestEnabled,
         u.TeamsSeenAt is not null, u.IcsTokenHash is not null, mail.IsAvailable, teams.IsAvailable,
-        clock.Today.ToString("yyyy-MM-dd"));
+        clock.Today.ToString("yyyy-MM-dd"),
+        o.MailInbox.Enabled && !string.IsNullOrWhiteSpace(o.MailInbox.Address) ? o.MailInbox.Address : null);
 
     // ------------------------------------------------------------------ Personen
 
@@ -312,8 +313,10 @@ public static class AppEndpoints
             return await next(ctx);
         });
 
-        admin.MapGet("/status", async (AppDbContext db, GraphClient graph, MailNotifier mail, TeamsNotifier teams, CancellationToken ct) =>
-            new AdminStatusDto(
+        admin.MapGet("/status", async (AppDbContext db, GraphClient graph, MailNotifier mail, TeamsNotifier teams, MailInboxPoller inbox, AppClock clock, CancellationToken ct) =>
+        {
+            var week = clock.UtcNow.AddDays(-7);
+            return new AdminStatusDto(
                 graph.IsConfigured,
                 mail.IsAvailable,
                 teams.IsAvailable,
@@ -321,7 +324,22 @@ public static class AppEndpoints
                 await db.Notifications.CountAsync(n => n.SentAt == null && n.Attempts < 6, ct),
                 await db.Notifications.CountAsync(n => n.SentAt == null && n.Attempts >= 6, ct),
                 DirectorySync.LastRun,
-                DirectorySync.LastResult));
+                DirectorySync.LastResult,
+                inbox.IsConfigured,
+                MailInboxPoller.LastRun,
+                MailInboxPoller.LastResult,
+                await db.InboundMails.CountAsync(m => m.Result == InboundResult.Rejected && m.ProcessedAt >= week, ct));
+        });
+
+        admin.MapPost("/mail-inbox/poll", async (MailInboxPoller inbox, CancellationToken ct) =>
+        {
+            if (!inbox.IsConfigured)
+            {
+                throw ApiException.Invalid("Das Aufgaben-Postfach ist nicht konfiguriert (Aufgaben:MailInbox).");
+            }
+            var created = await inbox.PollAsync(ct);
+            return new { created, result = MailInboxPoller.LastResult };
+        });
 
         admin.MapPost("/directory-sync", async (DirectorySync sync, CancellationToken ct) =>
         {

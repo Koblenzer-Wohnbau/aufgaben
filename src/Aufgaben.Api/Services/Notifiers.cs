@@ -113,11 +113,54 @@ public sealed class MailNotifier(IOptions<AufgabenOptions> options, ILogger<Mail
         };
         message.Body = body.ToMessageBody();
 
+        await SendMessageAsync(message, ct);
+        log.LogInformation("E-Mail ({Kind}) an Person {UserId} gesendet", n.Kind, user.Id);
+    }
+
+    /// <summary>Kurze Bestätigung an die Person, die eine Mail ans Aufgaben-Postfach geschickt hat.</summary>
+    public async Task SendTaskCreatedAsync(User user, Contracts.TaskDto task, MimeMessage original, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(user.Email))
+        {
+            return;
+        }
+        var o = options.Value;
+        var link = $"{o.NormalizedBaseUrl}/#/aufgabe/{task.Id}";
+        var details = new List<string>();
+        if (task.DueDate is not null) details.Add($"Fällig: {DateOnly.Parse(task.DueDate):dd.MM.yyyy}");
+        if (task.Project is not null) details.Add($"Projekt: {task.Project.Label}");
+        if (task.IsDelegated) details.Add($"Verantwortlich: {task.Assignee.Name} (wurde benachrichtigt)");
+        if (task.Priority == "hoch") details.Add("Priorität: hoch");
+        if (task.Attachments.Count > 0) details.Add($"Anhänge: {task.Attachments.Count}");
+
+        var message = new MimeMessage();
+        message.From.Add(new MailboxAddress(o.Mail.FromName, o.Mail.From));
+        message.To.Add(new MailboxAddress(user.DisplayName, user.Email));
+        message.Subject = $"Aufgabe angelegt: {task.Title}";
+        message.Headers.Add("Auto-Submitted", "auto-replied");
+        if (!string.IsNullOrEmpty(original.MessageId))
+        {
+            message.InReplyTo = original.MessageId;
+            message.References.Add(original.MessageId);
+        }
+        var headline = $"„{task.Title}“ ist jetzt eine Aufgabe.";
+        var detailText = string.Join("\n", details);
+        message.Body = new BodyBuilder
+        {
+            TextBody = $"{headline}\n\n{detailText}\n\nÖffnen: {link}\n",
+            HtmlBody = Html(headline, detailText, link),
+        }.ToMessageBody();
+        await SendMessageAsync(message, ct);
+    }
+
+    private async Task SendMessageAsync(MimeMessage message, CancellationToken ct)
+    {
+        var o = options.Value;
         using var client = new SmtpClient();
         if (!string.IsNullOrWhiteSpace(o.Mail.CaCertificatePath))
         {
             var ca = X509CertificateLoader.LoadCertificateFromFile(o.Mail.CaCertificatePath);
-            client.ServerCertificateValidationCallback = (_, cert, _, errors) => ValidateWithCustomCa(cert, errors, ca);
+            client.ServerCertificateValidationCallback = (_, cert, _, errors) => TlsTrust.ValidateWithCustomCa(cert, errors, ca);
         }
         var security = Enum.TryParse<SecureSocketOptions>(o.Mail.Security, true, out var s) ? s : SecureSocketOptions.StartTlsWhenAvailable;
         await client.ConnectAsync(o.Mail.Host, o.Mail.Port, security, ct);
@@ -127,24 +170,6 @@ public sealed class MailNotifier(IOptions<AufgabenOptions> options, ILogger<Mail
         }
         await client.SendAsync(message, ct);
         await client.DisconnectAsync(true, ct);
-        log.LogInformation("E-Mail ({Kind}) an Person {UserId} gesendet", n.Kind, user.Id);
-    }
-
-    private static bool ValidateWithCustomCa(X509Certificate? certificate, SslPolicyErrors errors, X509Certificate2 ca)
-    {
-        if (errors == SslPolicyErrors.None)
-        {
-            return true;
-        }
-        if (certificate is null || errors.HasFlag(SslPolicyErrors.RemoteCertificateNameMismatch))
-        {
-            return false;
-        }
-        using var chain = new X509Chain();
-        chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-        chain.ChainPolicy.CustomTrustStore.Add(ca);
-        chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
-        return chain.Build(new X509Certificate2(certificate));
     }
 
     private static string Html(string headline, string body, string link)
@@ -164,5 +189,26 @@ public sealed class MailNotifier(IOptions<AufgabenOptions> options, ILogger<Mail
               </div>
             </body></html>
             """;
+    }
+}
+
+/// <summary>Prüft Serverzertifikate gegen eine interne Zertifizierungsstelle (für SMTP und IMAP).</summary>
+public static class TlsTrust
+{
+    public static bool ValidateWithCustomCa(X509Certificate? certificate, SslPolicyErrors errors, X509Certificate2 ca)
+    {
+        if (errors == SslPolicyErrors.None)
+        {
+            return true;
+        }
+        if (certificate is null || errors.HasFlag(SslPolicyErrors.RemoteCertificateNameMismatch))
+        {
+            return false;
+        }
+        using var chain = new X509Chain();
+        chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
+        chain.ChainPolicy.CustomTrustStore.Add(ca);
+        chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+        return chain.Build(new X509Certificate2(certificate));
     }
 }

@@ -35,6 +35,7 @@ public sealed class TaskService(
         .Include(t => t.CompletedBy)
         .Include(t => t.Project)
         .Include(t => t.Checklist)
+        .Include(t => t.Attachments) // nur Metadaten, der Inhalt liegt in attachment_blobs
         .AsSplitQuery();
 
     private IQueryable<TaskItem> Visible(IQueryable<TaskItem> q)
@@ -210,7 +211,12 @@ public sealed class TaskService(
         db.Tasks.Add(task);
         await db.SaveChangesAsync(ct);
 
-        AddEvent(task.Id, "angelegt", source == "vorlage" ? "Aus Vorlage angelegt" : "");
+        AddEvent(task.Id, "angelegt", source switch
+        {
+            "vorlage" => "aus einer Vorlage",
+            "mail" => "aus einer E-Mail",
+            _ => "",
+        });
         if (assignee.Id != me.Id)
         {
             AddEvent(task.Id, "zugewiesen", $"an {assignee.DisplayName}");
@@ -473,6 +479,16 @@ public sealed class TaskService(
         return ToDto(task);
     }
 
+    /// <summary>Anhang laden – nur wenn die Aufgabe für die Person sichtbar ist.</summary>
+    public async Task<(TaskAttachment Meta, byte[] Data)> GetAttachmentAsync(int id, int attachmentId, CancellationToken ct)
+    {
+        var task = await LoadVisibleAsync(id, ct);
+        var meta = task.Attachments.FirstOrDefault(a => a.Id == attachmentId) ?? throw ApiException.NotFound("Anhang");
+        var blob = await db.AttachmentBlobs.AsNoTracking().FirstOrDefaultAsync(b => b.AttachmentId == attachmentId, ct)
+                   ?? throw ApiException.NotFound("Anhang");
+        return (meta, blob.Data);
+    }
+
     public async Task<EventDto> CommentAsync(int id, CommentRequest req, CancellationToken ct)
     {
         var task = await LoadVisibleAsync(id, ct);
@@ -595,7 +611,8 @@ public sealed class TaskService(
             t.Version,
             t.CreatedById != t.AssigneeId,
             overdue,
-            CanDelete(t));
+            CanDelete(t),
+            t.Attachments.OrderBy(a => a.Id).Select(a => new AttachmentDto(a.Id, a.FileName, a.ContentType, a.Size)).ToList());
     }
 
     // ---------------------------------------------------------------- Validierung

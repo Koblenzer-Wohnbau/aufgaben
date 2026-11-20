@@ -15,6 +15,7 @@ public sealed class AufgabenOptions
     public TeamsOptions Teams { get; set; } = new();
     public MailOptions Mail { get; set; } = new();
     public DirectoryOptions Directory { get; set; } = new();
+    public MailInboxOptions MailInbox { get; set; } = new();
     public WorkerOptions Worker { get; set; } = new();
     public DatabaseOptions Database { get; set; } = new();
 
@@ -71,6 +72,44 @@ public sealed class MailOptions
     public string CaCertificatePath { get; set; } = "";
 
     public bool Enabled => !string.IsNullOrWhiteSpace(Host) && !string.IsNullOrWhiteSpace(From);
+}
+
+/// <summary>"Mail an Aufgabe": eigenes Postfach, das per IMAP abgerufen wird.</summary>
+public sealed class MailInboxOptions
+{
+    public bool Enabled { get; set; }
+
+    /// <summary>Adresse, an die Mitarbeitende weiterleiten (wird in der App angezeigt).</summary>
+    public string Address { get; set; } = "";
+
+    public string Host { get; set; } = "";
+    public int Port { get; set; } = 993;
+
+    /// <summary>"SslOnConnect" (Port 993), "StartTls" (Port 143) …</summary>
+    public string Security { get; set; } = "SslOnConnect";
+
+    public string Username { get; set; } = "";
+    public string Password { get; set; } = "";
+
+    /// <summary>Optional: PEM der internen CA, falls der Mailserver ein internes Zertifikat hat.</summary>
+    public string CaCertificatePath { get; set; } = "";
+
+    public string ProcessedFolder { get; set; } = "Verarbeitet";
+    public string RejectedFolder { get; set; } = "Abgelehnt";
+    public int PollSeconds { get; set; } = 60;
+
+    /// <summary>
+    /// "exchange-intern": nur Mails, die Exchange als intern authentifiziert gestempelt hat
+    /// (Kopfzeile X-MS-Exchange-Organization-AuthAs: Internal) – schützt vor gefälschten Absendern.
+    /// "bekannte-absender": nur prüfen, ob der Absender eine bekannte Person ist (für andere Mailserver;
+    /// dann unbedingt serverseitig externe Absender für das Postfach sperren).
+    /// </summary>
+    public string SenderCheck { get; set; } = "exchange-intern";
+
+    public int MaxAttachmentMb { get; set; } = 15;
+    public bool SendConfirmation { get; set; } = true;
+
+    public bool IsConfigured => Enabled && !string.IsNullOrWhiteSpace(Host) && !string.IsNullOrWhiteSpace(Username);
 }
 
 public sealed class DirectoryOptions

@@ -11,6 +11,8 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 * **Projektaufgaben** als Tab im Teams-Kanal – für alle sichtbar
 * **Schnelleingabe** auf Deutsch: `Montag 10 Uhr Angebot prüfen #1001 @Becker !hoch`
 * **Vorlagen** für wiederkehrende Abläufe (Beispiele: Mieterwechsel, Wohnungsabnahme, Mängelmeldung)
+* **Mail an Aufgabe**: Mail an ein eigenes Postfach weiterleiten – fertig ist die Aufgabe mit Text und Anhängen
+  (IMAP, sicher auch mit Exchange Server on-premises, siehe [docs/mail-an-aufgabe.md](docs/mail-an-aufgabe.md))
 * **Kalender-Feed** für Outlook, **Tagesübersicht** am Morgen, **Wiedervorlagen**
 * Auch für Personen **ohne Teams-Lizenz** nutzbar (Browser und E-Mail)
 
@@ -22,7 +24,7 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 | Datenbank | PostgreSQL 17 (EF Core, Migrationen beim Start) |
 | Anmeldung | Microsoft Entra ID: OpenID Connect im Browser (Microsoft.Identity.Web), Teams-SSO-Token als Bearer |
 | Microsoft Graph | App-Identität mit Zertifikat (Azure.Identity): Verzeichnisabgleich, Teams-Aktivitätsfeed |
-| E-Mail | SMTP (MailKit), z. B. über einen internen Exchange-Relay |
+| E-Mail | SMTP (MailKit), z. B. über einen internen Exchange-Relay; Abruf des Aufgaben-Postfachs per IMAP |
 | Frontend | React 19, Fluent UI v9 (Teams-Design, hell/dunkel/Kontrast), TeamsJS v2 |
 | Live-Updates | Server-Sent Events |
 | Betrieb | Docker Compose, Nginx davor, „chiseled“ .NET-Image ohne Shell und ohne Root |

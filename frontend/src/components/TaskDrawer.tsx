@@ -23,6 +23,8 @@ import {
 } from "@fluentui/react-components";
 import {
   AddRegular,
+  ArrowDownloadRegular,
+  AttachRegular,
   CheckmarkCircleFilled,
   CircleRegular,
   DeleteRegular,
@@ -58,7 +60,23 @@ const useStyles = makeStyles({
   comment: { backgroundColor: tokens.colorNeutralBackground3, borderRadius: tokens.borderRadiusMedium, padding: "6px 10px", whiteSpace: "pre-wrap" },
   commentBox: { display: "flex", gap: "8px", alignItems: "flex-end" },
   footer: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" },
+  attachment: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "6px 8px",
+    borderRadius: tokens.borderRadiusMedium,
+    backgroundColor: tokens.colorNeutralBackground3,
+    marginBottom: "4px",
+  },
+  attachmentName: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
 });
+
+function formatSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
+}
 
 const EVENT_TEXT: Record<string, string> = {
   angelegt: "hat die Aufgabe angelegt",
@@ -284,6 +302,29 @@ function TaskEditor({ task, events, onDeleted }: { task: Task; events: TaskEvent
         </div>
       </Field>
 
+      {task.attachments.length > 0 && (
+        <Field label={`Anhänge (${task.attachments.length})`} hint="Anhänge werden heruntergeladen, nie im Browser geöffnet.">
+          <div>
+            {task.attachments.map((a) => (
+              <div key={a.id} className={styles.attachment}>
+                <AttachRegular />
+                <Text className={styles.attachmentName} title={a.fileName}>
+                  {a.fileName}
+                </Text>
+                <Caption1 className={styles.meta}>{formatSize(a.size)}</Caption1>
+                <Button
+                  size="small"
+                  appearance="subtle"
+                  icon={<ArrowDownloadRegular />}
+                  aria-label={`${a.fileName} herunterladen`}
+                  onClick={() => api.downloadAttachment(task.id, a.id, a.fileName).catch((e) => notify(e.message, "error"))}
+                />
+              </div>
+            ))}
+          </div>
+        </Field>
+      )}
+
       <Field label="Notizen">
         <Textarea resize="vertical" rows={4} value={notes} onChange={(_, d) => setNotes(d.value)} onBlur={() => notes !== task.notes && patch({ notes })} />
       </Field>
@@ -296,7 +337,8 @@ function TaskEditor({ task, events, onDeleted }: { task: Task; events: TaskEvent
             <Avatar size={24} name={e.actor?.name ?? "System"} initials={initials(e.actor?.name ?? "S")} color="colorful" />
             <div style={{ flex: 1, minWidth: 0 }}>
               <Caption1 className={styles.meta}>
-                <b>{e.actor?.name ?? "System"}</b> {EVENT_TEXT[e.kind] ?? e.kind} {e.kind !== "kommentar" ? e.text : ""} · {shortDateTime(e.createdAt)}
+                <b>{e.actor?.name ?? "System"}</b>{" "}
+                {e.kind === "angelegt" && e.text ? `hat die Aufgabe ${e.text} angelegt` : `${EVENT_TEXT[e.kind] ?? e.kind} ${e.kind !== "kommentar" ? e.text : ""}`} · {shortDateTime(e.createdAt)}
               </Caption1>
               {e.kind === "kommentar" && <div className={styles.comment}>{e.text}</div>}
             </div>

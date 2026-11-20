@@ -22,6 +22,20 @@ namespace Aufgaben.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Aufgaben.Api.Data.AttachmentBlob", b =>
+                {
+                    b.Property<int>("AttachmentId")
+                        .HasColumnType("integer");
+
+                    b.Property<byte[]>("Data")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.HasKey("AttachmentId");
+
+                    b.ToTable("attachment_blobs", (string)null);
+                });
+
             modelBuilder.Entity("Aufgaben.Api.Data.ChecklistItem", b =>
                 {
                     b.Property<int>("Id")
@@ -49,6 +63,58 @@ namespace Aufgaben.Api.Data.Migrations
                     b.HasIndex("TaskId");
 
                     b.ToTable("checklist_items", (string)null);
+                });
+
+            modelBuilder.Entity("Aufgaben.Api.Data.InboundMail", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("FromAddress")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("character varying(320)");
+
+                    b.Property<string>("MessageKey")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTimeOffset>("ProcessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<DateTimeOffset>("ReceivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Result")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<string>("Subject")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<int?>("TaskId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageKey")
+                        .IsUnique();
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("inbound_mails", (string)null);
                 });
 
             modelBuilder.Entity("Aufgaben.Api.Data.Notification", b =>
@@ -163,6 +229,45 @@ namespace Aufgaben.Api.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("projects", (string)null);
+                });
+
+            modelBuilder.Entity("Aufgaben.Api.Data.TaskAttachment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(127)
+                        .HasColumnType("character varying(127)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<long>("Size")
+                        .HasColumnType("bigint");
+
+                    b.Property<int>("TaskId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("task_attachments", (string)null);
                 });
 
             modelBuilder.Entity("Aufgaben.Api.Data.TaskEvent", b =>
@@ -507,6 +612,15 @@ namespace Aufgaben.Api.Data.Migrations
                     b.ToTable("data_protection_keys", (string)null);
                 });
 
+            modelBuilder.Entity("Aufgaben.Api.Data.AttachmentBlob", b =>
+                {
+                    b.HasOne("Aufgaben.Api.Data.TaskAttachment", null)
+                        .WithOne()
+                        .HasForeignKey("Aufgaben.Api.Data.AttachmentBlob", "AttachmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Aufgaben.Api.Data.ChecklistItem", b =>
                 {
                     b.HasOne("Aufgaben.Api.Data.TaskItem", null)
@@ -514,6 +628,14 @@ namespace Aufgaben.Api.Data.Migrations
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Aufgaben.Api.Data.InboundMail", b =>
+                {
+                    b.HasOne("Aufgaben.Api.Data.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.SetNull);
                 });
 
             modelBuilder.Entity("Aufgaben.Api.Data.Notification", b =>
@@ -538,6 +660,15 @@ namespace Aufgaben.Api.Data.Migrations
                         .WithMany()
                         .HasForeignKey("CreatedById")
                         .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("Aufgaben.Api.Data.TaskAttachment", b =>
+                {
+                    b.HasOne("Aufgaben.Api.Data.TaskItem", null)
+                        .WithMany("Attachments")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("Aufgaben.Api.Data.TaskEvent", b =>
@@ -622,6 +753,8 @@ namespace Aufgaben.Api.Data.Migrations
 
             modelBuilder.Entity("Aufgaben.Api.Data.TaskItem", b =>
                 {
+                    b.Navigation("Attachments");
+
                     b.Navigation("Checklist");
                 });
 

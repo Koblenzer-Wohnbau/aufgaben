@@ -100,6 +100,8 @@ builder.Services.AddScoped<TemplateService>();
 builder.Services.AddScoped<DirectorySync>();
 builder.Services.AddScoped<TeamsNotifier>();
 builder.Services.AddScoped<MailNotifier>();
+builder.Services.AddScoped<MailInboxProcessor>();
+builder.Services.AddSingleton<MailInboxPoller>();
 builder.Services.AddHttpClient<GraphClient>(c =>
 {
     c.BaseAddress = new Uri("https://graph.microsoft.com/v1.0/");

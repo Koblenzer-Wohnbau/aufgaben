@@ -93,7 +93,49 @@ public sealed class TaskItem
 
     public List<ChecklistItem> Checklist { get; set; } = [];
 
+    /// <summary>Nur die Metadaten – der Inhalt liegt in <see cref="AttachmentBlob"/>.</summary>
+    public List<TaskAttachment> Attachments { get; set; } = [];
+
     public bool IsDone => Status == Values.Done;
+}
+
+/// <summary>Anhang einer Aufgabe (z. B. aus einer weitergeleiteten E-Mail).</summary>
+public sealed class TaskAttachment
+{
+    public int Id { get; set; }
+    public int TaskId { get; set; }
+    public required string FileName { get; set; }
+    public string ContentType { get; set; } = "application/octet-stream";
+    public long Size { get; set; }
+    public string Sha256 { get; set; } = "";
+    public DateTimeOffset CreatedAt { get; set; }
+}
+
+/// <summary>Inhalt eines Anhangs – getrennt, damit Listenabfragen nie Dateidaten laden.</summary>
+public sealed class AttachmentBlob
+{
+    public int AttachmentId { get; set; }
+    public required byte[] Data { get; set; }
+}
+
+/// <summary>Protokoll der Mails aus dem Aufgaben-Postfach (verhindert doppelte Verarbeitung).</summary>
+public sealed class InboundMail
+{
+    public long Id { get; set; }
+
+    /// <summary>SHA-256 der Message-ID (bzw. von Absender, Datum und Betreff, falls sie fehlt).</summary>
+    public required string MessageKey { get; set; }
+
+    public string FromAddress { get; set; } = "";
+    public string Subject { get; set; } = "";
+    public DateTimeOffset ReceivedAt { get; set; }
+    public DateTimeOffset ProcessedAt { get; set; }
+
+    /// <summary>"angelegt" oder "abgelehnt".</summary>
+    public required string Result { get; set; }
+
+    public string Reason { get; set; } = "";
+    public int? TaskId { get; set; }
 }
 
 public sealed class ChecklistItem
