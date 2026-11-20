@@ -174,21 +174,41 @@ public sealed class MailNotifier(IOptions<AufgabenOptions> options, ILogger<Mail
         await client.DisconnectAsync(true, ct);
     }
 
-    private static string Html(string headline, string body, string link)
+    /// <summary>
+    /// HTML der Benachrichtigungen. Bewusst mit Tabellen, festen Breiten und echten Zeilenumbrüchen:
+    /// Outlook am PC stellt Mails mit Word dar und kennt weder max-width noch white-space:pre-wrap –
+    /// mit div und pre-wrap schrumpfte der Text dort auf eine schmale Spalte bzw. eine einzige Zeile.
+    /// </summary>
+    internal static string Html(string headline, string? body, string link)
     {
         static string enc(string value) => WebUtility.HtmlEncode(value);
-        var bodyHtml = string.IsNullOrWhiteSpace(body)
+        const string font = "font-family:'Segoe UI',Arial,sans-serif";
+        var lines = string.IsNullOrWhiteSpace(body)
+            ? []
+            : NotificationTexts.Shorten(body, 2000).ReplaceLineEndings("\n").Split('\n');
+        var bodyHtml = lines.Length == 0
             ? ""
-            : $"<p style=\"margin:0 0 16px;color:#424242;white-space:pre-wrap\">{enc(NotificationTexts.Shorten(body, 2000))}</p>";
+            : $"""<tr><td style="padding:0 24px 20px;{font};font-size:14px;line-height:22px;color:#424242">{string.Join("<br>", lines.Select(enc))}</td></tr>""";
         return $"""
             <!doctype html>
-            <html lang="de"><body style="margin:0;padding:24px;background:#f5f5f5;font-family:Segoe UI,Arial,sans-serif">
-              <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:8px;padding:24px;border:1px solid #e0e0e0">
-                <p style="margin:0 0 8px;font-size:12px;color:#616161">Aufgaben</p>
-                <p style="margin:0 0 16px;font-size:18px;color:#242424">{enc(headline)}</p>
-                {bodyHtml}
-                <a href="{enc(link)}" style="display:inline-block;background:#5b5fc7;color:#ffffff;text-decoration:none;padding:8px 16px;border-radius:4px">Aufgabe öffnen</a>
-              </div>
+            <html lang="de"><head><meta charset="utf-8"><meta name="color-scheme" content="light only"></head>
+            <body style="margin:0;padding:0;background:#f5f5f5">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="#f5f5f5" style="background:#f5f5f5">
+                <tr><td align="center" style="padding:24px 12px">
+                  <table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0" bgcolor="#ffffff" style="width:560px;max-width:100%;background:#ffffff;border:1px solid #e0e0e0;border-radius:8px">
+                    <tr><td style="padding:24px 24px 4px;{font};font-size:12px;line-height:16px;color:#616161">Aufgaben</td></tr>
+                    <tr><td style="padding:4px 24px 16px;{font};font-size:18px;line-height:24px;color:#242424">{enc(headline)}</td></tr>
+                    {bodyHtml}
+                    <tr><td style="padding:0 24px 24px">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+                        <td bgcolor="#5b5fc7" style="background:#5b5fc7;border-radius:4px;padding:8px 16px;{font};font-size:14px;line-height:20px">
+                          <a href="{enc(link)}" style="color:#ffffff;text-decoration:none;font-weight:600">Aufgabe öffnen</a>
+                        </td>
+                      </tr></table>
+                    </td></tr>
+                  </table>
+                </td></tr>
+              </table>
             </body></html>
             """;
     }

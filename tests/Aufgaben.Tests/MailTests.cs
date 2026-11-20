@@ -65,6 +65,19 @@ public class MailSubjectTests
     }
 
     [Fact]
+    public void Notification_html_uses_real_line_breaks_for_outlook()
+    {
+        // Outlook am PC ignoriert white-space:pre-wrap und max-width – jede Zeile braucht ein <br>.
+        var html = MailNotifier.Html("Neue Aufgabe", "Projekt: 1001 Lindenpark\r\nAnhaenge: 1\n<b>fett</b>", "https://aufgaben.example.test/#/aufgabe/7");
+        Assert.Contains("Projekt: 1001 Lindenpark<br>Anhaenge: 1<br>&lt;b&gt;fett&lt;/b&gt;", html);
+        Assert.DoesNotContain("pre-wrap", html);
+        Assert.DoesNotContain("<div", html);
+        Assert.Contains("width=\"560\"", html);
+        Assert.Contains("href=\"https://aufgaben.example.test/#/aufgabe/7\"", html);
+        Assert.DoesNotContain("<br>", MailNotifier.Html("Nur Kopf", null, "https://x.test/"));
+    }
+
+    [Fact]
     public void File_names_are_sanitized()
     {
         Assert.Equal("_.._secret.txt", MailInboxProcessor.SafeFileName("/../secret.txt").Replace('\\', '_'));
