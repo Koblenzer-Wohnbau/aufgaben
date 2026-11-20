@@ -2,16 +2,28 @@
 
 **Aufgabenverwaltung für Microsoft Teams und den Browser – ohne Exchange Online.**
 
+<img width="458" height="916" alt="image" src="https://github.com/user-attachments/assets/c5a4915d-929d-4c1b-9d29-ff1c3a5f86ea" />
+
+
+
 Microsoft To Do und die persönlichen Aufgaben in Planner setzen ein Exchange-Online-Postfach voraus.
 Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betreiben, gehen dabei leer aus.
 *Aufgaben* schließt diese Lücke als eigenständige, selbst gehostete App mit Teams-Integration.
 
-* **Persönliche Aufgaben** wie in To Do: Mein Tag, Wichtig, Geplant, eigene Listen, Erinnerungen, Wiederholungen, Checklisten
+* **Persönliche Aufgaben** wie in To Do: Mein Tag mit **Vorschlägen** und Fortschrittsring, Wichtig, Geplant, Aufgaben,
+  eigene und **geteilte Listen**, Erinnerungen, Wiederholungen, Checklisten
+* **Ziehen und Ablegen**: Aufgabe auf „Mein Tag“, „Wichtig“, eine Liste oder ein Projekt ziehen; Sortierung nach
+  Fälligkeit, Wichtigkeit, Alphabet oder Datum; Tastenkürzel `n` (neue Aufgabe), `/` (Suche), `Esc`
 * **Delegieren mit Rückmeldung**: Benachrichtigung im Teams-Aktivitätsfeed oder per E-Mail, Status live
 * **Projektaufgaben** als Tab im Teams-Kanal – für alle sichtbar
 * **Schnelleingabe** auf Deutsch: `Montag 10 Uhr Angebot prüfen #1001 @Becker !hoch`
 * **Vorlagen** für wiederkehrende Abläufe (Beispiele: Mieterwechsel, Wohnungsabnahme, Mängelmeldung)
+* **Mail an Aufgabe**: Mail an ein eigenes Postfach weiterleiten – fertig ist die Aufgabe mit Text und Anhängen
+  (IMAP, sicher auch mit Exchange Server on-premises, siehe [docs/mail-an-aufgabe.md](docs/mail-an-aufgabe.md))
 * **Kalender-Feed** für Outlook, **Tagesübersicht** am Morgen, **Wiedervorlagen**
+* **Einsichtsrechte** mit Formular zum Drucken, Unterschriftsbestätigung, Ablaufdatum und Zugriffsprotokoll
+  (Verwaltung → Einsichtsrechte, siehe [docs/einsichtsrechte.md](docs/einsichtsrechte.md))
+* **Installierbar** als App (PWA) am PC und auf dem Handy
 * Auch für Personen **ohne Teams-Lizenz** nutzbar (Browser und E-Mail)
 
 ## Aufbau
@@ -22,7 +34,7 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 | Datenbank | PostgreSQL 17 (EF Core, Migrationen beim Start) |
 | Anmeldung | Microsoft Entra ID: OpenID Connect im Browser (Microsoft.Identity.Web), Teams-SSO-Token als Bearer |
 | Microsoft Graph | App-Identität mit Zertifikat (Azure.Identity): Verzeichnisabgleich, Teams-Aktivitätsfeed |
-| E-Mail | SMTP (MailKit), z. B. über einen internen Exchange-Relay |
+| E-Mail | SMTP (MailKit), z. B. über einen internen Exchange-Relay; Abruf des Aufgaben-Postfachs per IMAP |
 | Frontend | React 19, Fluent UI v9 (Teams-Design, hell/dunkel/Kontrast), TeamsJS v2 |
 | Live-Updates | Server-Sent Events |
 | Betrieb | Docker Compose, Nginx davor, „chiseled“ .NET-Image ohne Shell und ohne Root |
@@ -54,17 +66,20 @@ Oberfläche mit Hot Reload: zusätzlich `cd frontend; npm run dev` (Port 5173, l
 
 ```powershell
 dotnet test                 # Backend-Tests (braucht Docker für PostgreSQL)
-cd frontend; npm test       # Tests der Schnelleingabe
+cd frontend; npm test       # Tests der Schnelleingabe und des Freigabe-Formulars
 ```
 
 ## Betrieb
 
 ### Installation
 
-1. Server vorbereiten: `deploy/server/haerten.sh` (Firewall, SSH nur mit Schlüssel, optional nur bestimmte IPs)
+1. SSH-Zugang einrichten – Windows: `deploy/server/ssh-zugang-einrichten.ps1 -Server <IP> -User <name>`,
+   Linux/macOS (z. B. Fedora): `bash deploy/server/ssh-zugang-einrichten.sh -s <IP> -u <name>`
+   (erzeugt den Schlüssel, trägt ihn ein, testet den Login, legt Kurznamen wie `ssh <hostname>` an)
+2. Server vorbereiten: `deploy/server/haerten.sh` (Firewall, SSH nur mit Schlüssel, optional nur bestimmte IPs)
 2. Repository auf den Server holen, `.env.example` nach `.env` kopieren und ausfüllen (`chmod 600 .env`)
 3. App-Zertifikat als `secrets/app.pfx` ablegen (lesbar für UID 1654, den Benutzer im Container)
-4. Starten: `docker compose up -d` (eigenes Image bauen: `--build`)
+4. Starten: `docker compose pull && docker compose up -d` (selbst bauen statt herunterladen: `compose.build.yaml`)
 5. Nginx-Konfiguration aus `deploy/nginx/` einspielen, TLS-Zertifikat einrichten
 6. Entra-App einrichten (Checkliste unten), Teams-Paket bauen: `teams/build-package.ps1`, im Teams Admin Center hochladen
 7. Sicherung einrichten: `deploy/backup/backup.sh`, Wiederherstellung prüfen: `deploy/backup/restore-test.sh`
@@ -72,10 +87,10 @@ cd frontend; npm test       # Tests der Schnelleingabe
 ### Updates
 
 Jede Version mit Tag `vX.Y.Z` wird von GitHub Actions getestet und als Image veröffentlicht
-(`ghcr.io/kobi-tools/aufgaben:X.Y.Z`, mit SBOM und Herkunftsnachweis). Auf dem Server:
+(`ghcr.io/koblenzer-wohnbau/aufgaben:X.Y.Z`, mit SBOM und Herkunftsnachweis). Auf dem Server:
 
 ```bash
-# in .env: APP_IMAGE=ghcr.io/kobi-tools/aufgaben  und  APP_VERSION=X.Y.Z
+# in .env: APP_IMAGE=ghcr.io/koblenzer-wohnbau/aufgaben  und  APP_VERSION=X.Y.Z
 docker compose pull && docker compose up -d
 ```
 

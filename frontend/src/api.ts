@@ -1,5 +1,5 @@
 import type {
-  AuthConfig, Counts, CreateTask, Me, Project, Task, TaskDetail, TaskEvent, TaskList, Template, UserRef, ViewKey,
+  AccessGrant, AccessLogEntry, AdminStatus, AuthConfig, Counts, MyAccess, CreateTask, Me, Project, Suggestions, Task, TaskDetail, TaskEvent, TaskList, Template, UserRef, ViewKey,
 } from "./types";
 
 export class ApiError extends Error {
@@ -54,6 +54,7 @@ export const api = {
   logout: () => request<void>("POST", "/auth/logout"),
 
   counts: () => request<Counts>("GET", "/api/counts"),
+  suggestions: () => request<Suggestions>("GET", "/api/suggestions"),
   tasks: (view: ViewKey, id?: number, q?: string) => {
     const p = new URLSearchParams({ view });
     if (id !== undefined) p.set("id", String(id));
@@ -70,6 +71,21 @@ export const api = {
   updateChecklist: (id: number, itemId: number, body: { title?: string; done?: boolean }) =>
     request<Task>("PATCH", `/api/tasks/${id}/checklist/${itemId}`, body),
   deleteChecklist: (id: number, itemId: number) => request<Task>("DELETE", `/api/tasks/${id}/checklist/${itemId}`),
+  downloadAttachment: async (taskId: number, attachmentId: number, fileName: string) => {
+    const res = await fetch(`/api/tasks/${taskId}/attachments/${attachmentId}`, {
+      headers: await authHeaders(),
+      credentials: "same-origin",
+    });
+    if (!res.ok) throw new ApiError(res.status, "Anhang konnte nicht geladen werden.");
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  },
   comment: (id: number, text: string) => request<TaskEvent>("POST", `/api/tasks/${id}/comments`, { text }),
 
   users: (q?: string) => request<UserRef[]>("GET", q ? `/api/users?q=${encodeURIComponent(q)}` : "/api/users"),
@@ -78,11 +94,26 @@ export const api = {
   createList: (name: string, color = "blau") => request<TaskList>("POST", "/api/lists", { name, color }),
   updateList: (id: number, body: { name?: string; color?: string }) => request<TaskList>("PATCH", `/api/lists/${id}`, body),
   deleteList: (id: number) => request<void>("DELETE", `/api/lists/${id}`),
+  addListMember: (id: number, userId: number) => request<void>("POST", `/api/lists/${id}/members`, { userId }),
+  removeListMember: (id: number, userId: number) => request<void>("DELETE", `/api/lists/${id}/members/${userId}`),
 
   projects: () => request<Project[]>("GET", "/api/projects"),
   createProject: (body: { number?: string; name: string; teamName?: string }) => request<Project>("POST", "/api/projects", body),
   linkChannel: (body: { channelId: string; teamId?: string; teamName?: string; channelName?: string; projectId?: number }) =>
     request<Project>("POST", "/api/projects/channel", body),
+
+  accessMine: () => request<MyAccess[]>("GET", "/api/access/mine"),
+  accessAboutMe: () => request<{ grants: AccessGrant[]; log: AccessLogEntry[] }>("GET", "/api/access/about-me"),
+  adminAccess: () => request<AccessGrant[]>("GET", "/api/admin/access"),
+  createAccess: (body: { ownerId: number; viewerId: number; permission: string; validFrom: string; validUntil: string | null; purpose: string }) =>
+    request<AccessGrant>("POST", "/api/admin/access", body),
+  confirmAccess: (id: number, note: string) => request<AccessGrant>("POST", `/api/admin/access/${id}/confirm`, { note }),
+  revokeAccess: (id: number, note: string) => request<AccessGrant>("POST", `/api/admin/access/${id}/revoke`, { note }),
+  deleteAccess: (id: number) => request<void>("DELETE", `/api/admin/access/${id}`),
+  accessLog: (id: number) => request<AccessLogEntry[]>("GET", `/api/admin/access/${id}/log`),
+  adminStatus: () => request<AdminStatus>("GET", "/api/admin/status"),
+  directorySync: () => request<{ added: number; updated: number; deactivated: number }>("POST", "/api/admin/directory-sync"),
+  pollInbox: () => request<{ created: number; result: string }>("POST", "/api/admin/mail-inbox/poll"),
 
   templates: () => request<Template[]>("GET", "/api/templates"),
   applyTemplate: (id: number, body: { startDate: string; projectId?: number | null; defaultAssigneeId?: number | null; assignees?: Record<number, number>; titleSuffix?: string }) =>

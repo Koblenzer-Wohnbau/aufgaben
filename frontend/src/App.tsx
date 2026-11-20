@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import {
   Button,
   makeStyles,
@@ -21,9 +21,17 @@ import { LoginScreen } from "./components/LoginScreen";
 import { Sidebar } from "./components/Sidebar";
 import { TaskView } from "./components/TaskView";
 import { TaskDrawer } from "./components/TaskDrawer";
-import { TemplatesView } from "./components/TemplatesView";
-import { SettingsDialog } from "./components/SettingsDialog";
-import { ChannelConfig } from "./components/ChannelConfig";
+
+// Selten genutzte Bereiche erst bei Bedarf laden – kleinerer Start-Download.
+const TemplatesView = lazy(() => import("./components/TemplatesView").then((m) => ({ default: m.TemplatesView })));
+const SettingsDialog = lazy(() => import("./components/SettingsDialog").then((m) => ({ default: m.SettingsDialog })));
+const ChannelConfig = lazy(() => import("./components/ChannelConfig").then((m) => ({ default: m.ChannelConfig })));
+const AdminView = lazy(() => import("./components/AdminView").then((m) => ({ default: m.AdminView })));
+
+function isTyping(target: EventTarget | null) {
+  const el = target as HTMLElement | null;
+  return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+}
 
 const useStyles = makeStyles({
   shell: {
@@ -124,6 +132,11 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
             void queryClient.invalidateQueries({ queryKey: ["lists"] });
             if (m.id) void queryClient.invalidateQueries({ queryKey: ["task", m.id] });
           }
+          if (m.type === "lists") {
+            void queryClient.invalidateQueries({ queryKey: ["lists"] });
+            void queryClient.invalidateQueries({ queryKey: ["counts"] });
+            void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+          }
           if (m.type === "verbunden") {
             void queryClient.invalidateQueries();
           }
@@ -132,6 +145,32 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
       ),
     [queryClient],
   );
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "Escape" && !isTyping(e.target)) {
+        setTaskId(null);
+        return;
+      }
+      if (isTyping(e.target)) return;
+      if (e.key === "n") {
+        const input = document.querySelector<HTMLInputElement>('input[aria-label="Neue Aufgabe"]');
+        if (input) {
+          e.preventDefault();
+          input.focus();
+        }
+      } else if (e.key === "/") {
+        const search = document.querySelector<HTMLInputElement>('input[aria-label="Suchen"]');
+        if (search) {
+          e.preventDefault();
+          search.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const notify = useCallback(
     (title: string, intent: "success" | "error" | "info" = "success") => {
@@ -154,16 +193,19 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
       users: users.data ?? [],
       lists: lists.data ?? [],
       openTask: setTaskId,
+      selectedTaskId: taskId,
       notify,
     };
-  }, [me.data, projects.data, users.data, lists.data, notify]);
+  }, [me.data, projects.data, users.data, lists.data, notify, taskId]);
 
   if (!data) return null;
 
   if (route.page === "teams-config") {
     return (
       <AppContext.Provider value={data}>
-        <ChannelConfig teams={teams} />
+        <Suspense fallback={<Spinner />}>
+          <ChannelConfig teams={teams} />
+        </Suspense>
       </AppContext.Provider>
     );
   }
@@ -193,11 +235,23 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
               onClick={() => setNavOpen(true)}
             />
           )}
-          {route.page === "vorlagen" ? <TemplatesView /> : <TaskView route={route} compact={inChannelTab} />}
+          <Suspense fallback={<Spinner style={{ marginTop: 48 }} />}>
+            {route.page === "vorlagen" ? (
+              <TemplatesView />
+            ) : route.page === "verwaltung" ? (
+              <AdminView />
+            ) : (
+              <TaskView route={route} compact={inChannelTab} />
+            )}
+          </Suspense>
         </main>
         <TaskDrawer taskId={taskId} onClose={() => setTaskId(null)} overlay={drawerOverlay || inChannelTab} />
       </div>
-      <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} inTeams={inTeams} />
+      {settingsOpen && (
+        <Suspense fallback={null}>
+          <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} inTeams={inTeams} />
+        </Suspense>
+      )}
       <Toaster toasterId={toasterId} position="bottom-end" />
     </AppContext.Provider>
   );

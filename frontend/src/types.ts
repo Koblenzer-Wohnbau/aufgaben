@@ -21,6 +21,13 @@ export interface Project {
   openCount: number;
 }
 
+export interface Attachment {
+  id: number;
+  fileName: string;
+  contentType: string;
+  size: number;
+}
+
 export interface ChecklistItem {
   id: number;
   title: string;
@@ -57,6 +64,7 @@ export interface Task {
   isDelegated: boolean;
   isOverdue: boolean;
   canDelete: boolean;
+  attachments: Attachment[];
 }
 
 export interface TaskEvent {
@@ -70,9 +78,14 @@ export interface TaskEvent {
 export interface TaskDetail {
   task: Task;
   events: TaskEvent[];
+  /** false: nur über eine Lese-Freigabe sichtbar */
+  canEdit: boolean;
+  /** true: über ein Einsichtsrecht sichtbar, nicht eigene Aufgabe */
+  viaGrant: boolean;
 }
 
 export interface Counts {
+  inbox: number;
   myDay: number;
   important: number;
   planned: number;
@@ -90,6 +103,65 @@ export interface TaskList {
   color: string;
   position: number;
   openCount: number;
+  isOwner: boolean;
+  owner: UserRef;
+  members: UserRef[];
+}
+
+export interface AccessGrant {
+  id: number;
+  owner: UserRef;
+  viewer: UserRef;
+  permission: "lesen" | "bearbeiten";
+  validFrom: string;
+  validUntil: string | null;
+  purpose: string;
+  status: "entwurf" | "aktiv" | "widerrufen";
+  isCurrentlyActive: boolean;
+  createdAt: string;
+  confirmedAt: string | null;
+  consentNote: string;
+  revokedAt: string | null;
+  revokeReason: string;
+  accessCount: number;
+}
+
+export interface AccessLogEntry {
+  id: number;
+  action: string;
+  viewer: UserRef;
+  owner: UserRef;
+  taskId: number | null;
+  at: string;
+}
+
+export interface MyAccess {
+  grantId: number;
+  owner: UserRef;
+  permission: "lesen" | "bearbeiten";
+  validUntil: string | null;
+}
+
+export interface AdminStatus {
+  graphConfigured: boolean;
+  mailConfigured: boolean;
+  teamsNotificationsConfigured: boolean;
+  activeUsers: number;
+  pendingNotifications: number;
+  failedNotifications: number;
+  lastDirectorySync: string | null;
+  lastDirectorySyncResult: string | null;
+  mailInboxConfigured: boolean;
+  lastMailInboxRun: string | null;
+  lastMailInboxResult: string | null;
+  rejectedMailsLast7Days: number;
+}
+
+export interface Suggestions {
+  yesterday: Task[];
+  dueSoon: Task[];
+  important: Task[];
+  recent: Task[];
 }
 
 export interface Me {
@@ -104,6 +176,8 @@ export interface Me {
   mailAvailable: boolean;
   teamsNotificationsAvailable: boolean;
   today: string;
+  mailInboxAddress: string | null;
+  digestOnWeekends: boolean;
 }
 
 export interface DevUser {
@@ -154,6 +228,8 @@ export interface CreateTask {
 
 export type ViewKey =
   | "mein-tag"
+  | "aufgaben"
+  | "person"
   | "wichtig"
   | "geplant"
   | "zugewiesen"

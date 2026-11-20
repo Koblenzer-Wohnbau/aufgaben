@@ -3,6 +3,8 @@ import { Avatar, makeStyles, mergeClasses, Text, Tooltip, tokens } from "@fluent
 import {
   ClockAlarmRegular,
   ArrowRepeatAllRegular,
+  AttachRegular,
+  MailRegular,
   CalendarLtrRegular,
   CheckmarkCircleFilled,
   CheckmarkCircleRegular,
@@ -17,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { initials, useApp } from "../context";
 import { relativeDay } from "../dates";
+import { startTaskDrag } from "../dnd";
 import type { Task } from "../types";
 
 const useStyles = makeStyles({
@@ -31,8 +34,11 @@ const useStyles = makeStyles({
     cursor: "pointer",
     animationName: "aufgaben-fade-in",
     animationDuration: "180ms",
-    ":hover": { backgroundColor: tokens.colorNeutralBackground1Hover },
+    transitionProperty: "box-shadow, transform, opacity",
+    transitionDuration: tokens.durationFaster,
+    ":hover": { backgroundColor: tokens.colorNeutralBackground1Hover, boxShadow: tokens.shadow4, transform: "translateY(-1px)" },
   },
+  dragging: { opacity: 0.45, transform: "scale(0.98)" },
   selected: { outline: `2px solid ${tokens.colorBrandStroke1}` },
   check: {
     border: "none",
@@ -79,7 +85,10 @@ export function TaskRow({ task, selected, showAssignee }: Props) {
   const queryClient = useQueryClient();
   const [hover, setHover] = useState(false);
   const [optimisticDone, setOptimisticDone] = useState<boolean | null>(null);
+  const [optimisticHigh, setOptimisticHigh] = useState<boolean | null>(null);
+  const [dragging, setDragging] = useState(false);
   const done = optimisticDone ?? task.status === "erledigt";
+  const high = optimisticHigh ?? task.priority === "hoch";
 
   const refresh = () =>
     Promise.all([
@@ -110,11 +119,15 @@ export function TaskRow({ task, selected, showAssignee }: Props) {
 
   const toggleStar = async (e: MouseEvent) => {
     e.stopPropagation();
+    const next = !high;
+    setOptimisticHigh(next);
     try {
-      await api.patchTask(task.id, { priority: task.priority === "hoch" ? "normal" : "hoch" });
+      await api.patchTask(task.id, { priority: next ? "hoch" : "normal" });
       await refresh();
     } catch (err) {
       notify(err instanceof Error ? err.message : "Fehler", "error");
+    } finally {
+      setOptimisticHigh(null);
     }
   };
 
@@ -125,8 +138,15 @@ export function TaskRow({ task, selected, showAssignee }: Props) {
 
   return (
     <div
-      className={mergeClasses(styles.row, selected && styles.selected)}
+      className={mergeClasses(styles.row, selected && styles.selected, dragging && styles.dragging)}
       onClick={() => openTask(task.id)}
+      draggable={!done}
+      onDragStart={(e) => {
+        startTaskDrag(e, task);
+        setDragging(true);
+      }}
+      onDragEnd={() => setDragging(false)}
+      title={done ? undefined : "Zum Verschieben auf einen Eintrag links ziehen"}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && openTask(task.id)}
@@ -164,6 +184,16 @@ export function TaskRow({ task, selected, showAssignee }: Props) {
               <NumberSymbolRegular /> {task.project.label}
             </span>
           )}
+          {task.source === "mail" && (
+            <span className={styles.metaItem} title="Per E-Mail angelegt">
+              <MailRegular />
+            </span>
+          )}
+          {task.attachments.length > 0 && (
+            <span className={styles.metaItem} title="Anhänge">
+              <AttachRegular /> {task.attachments.length}
+            </span>
+          )}
           {task.checklist.length > 0 && (
             <span className={styles.metaItem}>
               <TaskListLtrRegular /> {checkDone}/{task.checklist.length}
@@ -178,8 +208,8 @@ export function TaskRow({ task, selected, showAssignee }: Props) {
           <Avatar size={28} name={task.assignee.name} initials={initials(task.assignee.name)} color="colorful" />
         </Tooltip>
       )}
-      <button className={mergeClasses(styles.star, task.priority === "hoch" && styles.starOn)} onClick={toggleStar} aria-label="Wichtig umschalten">
-        {task.priority === "hoch" ? <StarFilled /> : <StarRegular />}
+      <button className={mergeClasses(styles.star, high && styles.starOn)} onClick={toggleStar} aria-label="Wichtig umschalten">
+        {high ? <StarFilled /> : <StarRegular />}
       </button>
     </div>
   );

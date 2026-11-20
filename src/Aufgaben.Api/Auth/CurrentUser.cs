@@ -32,6 +32,9 @@ public static class ClaimsExtensions
     public static string? Oid(this ClaimsPrincipal p) =>
         p.FindFirst("oid")?.Value ?? p.FindFirst(OidUri)?.Value;
 
+    public static string? TenantId(this ClaimsPrincipal p) =>
+        p.FindFirst("tid")?.Value ?? p.FindFirst("http://schemas.microsoft.com/identity/claims/tenantid")?.Value;
+
     public static string DisplayName(this ClaimsPrincipal p) =>
         p.FindFirst("name")?.Value ?? p.FindFirst(ClaimTypes.Name)?.Value ?? p.Email() ?? "Unbekannt";
 
@@ -97,14 +100,13 @@ public sealed class UserProvisioning(AppDbContext db, AppClock clock)
             }
         }
 
-        if (principal.HasRolesClaim() || user.IsAdmin)
+        // Die Rolle steht in jedem Token. Fehlt sie, ist die Person keine Verwaltung (mehr) –
+        // auch wenn das Token gar keinen "roles"-Eintrag hat, weil ihr keine App-Rolle mehr zugewiesen ist.
+        var admin = principal.HasAppRole(adminRole);
+        if (admin != user.IsAdmin)
         {
-            var admin = principal.HasAppRole(adminRole);
-            if (admin != user.IsAdmin && principal.HasRolesClaim())
-            {
-                user.IsAdmin = admin;
-                changed = true;
-            }
+            user.IsAdmin = admin;
+            changed = true;
         }
 
         if (viaTeams && (user.TeamsSeenAt is null || now - user.TeamsSeenAt > TimeSpan.FromHours(12)))
@@ -136,10 +138,21 @@ public sealed class CurrentUserMiddleware(RequestDelegate next)
     public const string TeamsScope = "access_as_user";
 
     public async Task InvokeAsync(HttpContext ctx, CurrentUser current, UserProvisioning provisioning,
-        Microsoft.Extensions.Options.IOptions<Options.AufgabenOptions> options)
+        Microsoft.Extensions.Options.IOptions<Options.AufgabenOptions> options, IConfiguration config)
     {
         if (ctx.User.Identity?.IsAuthenticated == true)
         {
+            // Zusätzlich zur Prüfung des Ausstellers: nur Konten aus dem eigenen Mandanten.
+            var tenant = config["AzureAd:TenantId"];
+            if (!options.Value.Auth.IsDev && !string.IsNullOrWhiteSpace(tenant)
+                && !string.Equals(ctx.User.TenantId(), tenant, StringComparison.OrdinalIgnoreCase))
+            {
+                ctx.Response.StatusCode = 403;
+                ctx.Response.ContentType = "application/json; charset=utf-8";
+                await ctx.Response.WriteAsync("{\"error\":\"Dieses Konto gehört nicht zur eigenen Organisation.\"}");
+                return;
+            }
+
             var bearer = ctx.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase);
             if (bearer && !ctx.User.Scopes().Contains(TeamsScope))
             {

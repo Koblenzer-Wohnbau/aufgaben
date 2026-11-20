@@ -26,8 +26,8 @@ public static class Seed
                 Step(2, "Wohnung inserieren und Besichtigungen planen", -20, "normal", "Exposé erstellen\nInserat veröffentlichen\nBesichtigungstermine koordinieren", "Vermietung"),
                 Step(3, "Endabnahme und Schlüsselrückgabe", 0, "hoch", "Abnahmeprotokoll unterschreiben lassen\nSchlüssel zählen\nZählerstände ablesen", "Technik"),
                 Step(4, "Instandsetzung beauftragen", 2, "normal", "Mängelliste an Handwerker\nAuftrag freigeben", "Technik"),
-                Step(5, "Kaution abrechnen", 30, "normal", "Nebenkosten berücksichtigen\nAbrechnung versenden", "Buchhaltung"),
-                Step(6, "Übergabe an neue Mietpartei", 14, "hoch", "Übergabeprotokoll\nSchlüsselübergabe dokumentieren\nZählerstände", "Vermietung"),
+                Step(5, "Übergabe an neue Mietpartei", 14, "hoch", "Übergabeprotokoll\nSchlüsselübergabe dokumentieren\nZählerstände", "Vermietung"),
+                Step(6, "Kaution abrechnen", 30, "normal", "Nebenkosten berücksichtigen\nAbrechnung versenden", "Buchhaltung"),
             ],
         });
 
@@ -162,6 +162,28 @@ public static class Seed
 
         var angebote = await db.Tasks.FirstAsync(t => t.Title.StartsWith("Muster"), ct);
         angebote.ListId = list.Id;
+
+        // Beispiel für "Mail an Aufgabe" (inkl. Anhang)
+        var mailTask = T("Angebot Fensterbau prüfen", anna, anna, lindenpark, 3, notes:
+            "Per E-Mail von Anna Schneider am " + clock.LocalNow.ToString("dd.MM.yyyy") + " 08:12\n\n" +
+            "---------- Weitergeleitete Nachricht ----------\nVon: Fensterbau Beispiel GmbH\n\n" +
+            "Sehr geehrte Damen und Herren,\nanbei unser Angebot für die Fenster in Haus 2.\nMit freundlichen Grüßen");
+        mailTask.Source = "mail";
+        db.Tasks.Add(mailTask);
+        await db.SaveChangesAsync(ct);
+
+        var content = System.Text.Encoding.UTF8.GetBytes("Beispielangebot – nur Testdaten.\nPosition 1: Fenster 120x140, 12 Stück\n");
+        var attachment = new TaskAttachment
+        {
+            TaskId = mailTask.Id,
+            FileName = "Angebot_Fensterbau.txt",
+            ContentType = "text/plain",
+            Size = content.Length,
+            CreatedAt = now,
+        };
+        db.TaskAttachments.Add(attachment);
+        await db.SaveChangesAsync(ct);
+        db.AttachmentBlobs.Add(new AttachmentBlob { AttachmentId = attachment.Id, Data = content });
         await db.SaveChangesAsync(ct);
     }
 }

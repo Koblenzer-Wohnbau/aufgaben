@@ -19,8 +19,9 @@ import {
   tokens,
 } from "@fluentui/react-components";
 import { CopyRegular, SignOutRegular } from "@fluentui/react-icons";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
+import { accessActionLabel } from "../accessText";
 import { useApp } from "../context";
 
 const useStyles = makeStyles({
@@ -34,6 +35,7 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
   const { me, notify } = useApp();
   const queryClient = useQueryClient();
   const [feedUrl, setFeedUrl] = useState<string | null>(null);
+  const aboutMe = useQuery({ queryKey: ["access-about-me"], queryFn: api.accessAboutMe, enabled: open });
 
   const update = async (body: Parameters<typeof api.updateMe>[0]) => {
     try {
@@ -78,9 +80,54 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
 
             <Switch
               checked={me.digestEnabled}
-              label="Tagesübersicht am Morgen (werktags)"
+              label={me.digestOnWeekends ? "Tagesübersicht am Morgen" : "Tagesübersicht am Morgen (werktags)"}
               onChange={(_, d) => update({ digestEnabled: d.checked })}
             />
+
+            {me.mailInboxAddress && (
+              <Field label="Mail an Aufgabe">
+                <Text className={styles.muted}>
+                  Leite eine E-Mail an diese Adresse weiter – daraus wird eine Aufgabe mit Text und Anhängen. Im Betreff funktioniert dasselbe wie in der
+                  Schnelleingabe: #Projekt, @Person, !hoch, „wv“, heute, morgen oder ein Datum wie 30.11.
+                </Text>
+                <div className={styles.row}>
+                  <Input readOnly value={me.mailInboxAddress} onFocus={(e) => e.currentTarget.select()} />
+                  <Button
+                    icon={<CopyRegular />}
+                    onClick={() => navigator.clipboard.writeText(me.mailInboxAddress ?? "").then(() => notify("Adresse kopiert"))}
+                  >
+                    Kopieren
+                  </Button>
+                </div>
+              </Field>
+            )}
+
+            <Field label="Wer darf meine Aufgaben sehen?">
+              {aboutMe.data && aboutMe.data.grants.length === 0 && (
+                <Text className={styles.muted}>Niemand – deine persönlichen Aufgaben siehst nur du.</Text>
+              )}
+              {aboutMe.data?.grants.map((g) => (
+                <Text key={g.id} block>
+                  <b>{g.viewer.name}</b> · {g.permission === "bearbeiten" ? "lesen und bearbeiten" : "nur lesen"} ·{" "}
+                  {g.status === "entwurf" ? "wartet auf Unterschrift" : g.validUntil ? `bis ${g.validUntil.split("-").reverse().join(".")}` : "bis zum Widerruf"}
+                  {" · "}
+                  {g.purpose}
+                </Text>
+              ))}
+              {aboutMe.data && aboutMe.data.log.length > 0 && (
+                <div style={{ marginTop: 6 }}>
+                  <Text size={200} className={styles.muted} block>
+                    Letzte Zugriffe:
+                  </Text>
+                  {aboutMe.data.log.slice(0, 8).map((l) => (
+                    <Text key={l.id} size={200} className={styles.muted} block>
+                      {new Date(l.at).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} ·{" "}
+                      {l.viewer.name} {accessActionLabel(l.action)}
+                    </Text>
+                  ))}
+                </div>
+              )}
+            </Field>
 
             <Field label="Aufgaben im Outlook-Kalender">
               <Text className={styles.muted}>

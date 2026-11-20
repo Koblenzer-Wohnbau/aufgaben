@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Avatar,
   Button,
@@ -13,6 +13,8 @@ import {
   InlineDrawer,
   Input,
   makeStyles,
+  MessageBar,
+  MessageBarBody,
   Option,
   OverlayDrawer,
   Spinner,
@@ -23,6 +25,8 @@ import {
 } from "@fluentui/react-components";
 import {
   AddRegular,
+  ArrowDownloadRegular,
+  AttachRegular,
   CheckmarkCircleFilled,
   CircleRegular,
   DeleteRegular,
@@ -58,7 +62,25 @@ const useStyles = makeStyles({
   comment: { backgroundColor: tokens.colorNeutralBackground3, borderRadius: tokens.borderRadiusMedium, padding: "6px 10px", whiteSpace: "pre-wrap" },
   commentBox: { display: "flex", gap: "8px", alignItems: "flex-end" },
   footer: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "8px" },
+  attachment: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    padding: "6px 8px",
+    borderRadius: tokens.borderRadiusMedium,
+    backgroundColor: tokens.colorNeutralBackground3,
+    marginBottom: "4px",
+  },
+  attachmentName: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  // Gruppiert Felder, die gemeinsam gesperrt werden (z. B. bei einer Lese-Freigabe).
+  fieldset: { border: "none", padding: 0, margin: 0, minWidth: 0, display: "flex", flexDirection: "column", gap: "14px" },
 });
+
+function formatSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
+}
 
 const EVENT_TEXT: Record<string, string> = {
   angelegt: "hat die Aufgabe angelegt",
@@ -66,6 +88,7 @@ const EVENT_TEXT: Record<string, string> = {
   erledigt: "hat erledigt",
   "wieder-geoeffnet": "hat wieder geöffnet",
   termin: "hat den Termin geändert:",
+  folgeaufgabe: "hat die Folgeaufgabe angelegt,",
   kommentar: "",
 };
 
@@ -87,7 +110,16 @@ export function TaskDrawer({ taskId, onClose, overlay }: { taskId: number | null
       <DrawerBody className={styles.body}>
         {query.isLoading && <Spinner />}
         {query.error && <Text>{query.error instanceof Error ? query.error.message : "Fehler"}</Text>}
-        {query.data && <TaskEditor key={query.data.task.id} task={query.data.task} events={query.data.events} onDeleted={onClose} />}
+        {query.data && (
+          <TaskEditor
+            key={query.data.task.id}
+            task={query.data.task}
+            events={query.data.events}
+            canEdit={query.data.canEdit}
+            viaGrant={query.data.viaGrant}
+            onDeleted={onClose}
+          />
+        )}
       </DrawerBody>
     </>
   );
@@ -106,7 +138,17 @@ export function TaskDrawer({ taskId, onClose, overlay }: { taskId: number | null
   );
 }
 
-function TaskEditor({ task, events, onDeleted }: { task: Task; events: TaskEvent[]; onDeleted: () => void }) {
+interface EditorProps {
+  task: Task;
+  events: TaskEvent[];
+  /** false: nur über eine Lese-Freigabe sichtbar. */
+  canEdit: boolean;
+  /** true: nicht eigene Aufgabe, sichtbar über ein Einsichtsrecht. */
+  viaGrant: boolean;
+  onDeleted: () => void;
+}
+
+function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps) {
   const styles = useStyles();
   const { projects, lists, users, me, notify } = useApp();
   const queryClient = useQueryClient();
@@ -116,8 +158,17 @@ function TaskEditor({ task, events, onDeleted }: { task: Task; events: TaskEvent
   const [comment, setComment] = useState("");
   const done = task.status === "erledigt";
 
-  useEffect(() => setTitle(task.title), [task.title]);
-  useEffect(() => setNotes(task.notes), [task.notes]);
+  // Live-Änderungen übernehmen – aber nie Text überschreiben, den die Person gerade tippt.
+  const serverTitle = useRef(task.title);
+  const serverNotes = useRef(task.notes);
+  useEffect(() => {
+    setTitle((current) => (current === serverTitle.current ? task.title : current));
+    serverTitle.current = task.title;
+  }, [task.title]);
+  useEffect(() => {
+    setNotes((current) => (current === serverNotes.current ? task.notes : current));
+    serverNotes.current = task.notes;
+  }, [task.notes]);
 
   const refresh = () =>
     Promise.all([
@@ -126,14 +177,16 @@ function TaskEditor({ task, events, onDeleted }: { task: Task; events: TaskEvent
       queryClient.invalidateQueries({ queryKey: ["counts"] }),
     ]);
 
-  const run = async (fn: () => Promise<unknown>, success?: string) => {
+  const run = async (fn: () => Promise<unknown>, success?: string): Promise<boolean> => {
     try {
       await fn();
       await refresh();
       if (success) notify(success);
+      return true;
     } catch (e) {
       notify(e instanceof Error ? e.message : "Fehler", "error");
       await refresh();
+      return false;
     }
   };
 
@@ -145,6 +198,16 @@ function TaskEditor({ task, events, onDeleted }: { task: Task; events: TaskEvent
 
   return (
     <>
+      {viaGrant && (
+        <MessageBar intent={canEdit ? "info" : "warning"}>
+          <MessageBarBody>
+            {canEdit
+              ? "Über ein Einsichtsrecht: Inhalte dürfen geändert werden – Verantwortliche, Projekt und Liste nicht."
+              : "Über ein Einsichtsrecht: nur lesen."}
+          </MessageBarBody>
+        </MessageBar>
+      )}
+      <fieldset className={styles.fieldset} disabled={!canEdit}>
       <div className={styles.titleRow}>
         <button
           className={`${styles.check} ${done ? styles.checkDone : ""}`}
@@ -167,6 +230,7 @@ function TaskEditor({ task, events, onDeleted }: { task: Task; events: TaskEvent
         <Switch label="Zu „Mein Tag“ hinzufügen" checked={task.myDay} onChange={(_, d) => patch({ myDay: d.checked })} />
       )}
 
+      <fieldset className={styles.fieldset} disabled={viaGrant}>
       <Field label="Verantwortlich" hint={task.isDelegated ? `Angelegt von ${task.createdBy.name}` : undefined}>
         <PersonPicker
           users={users}
@@ -174,6 +238,7 @@ function TaskEditor({ task, events, onDeleted }: { task: Task; events: TaskEvent
           onChange={(u) => u && u.id !== task.assignee.id && patch({ assigneeId: u.id }, u.id === me.id ? "Wieder bei dir" : `An ${u.name} übergeben`)}
         />
       </Field>
+      </fieldset>
 
       <div className={styles.grid}>
         <Field label="Fällig am">
@@ -223,6 +288,7 @@ function TaskEditor({ task, events, onDeleted }: { task: Task; events: TaskEvent
 
       <Field label="Projekt" hint={task.project ? "Projektaufgaben sehen alle Kolleginnen und Kollegen" : undefined}>
         <Dropdown
+          disabled={viaGrant}
           value={task.project?.label ?? "Kein Projekt"}
           selectedOptions={[String(task.project?.id ?? "")]}
           onOptionSelect={(_, d) => patch({ projectId: d.optionValue ? Number(d.optionValue) : null })}
@@ -283,9 +349,40 @@ function TaskEditor({ task, events, onDeleted }: { task: Task; events: TaskEvent
           />
         </div>
       </Field>
+      </fieldset>
+
+      {task.attachments.length > 0 && (
+        <Field label={`Anhänge (${task.attachments.length})`} hint="Anhänge werden heruntergeladen, nie im Browser geöffnet.">
+          <div>
+            {task.attachments.map((a) => (
+              <div key={a.id} className={styles.attachment}>
+                <AttachRegular />
+                <Text className={styles.attachmentName} title={a.fileName}>
+                  {a.fileName}
+                </Text>
+                <Caption1 className={styles.meta}>{formatSize(a.size)}</Caption1>
+                <Button
+                  size="small"
+                  appearance="subtle"
+                  icon={<ArrowDownloadRegular />}
+                  aria-label={`${a.fileName} herunterladen`}
+                  onClick={() => api.downloadAttachment(task.id, a.id, a.fileName).catch((e) => notify(e.message, "error"))}
+                />
+              </div>
+            ))}
+          </div>
+        </Field>
+      )}
 
       <Field label="Notizen">
-        <Textarea resize="vertical" rows={4} value={notes} onChange={(_, d) => setNotes(d.value)} onBlur={() => notes !== task.notes && patch({ notes })} />
+        <Textarea
+          resize="vertical"
+          rows={4}
+          value={notes}
+          readOnly={!canEdit}
+          onChange={(_, d) => setNotes(d.value)}
+          onBlur={() => canEdit && notes !== task.notes && patch({ notes })}
+        />
       </Field>
 
       <Divider />
@@ -296,14 +393,15 @@ function TaskEditor({ task, events, onDeleted }: { task: Task; events: TaskEvent
             <Avatar size={24} name={e.actor?.name ?? "System"} initials={initials(e.actor?.name ?? "S")} color="colorful" />
             <div style={{ flex: 1, minWidth: 0 }}>
               <Caption1 className={styles.meta}>
-                <b>{e.actor?.name ?? "System"}</b> {EVENT_TEXT[e.kind] ?? e.kind} {e.kind !== "kommentar" ? e.text : ""} · {shortDateTime(e.createdAt)}
+                <b>{e.actor?.name ?? "System"}</b>{" "}
+                {e.kind === "angelegt" && e.text ? `hat die Aufgabe ${e.text} angelegt` : `${EVENT_TEXT[e.kind] ?? e.kind} ${e.kind !== "kommentar" ? e.text : ""}`} · {shortDateTime(e.createdAt)}
               </Caption1>
               {e.kind === "kommentar" && <div className={styles.comment}>{e.text}</div>}
             </div>
           </div>
         ))}
       </div>
-      <div className={styles.commentBox}>
+      <fieldset className={`${styles.fieldset} ${styles.commentBox}`} disabled={!canEdit}>
         <Textarea
           style={{ flex: 1 }}
           placeholder={task.isDelegated ? "Kommentar – die andere Person wird benachrichtigt" : "Kommentar"}
@@ -322,7 +420,7 @@ function TaskEditor({ task, events, onDeleted }: { task: Task; events: TaskEvent
             void run(() => api.comment(task.id, value));
           }}
         />
-      </div>
+      </fieldset>
 
       <div className={styles.footer}>
         <Caption1 className={styles.meta}>
@@ -334,7 +432,7 @@ function TaskEditor({ task, events, onDeleted }: { task: Task; events: TaskEvent
             icon={<DeleteRegular />}
             onClick={() => {
               if (window.confirm(`„${task.title}“ endgültig löschen?`)) {
-                void run(() => api.deleteTask(task.id), "Aufgabe gelöscht").then(onDeleted);
+                void run(() => api.deleteTask(task.id), "Aufgabe gelöscht").then((ok) => ok && onDeleted());
               }
             }}
           >

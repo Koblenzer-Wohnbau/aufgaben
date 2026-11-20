@@ -45,6 +45,17 @@ public static class TaskEndpoints
         tasks.MapPost("/{id:int}/comments", (int id, CommentRequest req, TaskService svc, CancellationToken ct) =>
             svc.CommentAsync(id, req, ct));
 
+        // Anhänge immer als Download ausliefern, nie im Browser anzeigen lassen
+        // (eine HTML- oder SVG-Datei aus einer Mail darf hier keinen Code ausführen).
+        tasks.MapGet("/{id:int}/attachments/{attachmentId:int}", async (int id, int attachmentId, HttpContext ctx, TaskService svc, CancellationToken ct) =>
+        {
+            var (meta, data) = await svc.GetAttachmentAsync(id, attachmentId, ct);
+            ctx.Response.Headers["Content-Security-Policy"] = "default-src 'none'; sandbox";
+            ctx.Response.Headers.CacheControl = "private, no-store";
+            return Results.File(data, "application/octet-stream", meta.FileName);
+        });
+
         api.MapGet("/counts", (TaskService svc, CancellationToken ct) => svc.CountsAsync(ct));
+        api.MapGet("/suggestions", (TaskService svc, CancellationToken ct) => svc.SuggestionsAsync(ct));
     }
 }

@@ -10,7 +10,9 @@ Wir bestätigen den Eingang in der Regel innerhalb weniger Werktage.
 ## Grundsätze
 
 * Keine Geheimnisse im Repository: Konfiguration nur über `.env` und `secrets/` auf dem Server.
-* Jeder Push wird mit gitleaks auf versehentlich eingecheckte Geheimnisse geprüft.
-* Abhängigkeiten sind auf feste Versionen gesetzt und werden über Dependabot aktualisiert.
+* Jeder Push auf `main` und jeder Pull Request wird mit gitleaks auf versehentlich eingecheckte
+  Geheimnisse geprüft.
+* Die genauen Versionen der Abhängigkeiten stehen in `package-lock.json` bzw. den Projektdateien;
+  Dependabot schlägt Aktualisierungen vor.
 * Private Aufgaben sind auch für Administratoren nicht sichtbar; Änderungen an dieser Regel
   brauchen einen Test in `tests/Aufgaben.Tests/ApiTests.cs`.

@@ -45,11 +45,15 @@ public sealed record TaskDto(
     int Version,
     bool IsDelegated,
     bool IsOverdue,
-    bool CanDelete);
+    bool CanDelete,
+    List<AttachmentDto> Attachments);
+
+public sealed record AttachmentDto(int Id, string FileName, string ContentType, long Size);
 
 public sealed record EventDto(long Id, string Kind, string Text, UserRef? Actor, DateTimeOffset CreatedAt);
 
-public sealed record TaskDetailDto(TaskDto Task, List<EventDto> Events);
+/// <summary>CanEdit: Änderungen erlaubt. ViaGrant: nur über ein Einsichtsrecht sichtbar.</summary>
+public sealed record TaskDetailDto(TaskDto Task, List<EventDto> Events, bool CanEdit, bool ViaGrant);
 
 public sealed record CreateTaskRequest(
     string Title,
@@ -79,9 +83,41 @@ public sealed record CountsDto(
     int FollowUps,
     int Overdue,
     Dictionary<int, int> Lists,
-    Dictionary<int, int> Projects);
+    Dictionary<int, int> Projects,
+    int Inbox);
 
-public sealed record ListDto(int Id, string Name, string Color, int Position, int OpenCount);
+public sealed record SuggestionsDto(List<TaskDto> Yesterday, List<TaskDto> DueSoon, List<TaskDto> Important, List<TaskDto> Recent);
+
+public sealed record ListDto(int Id, string Name, string Color, int Position, int OpenCount, bool IsOwner, UserRef Owner, List<UserRef> Members);
+
+public sealed record ListMemberRequest(int UserId);
+
+public sealed record AccessGrantRequest(int OwnerId, int ViewerId, string Permission, string? ValidFrom, string? ValidUntil, string? Purpose);
+
+public sealed record AccessDecisionRequest(string? Note);
+
+public sealed record AccessGrantDto(
+    int Id,
+    UserRef Owner,
+    UserRef Viewer,
+    string Permission,
+    string ValidFrom,
+    string? ValidUntil,
+    string Purpose,
+    string Status,
+    bool IsCurrentlyActive,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? ConfirmedAt,
+    string ConsentNote,
+    DateTimeOffset? RevokedAt,
+    string RevokeReason,
+    int AccessCount);
+
+public sealed record AccessLogDto(long Id, string Action, UserRef Viewer, UserRef Owner, int? TaskId, DateTimeOffset At);
+
+public sealed record MyAccessDto(int GrantId, UserRef Owner, string Permission, string? ValidUntil);
+
+public sealed record AccessAboutMeDto(List<AccessGrantDto> Grants, List<AccessLogDto> Log);
 
 public sealed record ListRequest(string? Name, string? Color, int? Position);
 
@@ -100,7 +136,9 @@ public sealed record MeDto(
     bool HasCalendarFeed,
     bool MailAvailable,
     bool TeamsNotificationsAvailable,
-    string Today);
+    string Today,
+    string? MailInboxAddress,
+    bool DigestOnWeekends);
 
 public sealed record MeRequest(string? NotifyChannel, bool? DigestEnabled);
 
@@ -118,4 +156,16 @@ public sealed record ApplyTemplateRequest(string StartDate, int? ProjectId, int?
 
 public sealed record ApplyTemplateResult(int Created, List<int> TaskIds);
 
-public sealed record AdminStatusDto(bool GraphConfigured, bool MailConfigured, bool TeamsNotificationsConfigured, int ActiveUsers, int PendingNotifications, int FailedNotifications, DateTimeOffset? LastDirectorySync, string? LastDirectorySyncResult);
+public sealed record AdminStatusDto(
+    bool GraphConfigured,
+    bool MailConfigured,
+    bool TeamsNotificationsConfigured,
+    int ActiveUsers,
+    int PendingNotifications,
+    int FailedNotifications,
+    DateTimeOffset? LastDirectorySync,
+    string? LastDirectorySyncResult,
+    bool MailInboxConfigured,
+    DateTimeOffset? LastMailInboxRun,
+    string? LastMailInboxResult,
+    int RejectedMailsLast7Days);

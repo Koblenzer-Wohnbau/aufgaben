@@ -1,4 +1,16 @@
-import { app, authentication, pages } from "@microsoft/teams-js";
+// TeamsJS wird nur innerhalb von Teams geladen – im normalen Browser spart das den Download.
+type TeamsModule = typeof import("@microsoft/teams-js");
+let teamsJs: TeamsModule | null = null;
+
+async function loadTeams(): Promise<TeamsModule> {
+  if (!teamsJs) teamsJs = await import("@microsoft/teams-js");
+  return teamsJs;
+}
+
+function teams(): TeamsModule {
+  if (!teamsJs) throw new Error("Teams ist noch nicht initialisiert.");
+  return teamsJs;
+}
 
 /** Die App läuft in Teams, wenn das Manifest "?inTeams=1" an die Adresse hängt. */
 export const inTeams = new URLSearchParams(window.location.search).has("inTeams");
@@ -19,6 +31,7 @@ export interface TeamsInfo {
 }
 
 export async function initTeams(): Promise<TeamsInfo> {
+  const { app } = await loadTeams();
   await app.initialize();
   const ctx = await app.getContext();
   app.notifySuccess();
@@ -34,7 +47,7 @@ export async function initTeams(): Promise<TeamsInfo> {
 }
 
 export function onTeamsThemeChange(handler: (theme: TeamsTheme) => void) {
-  app.registerOnThemeChangeHandler((t) => handler(t as TeamsTheme));
+  teams().app.registerOnThemeChangeHandler((t) => handler(t as TeamsTheme));
 }
 
 let cached: { token: string; exp: number } | null = null;
@@ -51,13 +64,14 @@ function expiry(token: string): number {
 /** Teams-SSO-Token (Audience = eigene App). Wird bis kurz vor Ablauf wiederverwendet. */
 export async function teamsToken(): Promise<string> {
   if (cached && cached.exp - Date.now() > 120_000) return cached.token;
-  const token = await authentication.getAuthToken();
+  const token = await teams().authentication.getAuthToken();
   cached = { token, exp: expiry(token) };
   return token;
 }
 
 /** Konfigurationsseite eines Kanal-Tabs: speichert, welches Projekt der Tab zeigt. */
 export function registerChannelTabSave(save: () => Promise<{ projectId: number; label: string }>) {
+  const { pages } = teams();
   pages.config.registerOnSaveHandler(async (event) => {
     try {
       const { projectId, label } = await save();
@@ -76,5 +90,5 @@ export function registerChannelTabSave(save: () => Promise<{ projectId: number; 
 }
 
 export function setChannelTabValid(valid: boolean) {
-  pages.config.setValidityState(valid);
+  teams().pages.config.setValidityState(valid);
 }

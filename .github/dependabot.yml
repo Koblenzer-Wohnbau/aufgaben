@@ -1,24 +1,58 @@
+# Dependabot: wöchentliche Updates, zusammengefasst in Gruppen, damit nicht jede Kleinigkeit
+# einen eigenen Pull Request erzeugt. Sicherheitsupdates kommen unabhängig davon sofort.
 version: 2
 updates:
   - package-ecosystem: nuget
     directory: /
     schedule:
       interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [abhaengigkeiten, backend]
+    # Auf .NET 10 LTS bleiben: Hauptversionen der .NET-Pakete kommen nur mit einem bewussten Umstieg.
+    ignore:
+      - dependency-name: "Microsoft.AspNetCore.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.EntityFrameworkCore.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Microsoft.Extensions.*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "Npgsql.EntityFrameworkCore.PostgreSQL"
+        update-types: ["version-update:semver-major"]
     groups:
       microsoft:
         patterns: ["Microsoft.*", "Azure.*", "Npgsql*"]
+      tests:
+        patterns: ["xunit*", "Testcontainers*", "Microsoft.NET.Test.Sdk"]
   - package-ecosystem: npm
     directory: /frontend
     schedule:
       interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [abhaengigkeiten, frontend]
     groups:
       fluentui:
         patterns: ["@fluentui/*"]
+      react:
+        patterns: ["react", "react-dom", "@types/react*"]
+      build:
+        patterns: ["vite", "vitest", "@vitejs/*", "typescript"]
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: weekly
+      day: monday
+    labels: [abhaengigkeiten, docker]
+    ignore:
+      # .NET-Images: nur Patches innerhalb von 10.0 (LTS)
+      - dependency-name: "dotnet/*"
+        update-types: ["version-update:semver-major"]
+      # Node nur auf LTS-Linien, Wechsel bewusst
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    labels: [abhaengigkeiten, ci]
