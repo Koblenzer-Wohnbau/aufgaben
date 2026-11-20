@@ -2,7 +2,6 @@
 
 **Aufgabenverwaltung für Microsoft Teams und den Browser – ohne Exchange Online.**
 
-<img width="3439" height="1251" alt="image" src="https://github.com/user-attachments/assets/6bef9845-3815-4cb6-9197-569c7d08d514" />
 <img width="458" height="916" alt="image" src="https://github.com/user-attachments/assets/c5a4915d-929d-4c1b-9d29-ff1c3a5f86ea" />
 
 
