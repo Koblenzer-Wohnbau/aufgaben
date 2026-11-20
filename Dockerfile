@@ -6,7 +6,7 @@
 #   3. Schlankes Laufzeit-Image ohne Shell, ohne Paketmanager, ohne Root ("chiseled")
 
 # ------------------------------------------------------------------ 1. Frontend
-FROM node:22-alpine AS frontend
+FROM node:26-alpine AS frontend
 WORKDIR /src/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --no-audit --no-fund
