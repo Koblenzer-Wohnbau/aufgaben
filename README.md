@@ -73,7 +73,9 @@ cd frontend; npm test       # Tests der Schnelleingabe und des Freigabe-Formular
 
 ### Installation
 
-1. Server vorbereiten: `deploy/server/haerten.sh` (Firewall, SSH nur mit Schlüssel, optional nur bestimmte IPs)
+1. SSH-Zugang vom Windows-PC einrichten: `deploy/server/ssh-zugang-einrichten.ps1 -Server <IP> -User <name>`
+   (erzeugt den Schlüssel, trägt ihn ein, testet den Login, legt den Kurznamen `ssh aufgaben` an)
+2. Server vorbereiten: `deploy/server/haerten.sh` (Firewall, SSH nur mit Schlüssel, optional nur bestimmte IPs)
 2. Repository auf den Server holen, `.env.example` nach `.env` kopieren und ausfüllen (`chmod 600 .env`)
 3. App-Zertifikat als `secrets/app.pfx` ablegen (lesbar für UID 1654, den Benutzer im Container)
 4. Starten: `docker compose pull && docker compose up -d` (selbst bauen statt herunterladen: `compose.build.yaml`)
