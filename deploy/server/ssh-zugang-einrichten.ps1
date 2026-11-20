@@ -6,7 +6,7 @@
   1. Erzeugt einen eigenen SSH-Schlüssel (ed25519), falls er noch nicht existiert.
   2. Kopiert den öffentlichen Schlüssel auf den Server (fragt dafür EINMAL nach dem Server-Passwort).
   3. Prüft, ob die Anmeldung jetzt ohne Passwort klappt.
-  4. Legt in ~/.ssh/config einen Kurznamen an – danach genügt "ssh aufgaben".
+  4. Legt in ~/.ssh/config Kurznamen an – danach genügt "ssh <hostname der VM>" (oder "ssh aufgaben").
 
   Erst wenn Schritt 3 klappt, darf deploy/server/haerten.sh laufen (es schaltet Passwörter für SSH ab).
 
@@ -67,23 +67,28 @@ if ($LASTEXITCODE -ne 0) { Stop-WithError "Eintragen fehlgeschlagen (Passwort, B
 
 # ---------------------------------------------------------------- 3. Testen
 Write-Step "Anmeldung ohne Passwort testen"
-$check = & ssh -p $Port -i $key -o IdentitiesOnly=yes -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no "$User@$Server" "echo schluessel-ok"
+$check = & ssh -p $Port -i $key -o IdentitiesOnly=yes -o PasswordAuthentication=no -o KbdInteractiveAuthentication=no "$User@$Server" "echo schluessel-ok; hostname -s"
 if ($LASTEXITCODE -ne 0 -or ($check -notcontains "schluessel-ok")) {
     Stop-WithError "Anmeldung mit Schlüssel klappt noch nicht. haerten.sh NICHT ausführen."
 }
 Write-Host "Anmeldung mit Schlüssel klappt." -ForegroundColor Green
+# Echter Hostname der VM – damit auch "ssh <hostname>" funktioniert, ganz ohne DNS-Eintrag.
+$remoteHost = ($check | Where-Object { $_ -and $_ -ne "schluessel-ok" } | Select-Object -Last 1)
+if ($remoteHost) { $remoteHost = $remoteHost.Trim() }
 
 # ---------------------------------------------------------------- 4. Kurzname in ~/.ssh/config
-Write-Step "Kurzname '$Alias' in $sshDir\config"
+$names = @($Alias, $remoteHost, $Server) | Where-Object { $_ -and $_ -match '^[A-Za-z0-9._-]+$' } | Select-Object -Unique
+Write-Step "Kurznamen in $sshDir\config: $($names -join ', ')"
 $config = Join-Path $sshDir "config"
 $existing = ""
 if (Test-Path $config) { $existing = Get-Content $config -Raw }
-if ($existing -match "(?m)^\s*Host\s+$([regex]::Escape($Alias))\s*$") {
-    Write-Host "Eintrag '$Alias' existiert schon – nicht verändert. Bei Bedarf $config von Hand anpassen."
+$taken = $names | Where-Object { $existing -match "(?m)^\s*Host\s+(.*\s)?$([regex]::Escape($_))(\s|$)" }
+if ($taken) {
+    Write-Host "Schon in der Datei vorhanden: $($taken -join ', ') – nicht verändert. Bei Bedarf $config von Hand anpassen."
 } else {
     $block = @(
         "",
-        "Host $Alias",
+        "Host $($names -join ' ')",
         "    HostName $Server",
         "    User $User",
         "    Port $Port",
@@ -98,7 +103,7 @@ if ($existing -match "(?m)^\s*Host\s+$([regex]::Escape($Alias))\s*$") {
 
 # ---------------------------------------------------------------- Fertig
 Write-Host ""
-Write-Host "Fertig. Ab jetzt:  ssh $Alias" -ForegroundColor Green
+foreach ($n in $names) { Write-Host "Fertig. Ab jetzt:  ssh $n" -ForegroundColor Green }
 Write-Host ""
 Write-Host "Optional (Fingerabdruck vergleichen): in der vSphere-Konsole der VM"
 Write-Host "  ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub"
