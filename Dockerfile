@@ -14,7 +14,7 @@ COPY frontend/ ./
 RUN npm run build
 
 # ------------------------------------------------------------------ 2. Backend
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 WORKDIR /src
 COPY Directory.Build.props Aufgaben.slnx ./
 COPY src/Aufgaben.Api/Aufgaben.Api.csproj src/Aufgaben.Api/
