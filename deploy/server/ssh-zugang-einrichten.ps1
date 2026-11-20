@@ -26,6 +26,30 @@ $ErrorActionPreference = "Stop"
 function Write-Step([string] $text) { Write-Host ""; Write-Host "==> $text" -ForegroundColor Cyan }
 function Stop-WithError([string] $text) { Write-Host ""; Write-Host "ABBRUCH: $text" -ForegroundColor Red; exit 1 }
 
+# Windows-OpenSSH verweigert private Schlüssel und ~/.ssh/config, wenn außer dem Besitzer noch jemand
+# Rechte hat – häufig vom Profilordner geerbt (z. B. ein Support-Konto): "Bad owner or permissions" bzw.
+# "UNPROTECTED PRIVATE KEY FILE". Deshalb: nur die eigene Person und SYSTEM, keine Vererbung.
+function Set-OwnerOnlyAcl([string] $path) {
+    # icacls statt Set-Acl: braucht keine Sonderrechte (Set-Acl verlangt je nach Datei SeSecurityPrivilege),
+    # gibt es auf jedem Windows und arbeitet mit SIDs – unabhängig von der Sprache des Systems.
+    $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+        & icacls $path /reset /Q 2>$null | Out-Null
+        & icacls $path /inheritance:r /grant:r "*${sid}:F" "*S-1-5-18:F" /Q 2>$null | Out-Null
+        $ok = ($LASTEXITCODE -eq 0)
+        # Besitz übernehmen klappt nicht immer (z. B. als Administrator angelegt) – OpenSSH akzeptiert
+        # dann auch die Gruppe Administratoren als Besitzer.
+        & icacls $path /setowner "*$sid" /Q 2>$null | Out-Null
+    } finally {
+        $ErrorActionPreference = $previous
+    }
+    if (-not $ok) {
+        Stop-WithError "Rechte für $path ließen sich nicht setzen. Von Hand: icacls `"$path`" /inheritance:r /grant:r `"$($env:USERNAME):F`""
+    }
+}
+
 # ---------------------------------------------------------------- OpenSSH vorhanden?
 Write-Step "OpenSSH-Client prüfen"
 foreach ($tool in "ssh", "ssh-keygen") {
@@ -50,6 +74,7 @@ if (Test-Path $pub) {
     & ssh-keygen -t ed25519 -a 64 -f $key -C "$env:USERNAME@$env:COMPUTERNAME aufgaben"
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path $pub)) { Stop-WithError "Schlüssel konnte nicht erzeugt werden." }
 }
+Set-OwnerOnlyAcl $key
 $publicKey = (Get-Content $pub -Raw).Trim()
 & ssh-keygen -lf $pub
 
@@ -63,7 +88,11 @@ $remote = 'umask 077; mkdir -p ~/.ssh; tr -d ''\r'' > ~/.ssh/.aufgaben-neu; touc
           'grep -qxFf ~/.ssh/.aufgaben-neu ~/.ssh/authorized_keys || cat ~/.ssh/.aufgaben-neu >> ~/.ssh/authorized_keys; ' +
           'rm -f ~/.ssh/.aufgaben-neu; chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys; echo eingetragen'
 $publicKey | & ssh -p $Port -o StrictHostKeyChecking=accept-new -o PubkeyAuthentication=no "$User@$Server" $remote
-if ($LASTEXITCODE -ne 0) { Stop-WithError "Eintragen fehlgeschlagen (Passwort, Benutzer oder Netzwerk prüfen)." }
+if ($LASTEXITCODE -ne 0) {
+    Stop-WithError ("Eintragen fehlgeschlagen (Passwort, Benutzer oder Netzwerk prüfen). " +
+        "Meldet ssh 'REMOTE HOST IDENTIFICATION HAS CHANGED' (z. B. weil die VM neu installiert wurde): " +
+        "alten Eintrag mit  ssh-keygen -R $Server  entfernen und das Skript erneut starten.")
+}
 
 # ---------------------------------------------------------------- 3. Testen
 Write-Step "Anmeldung ohne Passwort testen"
@@ -100,6 +129,9 @@ if ($taken) {
     [System.IO.File]::AppendAllText($config, $block, (New-Object System.Text.UTF8Encoding $false))
     Write-Host "angelegt"
 }
+Set-OwnerOnlyAcl $config
+& ssh -G $Alias 2>&1 | Out-Null
+if ($LASTEXITCODE -ne 0) { Stop-WithError "ssh kann $config nicht lesen – Rechte der Datei prüfen." }
 
 # ---------------------------------------------------------------- Fertig
 Write-Host ""

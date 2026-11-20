@@ -63,6 +63,8 @@ else
   ssh-keygen -t ed25519 -a 64 -f "$key" -C "$(id -un)@${HOSTNAME%%.*} aufgaben"
   [[ -f "$key.pub" ]] || fail "Schlüssel konnte nicht erzeugt werden."
 fi
+# ssh verweigert private Schlüssel, die andere lesen dürfen ("UNPROTECTED PRIVATE KEY FILE").
+chmod 600 "$key"
 ssh-keygen -lf "$key.pub"
 
 # ---------------------------------------------------------------- 2. Auf den Server kopieren
@@ -74,7 +76,7 @@ remote+='grep -qxFf ~/.ssh/.aufgaben-neu ~/.ssh/authorized_keys || cat ~/.ssh/.a
 remote+='rm -f ~/.ssh/.aufgaben-neu; chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys; echo eingetragen'
 ssh -p "$port" -o StrictHostKeyChecking=accept-new -o PubkeyAuthentication=no \
   "$user_name@$server" "$remote" < "$key.pub" \
-  || fail "Eintragen fehlgeschlagen (Passwort, Benutzer oder Netzwerk prüfen)."
+  || fail "Eintragen fehlgeschlagen (Passwort, Benutzer oder Netzwerk prüfen). Meldet ssh 'REMOTE HOST IDENTIFICATION HAS CHANGED' (z. B. VM neu installiert): ssh-keygen -R $server ausführen und das Skript erneut starten."
 
 # ---------------------------------------------------------------- 3. Testen
 step "Anmeldung ohne Passwort testen"
