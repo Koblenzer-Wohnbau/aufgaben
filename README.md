@@ -2,6 +2,9 @@
 
 **Aufgabenverwaltung für Microsoft Teams und den Browser – ohne Exchange Online.**
 
+<img width="3439" height="1251" alt="image" src="https://github.com/user-attachments/assets/6bef9845-3815-4cb6-9197-569c7d08d514" />
+
+
 Microsoft To Do und die persönlichen Aufgaben in Planner setzen ein Exchange-Online-Postfach voraus.
 Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betreiben, gehen dabei leer aus.
 *Aufgaben* schließt diese Lücke als eigenständige, selbst gehostete App mit Teams-Integration.
