@@ -1,6 +1,6 @@
 {
-  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
-  "manifestVersion": "1.17",
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.25/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.25",
   "version": "{{VERSION}}",
   "id": "{{APP_ID}}",
   "developer": {
@@ -22,6 +22,7 @@
     "outline": "outline.png"
   },
   "accentColor": "#5B5FC7",
+  "supportsChannelFeatures": "tier1",
   "staticTabs": [
     {
       "entityId": "aufgaben",
