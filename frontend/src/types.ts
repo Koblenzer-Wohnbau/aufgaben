@@ -78,6 +78,10 @@ export interface TaskEvent {
 export interface TaskDetail {
   task: Task;
   events: TaskEvent[];
+  /** false: nur über eine Lese-Freigabe sichtbar */
+  canEdit: boolean;
+  /** true: über ein Einsichtsrecht sichtbar, nicht eigene Aufgabe */
+  viaGrant: boolean;
 }
 
 export interface Counts {
@@ -173,6 +177,7 @@ export interface Me {
   teamsNotificationsAvailable: boolean;
   today: string;
   mailInboxAddress: string | null;
+  digestOnWeekends: boolean;
 }
 
 export interface DevUser {

@@ -52,7 +52,8 @@ public sealed record AttachmentDto(int Id, string FileName, string ContentType, 
 
 public sealed record EventDto(long Id, string Kind, string Text, UserRef? Actor, DateTimeOffset CreatedAt);
 
-public sealed record TaskDetailDto(TaskDto Task, List<EventDto> Events);
+/// <summary>CanEdit: Änderungen erlaubt. ViaGrant: nur über ein Einsichtsrecht sichtbar.</summary>
+public sealed record TaskDetailDto(TaskDto Task, List<EventDto> Events, bool CanEdit, bool ViaGrant);
 
 public sealed record CreateTaskRequest(
     string Title,
@@ -136,7 +137,8 @@ public sealed record MeDto(
     bool MailAvailable,
     bool TeamsNotificationsAvailable,
     string Today,
-    string? MailInboxAddress);
+    string? MailInboxAddress,
+    bool DigestOnWeekends);
 
 public sealed record MeRequest(string? NotifyChannel, bool? DigestEnabled);
 

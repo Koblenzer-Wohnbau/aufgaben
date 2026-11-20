@@ -21,6 +21,7 @@ import {
 import { CopyRegular, SignOutRegular } from "@fluentui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
+import { accessActionLabel } from "../accessText";
 import { useApp } from "../context";
 
 const useStyles = makeStyles({
@@ -79,7 +80,7 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
 
             <Switch
               checked={me.digestEnabled}
-              label="Tagesübersicht am Morgen (werktags)"
+              label={me.digestOnWeekends ? "Tagesübersicht am Morgen" : "Tagesübersicht am Morgen (werktags)"}
               onChange={(_, d) => update({ digestEnabled: d.checked })}
             />
 
@@ -114,13 +115,17 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
                 </Text>
               ))}
               {aboutMe.data && aboutMe.data.log.length > 0 && (
-                <Text size={200} className={styles.muted} block style={{ marginTop: 6 }}>
-                  Letzte Zugriffe:{" "}
-                  {aboutMe.data.log
-                    .slice(0, 5)
-                    .map((l) => `${l.viewer.name} (${new Date(l.at).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })})`)
-                    .join(", ")}
-                </Text>
+                <div style={{ marginTop: 6 }}>
+                  <Text size={200} className={styles.muted} block>
+                    Letzte Zugriffe:
+                  </Text>
+                  {aboutMe.data.log.slice(0, 8).map((l) => (
+                    <Text key={l.id} size={200} className={styles.muted} block>
+                      {new Date(l.at).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} ·{" "}
+                      {l.viewer.name} {accessActionLabel(l.action)}
+                    </Text>
+                  ))}
+                </div>
               )}
             </Field>
 

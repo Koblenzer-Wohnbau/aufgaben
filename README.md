@@ -76,7 +76,7 @@ cd frontend; npm test       # Tests der Schnelleingabe und des Freigabe-Formular
 1. Server vorbereiten: `deploy/server/haerten.sh` (Firewall, SSH nur mit Schlüssel, optional nur bestimmte IPs)
 2. Repository auf den Server holen, `.env.example` nach `.env` kopieren und ausfüllen (`chmod 600 .env`)
 3. App-Zertifikat als `secrets/app.pfx` ablegen (lesbar für UID 1654, den Benutzer im Container)
-4. Starten: `docker compose up -d` (eigenes Image bauen: `--build`)
+4. Starten: `docker compose pull && docker compose up -d` (selbst bauen statt herunterladen: `compose.build.yaml`)
 5. Nginx-Konfiguration aus `deploy/nginx/` einspielen, TLS-Zertifikat einrichten
 6. Entra-App einrichten (Checkliste unten), Teams-Paket bauen: `teams/build-package.ps1`, im Teams Admin Center hochladen
 7. Sicherung einrichten: `deploy/backup/backup.sh`, Wiederherstellung prüfen: `deploy/backup/restore-test.sh`

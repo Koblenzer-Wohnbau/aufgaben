@@ -38,6 +38,7 @@ import {
 } from "@fluentui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
+import { accessActionLabel } from "../accessText";
 import { printConsentForm } from "../consentForm";
 import { useApp } from "../context";
 import { shortDateTime } from "../dates";
@@ -62,13 +63,6 @@ const useStyles = makeStyles({
   log: { display: "flex", flexDirection: "column", gap: "6px", maxHeight: "50vh", overflowY: "auto" },
 });
 
-const ACTION_LABEL: Record<string, string> = {
-  angesehen: "hat die Aufgabenliste angesehen",
-  geoeffnet: "hat eine Aufgabe geöffnet",
-  geaendert: "hat eine Aufgabe geändert",
-  bestaetigt: "hat die Freigabe bestätigt",
-  widerrufen: "hat die Freigabe widerrufen",
-};
 
 function de(date: string | null) {
   if (!date) return "";
@@ -144,7 +138,7 @@ function AccessSection() {
     <>
       <Text block className={styles.muted} style={{ marginTop: 12 }}>
         Eine Person darf die Aufgaben einer anderen nur sehen, wenn hier eine Freigabe angelegt, das Formular unterschrieben und die Unterschrift
-        bestätigt ist. Beide Personen werden benachrichtigt, jeder Zugriff wird protokolliert.
+        bestätigt ist. Beide Personen werden benachrichtigt (je nach ihrer Einstellung), jeder Zugriff wird protokolliert.
       </Text>
       <MessageBar intent="info" style={{ marginTop: 12 }}>
         <MessageBarBody>
@@ -231,7 +225,7 @@ function AccessSection() {
             await api.confirmAccess(confirming.id, note);
             setConfirming(null);
             await refresh();
-            notify("Freigabe aktiv – beide Personen wurden benachrichtigt");
+            notify("Freigabe aktiv – beide Personen werden benachrichtigt (je nach ihrer Einstellung)");
           }}
         />
       )}
@@ -392,7 +386,7 @@ function LogDialog({ grant, onClose }: { grant: AccessGrant; onClose: () => void
               {log.data?.length === 0 && <Text className={styles.muted}>Noch keine Zugriffe.</Text>}
               {log.data?.map((l) => (
                 <Text key={l.id}>
-                  <Caption1 className={styles.muted}>{shortDateTime(l.at)}</Caption1> · <b>{l.viewer.name}</b> {ACTION_LABEL[l.action] ?? l.action}
+                  <Caption1 className={styles.muted}>{shortDateTime(l.at)}</Caption1> · <b>{l.viewer.name}</b> {accessActionLabel(l.action)}
                   {l.taskId ? ` (Aufgabe #${l.taskId})` : ""}
                 </Text>
               ))}

@@ -11,6 +11,9 @@ namespace Aufgaben.Api.Endpoints;
 
 public static class AppEndpoints
 {
+    /// <summary>Fehlertext für die Oberfläche kürzen (Ursache steht vollständig im Protokoll).</summary>
+    private static string Short(string message) => message.Length > 300 ? message[..300] + " …" : message;
+
     public static void MapAppEndpoints(this RouteGroupBuilder api)
     {
         MapMe(api);
@@ -64,7 +67,8 @@ public static class AppEndpoints
         u.Id, u.DisplayName, u.Email, u.IsAdmin, u.NotifyChannel, u.DigestEnabled,
         u.TeamsSeenAt is not null, u.IcsTokenHash is not null, mail.IsAvailable, teams.IsAvailable,
         clock.Today.ToString("yyyy-MM-dd"),
-        o.MailInbox.Enabled && !string.IsNullOrWhiteSpace(o.MailInbox.Address) ? o.MailInbox.Address : null);
+        o.MailInbox.Enabled && !string.IsNullOrWhiteSpace(o.MailInbox.Address) ? o.MailInbox.Address : null,
+        o.Worker.DigestOnWeekends);
 
     // ------------------------------------------------------------------ Personen
 
@@ -78,7 +82,7 @@ public static class AppEndpoints
                 var pattern = "%" + TaskService.EscapeLike(q.Trim()) + "%";
                 query = query.Where(u => EF.Functions.ILike(u.DisplayName, pattern, "\\") || (u.Email != null && EF.Functions.ILike(u.Email, pattern, "\\")));
             }
-            var users = await query.OrderBy(u => u.DisplayName).Take(q is null ? 500 : 25).ToListAsync(ct);
+            var users = await query.OrderBy(u => u.DisplayName).Take(q is null ? 5000 : 25).ToListAsync(ct);
             return users.Select(UserRef.From);
         });
     }
@@ -391,8 +395,8 @@ public static class AppEndpoints
                 mail.IsAvailable,
                 teams.IsAvailable,
                 await db.Users.CountAsync(u => u.IsActive, ct),
-                await db.Notifications.CountAsync(n => n.SentAt == null && n.Attempts < 6, ct),
-                await db.Notifications.CountAsync(n => n.SentAt == null && n.Attempts >= 6, ct),
+                await db.Notifications.CountAsync(n => n.SentAt == null && n.Attempts < BackgroundWorker.MaxAttempts, ct),
+                await db.Notifications.CountAsync(n => n.SentAt == null && n.Attempts >= BackgroundWorker.MaxAttempts, ct),
                 DirectorySync.LastRun,
                 DirectorySync.LastResult,
                 inbox.IsConfigured,
@@ -407,14 +411,28 @@ public static class AppEndpoints
             {
                 throw ApiException.Invalid("Das Aufgaben-Postfach ist nicht konfiguriert (Aufgaben:MailInbox).");
             }
-            var created = await inbox.PollAsync(ct);
-            return new { created, result = MailInboxPoller.LastResult };
+            try
+            {
+                var created = await inbox.PollAsync(ct);
+                return new { created, result = MailInboxPoller.LastResult };
+            }
+            catch (Exception ex) when (ex is not ApiException and not OperationCanceledException)
+            {
+                throw new ApiException(502, "Postfachabruf fehlgeschlagen: " + Short(ex.Message));
+            }
         });
 
         admin.MapPost("/directory-sync", async (DirectorySync sync, CancellationToken ct) =>
         {
-            var (added, updated, deactivated) = await sync.RunAsync(ct);
-            return new { added, updated, deactivated };
+            try
+            {
+                var (added, updated, deactivated) = await sync.RunAsync(ct);
+                return new { added, updated, deactivated };
+            }
+            catch (Exception ex) when (ex is not ApiException and not OperationCanceledException)
+            {
+                throw new ApiException(502, "Verzeichnisabgleich fehlgeschlagen: " + Short(ex.Message));
+            }
         });
     }
 }

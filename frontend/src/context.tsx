@@ -41,6 +41,19 @@ export function matchUser(users: UserRef[], query: string): UserRef | undefined 
   );
 }
 
+/**
+ * Kürzel für die Schnelleingabe, das genau diese Person trifft: Nachname, Vorname oder der
+ * Anfang der E-Mail-Adresse – je nachdem, was eindeutig ist (z. B. bei gleichen Nachnamen).
+ */
+export function mentionFor(user: UserRef, users: UserRef[]): string {
+  const parts = user.name.split(/\s+/).filter(Boolean);
+  const local = user.email?.split("@")[0];
+  const candidates = [parts.at(-1), parts[0], local].filter(
+    (c): c is string => !!c && /^[\p{L}\p{N}][\p{L}\p{N}._-]*$/u.test(c),
+  );
+  return candidates.find((c) => matchUser(users, c)?.id === user.id) ?? candidates[0] ?? user.name;
+}
+
 export function initials(name: string): string {
   const parts = name.split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();

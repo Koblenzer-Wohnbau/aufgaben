@@ -61,7 +61,7 @@ public sealed class MailOptions
     public int Port { get; set; } = 25;
 
     /// <summary>"None", "StartTls", "StartTlsWhenAvailable" oder "SslOnConnect".</summary>
-    public string Security { get; set; } = "StartTlsWhenAvailable";
+    public string Security { get; set; } = "StartTls";
 
     public string Username { get; set; } = "";
     public string Password { get; set; } = "";

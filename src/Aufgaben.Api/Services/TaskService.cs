@@ -5,6 +5,7 @@ using Aufgaben.Api.Contracts;
 using Aufgaben.Api.Data;
 using Aufgaben.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Aufgaben.Api.Services;
 
@@ -192,6 +193,16 @@ public sealed class TaskService(
                 .ThenByDescending(t => t.CreatedAt);
 
         var items = await ordered.Take(500).ToListAsync(ct);
+        if (view == "suche" && items.Count > 0)
+        {
+            // Suchtreffer, die nur über ein Einsichtsrecht sichtbar sind, gelten als angesehen.
+            var ids = items.Select(t => t.Id).ToList();
+            var own = await VisibleOwn(db.Tasks).Where(t => ids.Contains(t.Id)).Select(t => t.Id).ToListAsync(ct);
+            foreach (var ownerId in items.Where(t => !own.Contains(t.Id)).Select(t => t.AssigneeId).Distinct())
+            {
+                await LogGrantAccessAsync(ownerId, "angesehen", null, ct);
+            }
+        }
         return items.Select(ToDto).ToList();
     }
 
@@ -281,8 +292,10 @@ public sealed class TaskService(
             .OrderBy(e => e.CreatedAt).ThenBy(e => e.Id)
             .Take(300)
             .ToListAsync(ct);
+        var viaGrant = !await VisibleOwn(db.Tasks).AnyAsync(t => t.Id == id, ct);
+        var canEdit = !viaGrant || await Visible(db.Tasks, true).AnyAsync(t => t.Id == id, ct);
         return new TaskDetailDto(ToDto(task), events.Select(e => new EventDto(
-            e.Id, e.Kind, e.Text, e.Actor is null ? null : UserRef.From(e.Actor), e.CreatedAt)).ToList());
+            e.Id, e.Kind, e.Text, e.Actor is null ? null : UserRef.From(e.Actor), e.CreatedAt)).ToList(), canEdit, viaGrant);
     }
 
     // ---------------------------------------------------------------- Schreiben
@@ -325,7 +338,7 @@ public sealed class TaskService(
             task.Checklist.Add(new ChecklistItem { Title = ValidChecklistTitle(checklist[i]), Position = i });
         }
 
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await using var tx = await BeginAsync(ct);
         db.Tasks.Add(task);
         await db.SaveChangesAsync(ct);
 
@@ -341,7 +354,7 @@ public sealed class TaskService(
             outbox.Enqueue(assignee.Id, NotificationOutbox.Assigned, task.Id, task.Title, task.Notes, me.User.DisplayName);
         }
         await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
 
         task.CreatedBy = me.User;
         task.Assignee = assignee;
@@ -368,61 +381,79 @@ public sealed class TaskService(
             throw ApiException.Conflict("Die Aufgabe wurde inzwischen geändert. Bitte neu laden.");
         }
 
+        // Wer nur über ein Einsichtsrecht bearbeitet, ändert Inhalte – nicht, wem die Aufgabe gehört
+        // oder wer sie sieht.
+        var viaGrant = !await VisibleOwn(db.Tasks).AnyAsync(t => t.Id == id, ct);
+        const string grantLimit = "Mit einer Freigabe lassen sich Verantwortliche, Projekt und Liste nicht ändern.";
+
         User? newAssignee = null;
         bool? myDay = null;
-        foreach (var prop in body.EnumerateObject())
+        var field = "";
+        try
         {
-            var v = prop.Value;
-            var isNull = v.ValueKind == JsonValueKind.Null;
-            switch (prop.Name)
+            foreach (var prop in body.EnumerateObject())
             {
-                case "version":
-                    break;
-                case "title":
-                    task.Title = ValidTitle(RequireString(v, "Titel"));
-                    break;
-                case "notes":
-                    task.Notes = ValidNotes(isNull ? "" : RequireString(v, "Notizen"));
-                    break;
-                case "priority":
-                    task.Priority = ValidPriority(RequireString(v, "Priorität"));
-                    break;
-                case "kind":
-                    task.Kind = ValidKind(RequireString(v, "Art"));
-                    break;
-                case "recurrence":
-                    task.Recurrence = ValidRecurrence(isNull ? "" : RequireString(v, "Wiederholung"));
-                    break;
-                case "dueDate":
-                    task.DueDate = isNull ? null : ParseDate(RequireString(v, "Fälligkeit"));
-                    if (task.DueDate is null)
-                    {
-                        task.DueTime = null;
-                    }
-                    break;
-                case "dueTime":
-                    task.DueTime = isNull ? null : ParseTime(RequireString(v, "Uhrzeit"));
-                    break;
-                case "remindAt":
-                    task.RemindAt = isNull ? null : v.GetDateTimeOffset().ToUniversalTime();
-                    task.RemindedAt = null;
-                    break;
-                case "myDay":
-                    myDay = v.ValueKind == JsonValueKind.True;
-                    break;
-                case "listId":
-                    task.ListId = isNull ? null : await AccessibleListAsync(v.GetInt32(), ct);
-                    break;
-                case "projectId":
-                    task.ProjectId = isNull ? null : await OpenProjectAsync(v.GetInt32(), ct);
-                    break;
-                case "assigneeId":
-                    newAssignee = await ActiveUserAsync(v.GetInt32(), ct);
-                    task.AssigneeId = newAssignee.Id;
-                    break;
-                default:
-                    throw ApiException.Invalid($"Unbekanntes Feld: {prop.Name}");
+                field = prop.Name;
+                var v = prop.Value;
+                var isNull = v.ValueKind == JsonValueKind.Null;
+                switch (prop.Name)
+                {
+                    case "version":
+                        break;
+                    case "title":
+                        task.Title = ValidTitle(RequireString(v, "Titel"));
+                        break;
+                    case "notes":
+                        task.Notes = ValidNotes(isNull ? "" : RequireString(v, "Notizen"));
+                        break;
+                    case "priority":
+                        task.Priority = ValidPriority(RequireString(v, "Priorität"));
+                        break;
+                    case "kind":
+                        task.Kind = ValidKind(RequireString(v, "Art"));
+                        break;
+                    case "recurrence":
+                        task.Recurrence = ValidRecurrence(isNull ? "" : RequireString(v, "Wiederholung"));
+                        break;
+                    case "dueDate":
+                        task.DueDate = isNull ? null : ParseDate(RequireString(v, "Fälligkeit"));
+                        if (task.DueDate is null)
+                        {
+                            task.DueTime = null;
+                        }
+                        break;
+                    case "dueTime":
+                        task.DueTime = isNull ? null : ParseTime(RequireString(v, "Uhrzeit"));
+                        break;
+                    case "remindAt":
+                        task.RemindAt = isNull ? null : v.GetDateTimeOffset().ToUniversalTime();
+                        task.RemindedAt = null;
+                        break;
+                    case "myDay":
+                        myDay = v.ValueKind == JsonValueKind.True;
+                        break;
+                    case "listId":
+                        if (viaGrant) throw ApiException.Forbidden(grantLimit);
+                        task.ListId = isNull ? null : await AccessibleListAsync(v.GetInt32(), ct);
+                        break;
+                    case "projectId":
+                        if (viaGrant) throw ApiException.Forbidden(grantLimit);
+                        task.ProjectId = isNull ? null : await OpenProjectAsync(v.GetInt32(), ct);
+                        break;
+                    case "assigneeId":
+                        if (viaGrant) throw ApiException.Forbidden(grantLimit);
+                        newAssignee = await ActiveUserAsync(v.GetInt32(), ct);
+                        task.AssigneeId = newAssignee.Id;
+                        break;
+                    default:
+                        throw ApiException.Invalid($"Unbekanntes Feld: {prop.Name}");
+                }
             }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or FormatException or OverflowException)
+        {
+            // z. B. Text statt Zahl oder null bei einem Pflichtwert
+            throw ApiException.Invalid($"Ungültiger Wert im Feld „{field}“.");
         }
 
         if (task.DueTime is not null && task.DueDate is null)
@@ -501,21 +532,24 @@ public sealed class TaskService(
             outbox.Enqueue(task.CreatedById, NotificationOutbox.Completed, task.Id, task.Title, "", me.User.DisplayName);
         }
 
+        // Wiederholung: höchstens eine Folgeaufgabe je Aufgabe, auch wenn sie wieder geöffnet
+        // und erneut erledigt wird.
         TaskItem? next = null;
-        if (task.Recurrence != "")
+        if (task.Recurrence != "" && !await db.TaskEvents.AnyAsync(e => e.TaskId == task.Id && e.Kind == "folgeaufgabe", ct))
         {
             next = BuildNextOccurrence(task);
             db.Tasks.Add(next);
         }
 
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await using var tx = await BeginAsync(ct);
         await db.SaveChangesAsync(ct);
         if (next is not null)
         {
-            AddEvent(next.Id, "angelegt", $"Wiederholung ({Recurrence.Label(task.Recurrence)})");
+            AddEvent(next.Id, "angelegt", $"als Wiederholung ({Recurrence.Label(task.Recurrence)})");
+            AddEvent(task.Id, "folgeaufgabe", $"nächster Termin {next.DueDate:dd.MM.yyyy}");
             await db.SaveChangesAsync(ct);
         }
-        await tx.CommitAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
 
         await PublishAsync(task, ct);
         if (next is not null)
@@ -676,6 +710,10 @@ public sealed class TaskService(
         }
         return next;
     }
+
+    /// <summary>Eigene Transaktion nur, wenn nicht schon eine läuft (z. B. beim Starten einer Vorlage).</summary>
+    private async Task<IDbContextTransaction?> BeginAsync(CancellationToken ct) =>
+        db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
 
     private Task<TaskItem> LoadVisibleAsync(int id, CancellationToken ct) => LoadAsync(id, false, ct);
 

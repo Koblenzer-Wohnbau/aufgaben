@@ -17,6 +17,9 @@ namespace Aufgaben.Api.Services;
 /// </summary>
 public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<AufgabenOptions> options, ILogger<BackgroundWorker> log) : BackgroundService
 {
+    /// <summary>Danach gilt eine Benachrichtigung als endgültig fehlgeschlagen.</summary>
+    public const int MaxAttempts = 6;
+
     private DateTimeOffset _nextDirectorySync = DateTimeOffset.MinValue;
     private DateTimeOffset _nextInboxPoll = DateTimeOffset.MinValue;
 
@@ -149,7 +152,7 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
 
         var pending = await db.Notifications
             .Include(n => n.User)
-            .Where(n => n.SentAt == null && n.NextAttemptAt <= now && n.Attempts < 6)
+            .Where(n => n.SentAt == null && n.NextAttemptAt <= now && n.Attempts < MaxAttempts)
             .OrderBy(n => n.Id)
             .Take(100)
             .ToListAsync(ct);
@@ -172,6 +175,12 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
                         }
                         else
                         {
+                            if (result.ShouldFallBackToMail)
+                            {
+                                // 400/403/404: meist ist die App bei der Person nicht installiert. Ein neuer
+                                // Versuch ändert daran nichts – sofort als endgültig fehlgeschlagen verbuchen.
+                                n.Attempts = MaxAttempts;
+                            }
                             throw new InvalidOperationException($"Teams: {(int?)result.Status} {result.Error}");
                         }
                     }
