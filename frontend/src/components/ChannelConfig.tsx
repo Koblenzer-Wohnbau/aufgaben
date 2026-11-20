@@ -48,7 +48,7 @@ export function ChannelConfig({ teams }: { teams: TeamsInfo | null }) {
     <div className={styles.page}>
       <Title3>Aufgaben für „{teams.channelName}“</Title3>
       <Text className={styles.muted}>
-        Der Tab zeigt alle Aufgaben des Projekts – für alle im Team. Neue Aufgaben im Tab gehören automatisch zum Projekt.
+        Der Tab zeigt alle Aufgaben des Projekts. Projektaufgaben sehen alle Kolleginnen und Kollegen in Aufgaben, nicht nur dieses Team. Neue Aufgaben im Tab gehören automatisch zum Projekt.
       </Text>
       <RadioGroup value={mode} onChange={(_, d) => setMode(d.value as "neu" | "vorhanden")}>
         <Radio value="neu" label={`Kanal als Projekt verwenden („${teams.channelName}“)`} />

@@ -52,8 +52,17 @@ public sealed class GraphClient
                     log.LogWarning("App-Zertifikat {Path} nicht gefunden – Graph-Funktionen sind deaktiviert.", path);
                     return null;
                 }
-                var cert = X509CertificateLoader.LoadPkcs12FromFile(path, cred["CertificatePassword"]);
-                return new ClientCertificateCredential(tenant, client, cert);
+                try
+                {
+                    var cert = X509CertificateLoader.LoadPkcs12FromFile(path, cred["CertificatePassword"]);
+                    return new ClientCertificateCredential(tenant, client, cert);
+                }
+                catch (Exception ex) when (ex is System.Security.Cryptography.CryptographicException or IOException or UnauthorizedAccessException)
+                {
+                    // Falsches Kennwort oder fehlende Leserechte dürfen nicht die ganze App lahmlegen.
+                    log.LogError("App-Zertifikat {Path} lässt sich nicht laden ({Reason}) – Graph-Funktionen sind deaktiviert.", path, ex.GetType().Name);
+                    return null;
+                }
             }
             if (string.Equals(type, "ClientSecret", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(cred["ClientSecret"]))
             {
@@ -82,45 +91,100 @@ public sealed class GraphClient
     /// <summary>Sendet eine Benachrichtigung in den Teams-Aktivitätsfeed einer Person.</summary>
     public async Task<GraphResult> SendActivityNotificationAsync(string userOid, object payload, CancellationToken ct)
     {
-        using var req = await RequestAsync(HttpMethod.Post, $"users/{Uri.EscapeDataString(userOid)}/teamwork/sendActivityNotification", payload, ct);
-        using var res = await _http.SendAsync(req, ct);
+        using var res = await SendWithRetryAsync(HttpMethod.Post, $"users/{Uri.EscapeDataString(userOid)}/teamwork/sendActivityNotification", payload, ct);
         if (res.IsSuccessStatusCode)
         {
             return GraphResult.Ok;
         }
-        var text = await res.Content.ReadAsStringAsync(ct);
-        _log.LogWarning("Teams-Benachrichtigung fehlgeschlagen: {Status} {Body}", (int)res.StatusCode, Shorten(text));
-        return new GraphResult(false, res.StatusCode, Shorten(text));
+        var error = await DescribeErrorAsync(res, ct);
+        _log.LogWarning("Teams-Benachrichtigung fehlgeschlagen: {Error}", error);
+        return new GraphResult(false, res.StatusCode, error);
     }
 
-    /// <summary>Liest alle Seiten einer Graph-Liste (Benutzer, Gruppenmitglieder …).</summary>
+    /// <summary>
+    /// Liest alle Seiten einer Graph-Liste. Folgeseiten nur auf graph.microsoft.com/v1.0,
+    /// jede Seite höchstens einmal, höchstens 200 Seiten – sonst Abbruch statt halber Daten.
+    /// </summary>
     public async IAsyncEnumerable<JsonElement> ListAsync(string url, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
     {
         string? next = url;
-        var pages = 0;
-        while (next is not null && pages++ < 200)
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        while (next is not null)
         {
-            using var req = await RequestAsync(HttpMethod.Get, next, null, ct);
-            req.Headers.Add("ConsistencyLevel", "eventual");
-            using var res = await _http.SendAsync(req, ct);
+            if (!seen.Add(next) || seen.Count > 200)
+            {
+                throw new InvalidOperationException("Graph-Abruf abgebrochen: zu viele oder wiederholte Folgeseiten.");
+            }
+            if (Uri.TryCreate(next, UriKind.Absolute, out var absolute) && !IsGraphV1(absolute))
+            {
+                throw new InvalidOperationException("Graph-Abruf abgebrochen: Folgeseite zeigt nicht auf Microsoft Graph.");
+            }
+            using var res = await SendWithRetryAsync(HttpMethod.Get, next, null, ct);
             if (!res.IsSuccessStatusCode)
             {
-                var text = await res.Content.ReadAsStringAsync(ct);
-                throw new HttpRequestException($"Graph {(int)res.StatusCode}: {Shorten(text)}", null, res.StatusCode);
+                var error = await DescribeErrorAsync(res, ct);
+                throw new HttpRequestException($"Microsoft Graph: {error}", null, res.StatusCode);
             }
             using var doc = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
-            if (doc.RootElement.TryGetProperty("value", out var values))
+            if (!doc.RootElement.TryGetProperty("value", out var values) || values.ValueKind != JsonValueKind.Array)
             {
-                foreach (var item in values.EnumerateArray())
-                {
-                    yield return item.Clone();
-                }
+                throw new InvalidOperationException("Unerwartete Antwort von Microsoft Graph.");
+            }
+            foreach (var item in values.EnumerateArray())
+            {
+                yield return item.Clone();
             }
             next = doc.RootElement.TryGetProperty("@odata.nextLink", out var link) ? link.GetString() : null;
         }
     }
 
-    private static string Shorten(string text) => text.Length > 400 ? text[..400] : text;
+    /// <summary>
+    /// Drosselung (429) und kurze Ausfälle (502–504): Wartezeit aus Retry-After respektieren
+    /// (höchstens 30 s), maximal drei Versuche.
+    /// </summary>
+    private async Task<HttpResponseMessage> SendWithRetryAsync(HttpMethod method, string url, object? body, CancellationToken ct)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            using var req = await RequestAsync(method, url, body, ct);
+            var res = await _http.SendAsync(req, ct);
+            var retryable = res.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.BadGateway
+                or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout;
+            if (!retryable || attempt >= 3)
+            {
+                return res;
+            }
+            var wait = res.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(Math.Pow(2, attempt));
+            res.Dispose();
+            await Task.Delay(TimeSpan.FromSeconds(Math.Clamp(wait.TotalSeconds, 1, 30)), ct);
+        }
+    }
+
+    private static bool IsGraphV1(Uri uri) =>
+        uri.Scheme == Uri.UriSchemeHttps
+        && uri.Host.Equals("graph.microsoft.com", StringComparison.OrdinalIgnoreCase)
+        && uri.AbsolutePath.StartsWith("/v1.0/", StringComparison.Ordinal)
+        && string.IsNullOrEmpty(uri.Fragment);
+
+    /// <summary>Nur Status, Fehlercode und Request-ID – nie den Antworttext (kann personenbezogene Daten enthalten).</summary>
+    private static async Task<string> DescribeErrorAsync(HttpResponseMessage res, CancellationToken ct)
+    {
+        string? code = null;
+        try
+        {
+            using var doc = await JsonDocument.ParseAsync(await res.Content.ReadAsStreamAsync(ct), cancellationToken: ct);
+            if (doc.RootElement.TryGetProperty("error", out var error) && error.TryGetProperty("code", out var c))
+            {
+                code = c.GetString();
+            }
+        }
+        catch (JsonException)
+        {
+            // Kein JSON – nur der Status zählt.
+        }
+        var requestId = res.Headers.TryGetValues("request-id", out var ids) ? ids.FirstOrDefault() : null;
+        return $"HTTP {(int)res.StatusCode}{(code is null ? "" : " " + code)}{(requestId is null ? "" : " (request-id " + requestId + ")")}";
+    }
 }
 
 public sealed record GraphResult(bool Success, HttpStatusCode? Status = null, string? Error = null)

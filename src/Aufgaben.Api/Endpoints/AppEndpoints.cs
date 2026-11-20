@@ -11,6 +11,9 @@ namespace Aufgaben.Api.Endpoints;
 
 public static class AppEndpoints
 {
+    /// <summary>Fehlertext für die Oberfläche kürzen (Ursache steht vollständig im Protokoll).</summary>
+    private static string Short(string message) => message.Length > 300 ? message[..300] + " …" : message;
+
     public static void MapAppEndpoints(this RouteGroupBuilder api)
     {
         MapMe(api);
@@ -64,7 +67,8 @@ public static class AppEndpoints
         u.Id, u.DisplayName, u.Email, u.IsAdmin, u.NotifyChannel, u.DigestEnabled,
         u.TeamsSeenAt is not null, u.IcsTokenHash is not null, mail.IsAvailable, teams.IsAvailable,
         clock.Today.ToString("yyyy-MM-dd"),
-        o.MailInbox.Enabled && !string.IsNullOrWhiteSpace(o.MailInbox.Address) ? o.MailInbox.Address : null);
+        o.MailInbox.Enabled && !string.IsNullOrWhiteSpace(o.MailInbox.Address) ? o.MailInbox.Address : null,
+        o.Worker.DigestOnWeekends);
 
     // ------------------------------------------------------------------ Personen
 
@@ -78,7 +82,7 @@ public static class AppEndpoints
                 var pattern = "%" + TaskService.EscapeLike(q.Trim()) + "%";
                 query = query.Where(u => EF.Functions.ILike(u.DisplayName, pattern, "\\") || (u.Email != null && EF.Functions.ILike(u.Email, pattern, "\\")));
             }
-            var users = await query.OrderBy(u => u.DisplayName).Take(q is null ? 500 : 25).ToListAsync(ct);
+            var users = await query.OrderBy(u => u.DisplayName).Take(q is null ? 5000 : 25).ToListAsync(ct);
             return users.Select(UserRef.From);
         });
     }
@@ -89,20 +93,31 @@ public static class AppEndpoints
     {
         var lists = api.MapGroup("/lists");
 
+        // Eigene und mit mir geteilte Listen
         lists.MapGet("/", async (CurrentUser me, AppDbContext db, CancellationToken ct) =>
         {
-            var items = await db.TaskLists.Where(l => l.OwnerId == me.Id).OrderBy(l => l.Position).ThenBy(l => l.Name).ToListAsync(ct);
+            var u = me.Id;
+            var items = await db.TaskLists
+                .Where(l => l.OwnerId == u || l.Members.Any(m => m.UserId == u))
+                .Include(l => l.Members).ThenInclude(m => m.User)
+                .AsSplitQuery()
+                .OrderBy(l => l.OwnerId == u ? 0 : 1).ThenBy(l => l.Position).ThenBy(l => l.Name)
+                .ToListAsync(ct);
+            var ids = items.Select(l => l.Id).ToList();
+            var ownerIds = items.Select(l => l.OwnerId).Distinct().ToList();
+            var owners = await db.Users.Where(x => ownerIds.Contains(x.Id)).ToDictionaryAsync(x => x.Id, ct);
             var counts = await db.Tasks
-                .Where(t => t.ListId != null && t.Status == Values.Open && (t.AssigneeId == me.Id || t.CreatedById == me.Id))
+                .Where(t => t.ListId != null && t.Status == Values.Open && ids.Contains(t.ListId!.Value))
                 .GroupBy(t => t.ListId!.Value)
                 .Select(g => new { g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
-            return items.Select(l => new ListDto(l.Id, l.Name, l.Color, l.Position, counts.GetValueOrDefault(l.Id)));
+            return items.Select(l => ToListDto(l, owners[l.OwnerId], u, counts.GetValueOrDefault(l.Id)));
         });
 
         lists.MapPost("/", async (ListRequest req, CurrentUser me, AppDbContext db, AppClock clock, CancellationToken ct) =>
         {
-            if (await db.TaskLists.CountAsync(l => l.OwnerId == me.Id, ct) >= 100)
+            var own = await db.TaskLists.CountAsync(l => l.OwnerId == me.Id, ct);
+            if (own >= 100)
             {
                 throw ApiException.Invalid("Höchstens 100 eigene Listen.");
             }
@@ -111,32 +126,91 @@ public static class AppEndpoints
                 OwnerId = me.Id,
                 Name = ListName(req.Name),
                 Color = ListColor(req.Color ?? "blau"),
-                Position = req.Position ?? await db.TaskLists.CountAsync(l => l.OwnerId == me.Id, ct),
+                Position = req.Position ?? own,
                 CreatedAt = clock.UtcNow,
             };
             db.TaskLists.Add(list);
             await db.SaveChangesAsync(ct);
-            return Results.Created($"/api/lists/{list.Id}", new ListDto(list.Id, list.Name, list.Color, list.Position, 0));
+            return Results.Created($"/api/lists/{list.Id}", ToListDto(list, me.User, me.Id, 0));
         });
 
-        lists.MapPatch("/{id:int}", async (int id, ListRequest req, CurrentUser me, AppDbContext db, CancellationToken ct) =>
+        lists.MapPatch("/{id:int}", async (int id, ListRequest req, CurrentUser me, AppDbContext db, RealtimeHub hub, CancellationToken ct) =>
         {
-            var list = await db.TaskLists.FirstOrDefaultAsync(l => l.Id == id && l.OwnerId == me.Id, ct) ?? throw ApiException.NotFound("Liste");
+            var list = await OwnListAsync(db, id, me.Id, ct);
             if (req.Name is not null) list.Name = ListName(req.Name);
             if (req.Color is not null) list.Color = ListColor(req.Color);
             if (req.Position is int p) list.Position = p;
             await db.SaveChangesAsync(ct);
-            return new ListDto(list.Id, list.Name, list.Color, list.Position, 0);
+            hub.Publish(list.Members.Select(m => m.UserId).Append(me.Id), new { type = "lists" });
+            return ToListDto(list, me.User, me.Id, 0);
         });
 
-        lists.MapDelete("/{id:int}", async (int id, CurrentUser me, AppDbContext db, CancellationToken ct) =>
+        lists.MapDelete("/{id:int}", async (int id, CurrentUser me, AppDbContext db, RealtimeHub hub, CancellationToken ct) =>
         {
-            var list = await db.TaskLists.FirstOrDefaultAsync(l => l.Id == id && l.OwnerId == me.Id, ct) ?? throw ApiException.NotFound("Liste");
+            var list = await OwnListAsync(db, id, me.Id, ct);
+            var audience = list.Members.Select(m => m.UserId).Append(me.Id).ToList();
             db.TaskLists.Remove(list);
             await db.SaveChangesAsync(ct);
+            hub.Publish(audience, new { type = "lists" });
+            return Results.NoContent();
+        });
+
+        // Teilen: nur der Besitzer fügt Mitglieder hinzu
+        lists.MapPost("/{id:int}/members", async (int id, ListMemberRequest req, CurrentUser me, AppDbContext db, AppClock clock,
+            NotificationOutbox outbox, RealtimeHub hub, CancellationToken ct) =>
+        {
+            var list = await OwnListAsync(db, id, me.Id, ct);
+            if (req.UserId == me.Id)
+            {
+                throw ApiException.Invalid("Die Liste gehört dir bereits.");
+            }
+            var user = await db.Users.FirstOrDefaultAsync(x => x.Id == req.UserId && x.IsActive, ct)
+                       ?? throw ApiException.Invalid("Diese Person gibt es nicht oder sie ist nicht aktiv.");
+            if (list.Members.Any(m => m.UserId == user.Id))
+            {
+                return Results.NoContent();
+            }
+            if (list.Members.Count >= 50)
+            {
+                throw ApiException.Invalid("Höchstens 50 Personen pro Liste.");
+            }
+            list.Members.Add(new TaskListMember { ListId = list.Id, UserId = user.Id, AddedAt = clock.UtcNow });
+            outbox.Enqueue(user.Id, NotificationOutbox.ListShared, null, list.Name, "", me.User.DisplayName);
+            await db.SaveChangesAsync(ct);
+            hub.Publish(list.Members.Select(m => m.UserId).Append(me.Id), new { type = "lists" });
+            return Results.NoContent();
+        });
+
+        // Entfernen (Besitzer) oder selbst verlassen (Mitglied)
+        lists.MapDelete("/{id:int}/members/{userId:int}", async (int id, int userId, CurrentUser me, AppDbContext db, RealtimeHub hub, CancellationToken ct) =>
+        {
+            var list = await db.TaskLists.Include(l => l.Members).FirstOrDefaultAsync(l => l.Id == id, ct) ?? throw ApiException.NotFound("Liste");
+            var isOwner = list.OwnerId == me.Id;
+            var isMember = list.Members.Any(m => m.UserId == me.Id);
+            if (!isOwner && !isMember)
+            {
+                throw ApiException.NotFound("Liste");
+            }
+            if (!isOwner && userId != me.Id)
+            {
+                throw ApiException.Forbidden("Mitglieder entfernen kann nur die Person, der die Liste gehört.");
+            }
+            var member = list.Members.FirstOrDefault(m => m.UserId == userId) ?? throw ApiException.NotFound("Mitglied");
+            var audience = list.Members.Select(m => m.UserId).Append(list.OwnerId).ToList();
+            list.Members.Remove(member);
+            await db.SaveChangesAsync(ct);
+            hub.Publish(audience, new { type = "lists" });
             return Results.NoContent();
         });
     }
+
+    private static async Task<TaskList> OwnListAsync(AppDbContext db, int id, int me, CancellationToken ct) =>
+        await db.TaskLists.Include(l => l.Members).ThenInclude(m => m.User).FirstOrDefaultAsync(l => l.Id == id && l.OwnerId == me, ct)
+        ?? throw ApiException.NotFound("Liste");
+
+    private static ListDto ToListDto(TaskList l, User owner, int me, int openCount) => new(
+        l.Id, l.Name, l.Color, l.Position, openCount, l.OwnerId == me, UserRef.From(owner),
+        l.Members.Where(m => m.User is not null).OrderBy(m => m.User.DisplayName).Select(m => UserRef.From(m.User)).ToList());
 
     private static string ListName(string? name)
     {
@@ -321,8 +395,8 @@ public static class AppEndpoints
                 mail.IsAvailable,
                 teams.IsAvailable,
                 await db.Users.CountAsync(u => u.IsActive, ct),
-                await db.Notifications.CountAsync(n => n.SentAt == null && n.Attempts < 6, ct),
-                await db.Notifications.CountAsync(n => n.SentAt == null && n.Attempts >= 6, ct),
+                await db.Notifications.CountAsync(n => n.SentAt == null && n.Attempts < BackgroundWorker.MaxAttempts, ct),
+                await db.Notifications.CountAsync(n => n.SentAt == null && n.Attempts >= BackgroundWorker.MaxAttempts, ct),
                 DirectorySync.LastRun,
                 DirectorySync.LastResult,
                 inbox.IsConfigured,
@@ -337,14 +411,28 @@ public static class AppEndpoints
             {
                 throw ApiException.Invalid("Das Aufgaben-Postfach ist nicht konfiguriert (Aufgaben:MailInbox).");
             }
-            var created = await inbox.PollAsync(ct);
-            return new { created, result = MailInboxPoller.LastResult };
+            try
+            {
+                var created = await inbox.PollAsync(ct);
+                return new { created, result = MailInboxPoller.LastResult };
+            }
+            catch (Exception ex) when (ex is not ApiException and not OperationCanceledException)
+            {
+                throw new ApiException(502, "Postfachabruf fehlgeschlagen: " + Short(ex.Message));
+            }
         });
 
         admin.MapPost("/directory-sync", async (DirectorySync sync, CancellationToken ct) =>
         {
-            var (added, updated, deactivated) = await sync.RunAsync(ct);
-            return new { added, updated, deactivated };
+            try
+            {
+                var (added, updated, deactivated) = await sync.RunAsync(ct);
+                return new { added, updated, deactivated };
+            }
+            catch (Exception ex) when (ex is not ApiException and not OperationCanceledException)
+            {
+                throw new ApiException(502, "Verzeichnisabgleich fehlgeschlagen: " + Short(ex.Message));
+            }
         });
     }
 }

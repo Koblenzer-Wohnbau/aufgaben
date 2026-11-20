@@ -5,6 +5,7 @@ using Aufgaben.Api.Contracts;
 using Aufgaben.Api.Data;
 using Aufgaben.Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace Aufgaben.Api.Services;
 
@@ -27,7 +28,7 @@ public sealed class TaskService(
     public const int MaxChecklist = 100;
 
     public static readonly string[] Views =
-        ["mein-tag", "wichtig", "geplant", "zugewiesen", "delegiert", "wiedervorlagen", "liste", "projekt", "erledigt", "suche"];
+        ["mein-tag", "aufgaben", "person", "wichtig", "geplant", "zugewiesen", "delegiert", "wiedervorlagen", "liste", "projekt", "erledigt", "suche"];
 
     private IQueryable<TaskItem> Base() => db.Tasks
         .Include(t => t.CreatedBy)
@@ -38,10 +39,67 @@ public sealed class TaskService(
         .Include(t => t.Attachments) // nur Metadaten, der Inhalt liegt in attachment_blobs
         .AsSplitQuery();
 
-    private IQueryable<TaskItem> Visible(IQueryable<TaskItem> q)
+    /// <summary>Eigene Rechte: angelegt, verantwortlich, Projekt oder (geteilte) Liste.</summary>
+    private IQueryable<TaskItem> VisibleOwn(IQueryable<TaskItem> q)
     {
         var u = me.Id;
-        return q.Where(t => t.CreatedById == u || t.AssigneeId == u || t.ProjectId != null);
+        return q.Where(t => t.CreatedById == u || t.AssigneeId == u || t.ProjectId != null
+            || (t.ListId != null && db.TaskLists.Any(l => l.Id == t.ListId && (l.OwnerId == u || l.Members.Any(m => m.UserId == u)))));
+    }
+
+    /// <summary>Eigene Rechte plus aktive Einsichtsrechte (für Änderungen nur mit "bearbeiten").</summary>
+    private IQueryable<TaskItem> Visible(IQueryable<TaskItem> q, bool forEdit = false)
+    {
+        var u = me.Id;
+        var today = clock.Today;
+        var active = AccessGrant.Active;
+        return q.Where(t => t.CreatedById == u || t.AssigneeId == u || t.ProjectId != null
+            || (t.ListId != null && db.TaskLists.Any(l => l.Id == t.ListId && (l.OwnerId == u || l.Members.Any(m => m.UserId == u))))
+            || db.AccessGrants.Any(g => g.ViewerId == u && g.OwnerId == t.AssigneeId && g.Status == active
+                                        && g.ValidFrom <= today && (g.ValidUntil == null || g.ValidUntil >= today)
+                                        && (!forEdit || g.Permission == "bearbeiten")));
+    }
+
+    private IQueryable<AccessGrant> ActiveGrantsFor(int ownerId)
+    {
+        var u = me.Id;
+        var today = clock.Today;
+        return db.AccessGrants.Where(g => g.ViewerId == u && g.OwnerId == ownerId && g.Status == AccessGrant.Active
+                                          && g.ValidFrom <= today && (g.ValidUntil == null || g.ValidUntil >= today));
+    }
+
+    /// <summary>
+    /// Zugriff über ein Einsichtsrecht protokollieren. "angesehen" höchstens alle 10 Minuten je Freigabe,
+    /// damit das Protokoll lesbar bleibt; Änderungen immer.
+    /// </summary>
+    private async Task LogGrantAccessAsync(int ownerId, string action, int? taskId, CancellationToken ct)
+    {
+        // Gibt es für dieselben Personen eine Freigabe zum Bearbeiten, zählt der Zugriff dort.
+        var grant = await ActiveGrantsFor(ownerId)
+            .OrderBy(g => g.Permission == "bearbeiten" ? 0 : 1).ThenByDescending(g => g.Id)
+            .FirstOrDefaultAsync(ct);
+        if (grant is null)
+        {
+            return;
+        }
+        var now = clock.UtcNow;
+        if (action == "angesehen")
+        {
+            var since = now.AddMinutes(-10);
+            if (await db.AccessLog.AnyAsync(l => l.GrantId == grant.Id && l.ViewerId == me.Id && l.Action == action && l.At >= since, ct))
+            {
+                return;
+            }
+        }
+        db.AccessLog.Add(new AccessLogEntry { GrantId = grant.Id, ViewerId = me.Id, OwnerId = ownerId, Action = action, TaskId = taskId, At = now });
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Eigene und mit mir geteilte Listen.</summary>
+    private IQueryable<TaskList> AccessibleLists()
+    {
+        var u = me.Id;
+        return db.TaskLists.Where(l => l.OwnerId == u || l.Members.Any(m => m.UserId == u));
     }
 
     // ---------------------------------------------------------------- Lesen
@@ -79,13 +137,27 @@ public sealed class TaskService(
             case "wiedervorlagen":
                 q = q.Where(t => t.AssigneeId == u && t.Status == open && t.Kind == "wiedervorlage");
                 break;
+            case "aufgaben":
+                // Wie "Aufgaben" in To Do: alles, was mir gehört und in keiner Liste steckt.
+                q = q.Where(t => t.AssigneeId == u && t.ListId == null && (t.Status == open || t.CompletedAt >= recent));
+                break;
             case "liste":
                 var listId = id ?? throw ApiException.Invalid("Liste fehlt.");
-                if (!await db.TaskLists.AnyAsync(l => l.Id == listId && l.OwnerId == u, ct))
+                if (!await AccessibleLists().AnyAsync(l => l.Id == listId, ct))
                 {
                     throw ApiException.NotFound("Liste");
                 }
-                q = q.Where(t => t.ListId == listId && (t.AssigneeId == u || t.CreatedById == u) && (t.Status == open || t.CompletedAt >= recent));
+                // Geteilte Liste: alle Aufgaben der Liste, egal wer sie angelegt hat.
+                q = q.Where(t => t.ListId == listId && (t.Status == open || t.CompletedAt >= recent));
+                break;
+            case "person":
+                var ownerId = id ?? throw ApiException.Invalid("Person fehlt.");
+                if (!await ActiveGrantsFor(ownerId).AnyAsync(ct))
+                {
+                    throw ApiException.NotFound("Freigabe");
+                }
+                await LogGrantAccessAsync(ownerId, "angesehen", null, ct);
+                q = q.Where(t => t.AssigneeId == ownerId && (t.Status == open || t.CompletedAt >= recent));
                 break;
             case "projekt":
                 var projectId = id ?? throw ApiException.Invalid("Projekt fehlt.");
@@ -121,6 +193,16 @@ public sealed class TaskService(
                 .ThenByDescending(t => t.CreatedAt);
 
         var items = await ordered.Take(500).ToListAsync(ct);
+        if (view == "suche" && items.Count > 0)
+        {
+            // Suchtreffer, die nur über ein Einsichtsrecht sichtbar sind, gelten als angesehen.
+            var ids = items.Select(t => t.Id).ToList();
+            var own = await VisibleOwn(db.Tasks).Where(t => ids.Contains(t.Id)).Select(t => t.Id).ToListAsync(ct);
+            foreach (var ownerId in items.Where(t => !own.Contains(t.Id)).Select(t => t.AssigneeId).Distinct())
+            {
+                await LogGrantAccessAsync(ownerId, "angesehen", null, ct);
+            }
+        }
         return items.Select(ToDto).ToList();
     }
 
@@ -129,18 +211,28 @@ public sealed class TaskService(
         var u = me.Id;
         var today = clock.Today;
         var open = Values.Open;
-        var mine = db.Tasks.Where(t => t.AssigneeId == u && t.Status == open);
 
-        var myDay = await mine.CountAsync(t => t.MyDayOn == today || (t.DueDate != null && t.DueDate <= today), ct);
-        var important = await mine.CountAsync(t => t.Priority == "hoch", ct);
-        var planned = await mine.CountAsync(t => t.DueDate != null, ct);
-        var assigned = await mine.CountAsync(t => t.CreatedById != u, ct);
-        var followUps = await mine.CountAsync(t => t.Kind == "wiedervorlage", ct);
-        var overdue = await mine.CountAsync(t => t.DueDate != null && t.DueDate < today, ct);
-        var delegated = await db.Tasks.CountAsync(t => t.CreatedById == u && t.AssigneeId != u && t.Status == open, ct);
+        // Eine einzige Abfrage mit bedingten Zählungen statt einer Abfrage pro Zähler –
+        // die Seitenleiste wird bei jeder Live-Änderung neu geladen.
+        var c = await db.Tasks
+            .Where(t => t.Status == open && (t.AssigneeId == u || t.CreatedById == u))
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                MyDay = g.Count(t => t.AssigneeId == u && (t.MyDayOn == today || (t.DueDate != null && t.DueDate <= today))),
+                Important = g.Count(t => t.AssigneeId == u && t.Priority == "hoch"),
+                Planned = g.Count(t => t.AssigneeId == u && t.DueDate != null),
+                Assigned = g.Count(t => t.AssigneeId == u && t.CreatedById != u),
+                FollowUps = g.Count(t => t.AssigneeId == u && t.Kind == "wiedervorlage"),
+                Overdue = g.Count(t => t.AssigneeId == u && t.DueDate != null && t.DueDate < today),
+                Delegated = g.Count(t => t.CreatedById == u && t.AssigneeId != u),
+                Inbox = g.Count(t => t.AssigneeId == u && t.ListId == null),
+            })
+            .FirstOrDefaultAsync(ct);
 
+        var accessible = AccessibleLists().Select(l => l.Id);
         var lists = await db.Tasks
-            .Where(t => t.ListId != null && t.Status == open && (t.AssigneeId == u || t.CreatedById == u))
+            .Where(t => t.ListId != null && t.Status == open && accessible.Contains(t.ListId!.Value))
             .GroupBy(t => t.ListId!.Value)
             .Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
@@ -151,7 +243,44 @@ public sealed class TaskService(
             .Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
 
-        return new CountsDto(myDay, important, planned, assigned, delegated, followUps, overdue, lists, projects);
+        return new CountsDto(
+            c?.MyDay ?? 0, c?.Important ?? 0, c?.Planned ?? 0, c?.Assigned ?? 0, c?.Delegated ?? 0,
+            c?.FollowUps ?? 0, c?.Overdue ?? 0, lists, projects, c?.Inbox ?? 0);
+    }
+
+    /// <summary>
+    /// Vorschläge für "Mein Tag" (wie in To Do): Liegengebliebenes, bald Fälliges, Wichtiges
+    /// und frisch Angelegtes – nur eigene, offene Aufgaben, die noch nicht im Tag stehen.
+    /// </summary>
+    public async Task<SuggestionsDto> SuggestionsAsync(CancellationToken ct)
+    {
+        var u = me.Id;
+        var today = clock.Today;
+        var soon = today.AddDays(5);
+        var recent = clock.UtcNow.AddDays(-3);
+        var open = Values.Open;
+
+        var candidates = await Base()
+            .Where(t => t.AssigneeId == u && t.Status == open
+                        && t.MyDayOn != today
+                        && (t.DueDate == null || t.DueDate > today)
+                        && ((t.MyDayOn != null && t.MyDayOn < today)
+                            || (t.DueDate != null && t.DueDate <= soon)
+                            || t.Priority == "hoch"
+                            || t.CreatedAt >= recent))
+            .OrderBy(t => t.DueDate == null ? 1 : 0).ThenBy(t => t.DueDate).ThenByDescending(t => t.CreatedAt)
+            .Take(80)
+            .ToListAsync(ct);
+
+        var used = new HashSet<int>();
+        List<TaskDto> Pick(Func<TaskItem, bool> rule) =>
+            candidates.Where(t => rule(t) && used.Add(t.Id)).Take(10).Select(ToDto).ToList();
+
+        return new SuggestionsDto(
+            Yesterday: Pick(t => t.MyDayOn is { } d && d < today),
+            DueSoon: Pick(t => t.DueDate is { } d && d <= soon),
+            Important: Pick(t => t.Priority == "hoch"),
+            Recent: Pick(t => t.CreatedAt >= recent));
     }
 
     public async Task<TaskDetailDto> GetAsync(int id, CancellationToken ct)
@@ -163,8 +292,10 @@ public sealed class TaskService(
             .OrderBy(e => e.CreatedAt).ThenBy(e => e.Id)
             .Take(300)
             .ToListAsync(ct);
+        var viaGrant = !await VisibleOwn(db.Tasks).AnyAsync(t => t.Id == id, ct);
+        var canEdit = !viaGrant || await Visible(db.Tasks, true).AnyAsync(t => t.Id == id, ct);
         return new TaskDetailDto(ToDto(task), events.Select(e => new EventDto(
-            e.Id, e.Kind, e.Text, e.Actor is null ? null : UserRef.From(e.Actor), e.CreatedAt)).ToList());
+            e.Id, e.Kind, e.Text, e.Actor is null ? null : UserRef.From(e.Actor), e.CreatedAt)).ToList(), canEdit, viaGrant);
     }
 
     // ---------------------------------------------------------------- Schreiben
@@ -182,7 +313,7 @@ public sealed class TaskService(
             Recurrence = ValidRecurrence(req.Recurrence ?? ""),
             CreatedById = me.Id,
             AssigneeId = assignee.Id,
-            ListId = req.ListId is int lid ? await OwnListAsync(lid, ct) : null,
+            ListId = req.ListId is int lid ? await AccessibleListAsync(lid, ct) : null,
             ProjectId = req.ProjectId is int pid ? await OpenProjectAsync(pid, ct) : null,
             DueDate = ParseDate(req.DueDate),
             DueTime = ParseTime(req.DueTime),
@@ -207,7 +338,7 @@ public sealed class TaskService(
             task.Checklist.Add(new ChecklistItem { Title = ValidChecklistTitle(checklist[i]), Position = i });
         }
 
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await using var tx = await BeginAsync(ct);
         db.Tasks.Add(task);
         await db.SaveChangesAsync(ct);
 
@@ -223,7 +354,7 @@ public sealed class TaskService(
             outbox.Enqueue(assignee.Id, NotificationOutbox.Assigned, task.Id, task.Title, task.Notes, me.User.DisplayName);
         }
         await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
 
         task.CreatedBy = me.User;
         task.Assignee = assignee;
@@ -231,7 +362,7 @@ public sealed class TaskService(
         {
             task.Project = await db.Projects.FindAsync([p], ct);
         }
-        Publish(task);
+        await PublishAsync(task, ct);
         return ToDto(task);
     }
 
@@ -241,7 +372,7 @@ public sealed class TaskService(
         {
             throw ApiException.Invalid("Erwartet wird ein JSON-Objekt.");
         }
-        var task = await LoadVisibleAsync(id, ct);
+        var task = await LoadEditableAsync(id, ct);
         var previousAssignee = task.AssigneeId;
         var previousDue = task.DueDate;
 
@@ -250,66 +381,100 @@ public sealed class TaskService(
             throw ApiException.Conflict("Die Aufgabe wurde inzwischen geändert. Bitte neu laden.");
         }
 
+        // Wer nur über ein Einsichtsrecht bearbeitet, ändert Inhalte – nicht, wem die Aufgabe gehört
+        // oder wer sie sieht.
+        var viaGrant = !await VisibleOwn(db.Tasks).AnyAsync(t => t.Id == id, ct);
+        const string grantLimit = "Mit einer Freigabe lassen sich Verantwortliche, Projekt und Liste nicht ändern.";
+
         User? newAssignee = null;
-        foreach (var prop in body.EnumerateObject())
+        bool? myDay = null;
+        var field = "";
+        try
         {
-            var v = prop.Value;
-            var isNull = v.ValueKind == JsonValueKind.Null;
-            switch (prop.Name)
+            foreach (var prop in body.EnumerateObject())
             {
-                case "version":
-                    break;
-                case "title":
-                    task.Title = ValidTitle(RequireString(v, "Titel"));
-                    break;
-                case "notes":
-                    task.Notes = ValidNotes(isNull ? "" : RequireString(v, "Notizen"));
-                    break;
-                case "priority":
-                    task.Priority = ValidPriority(RequireString(v, "Priorität"));
-                    break;
-                case "kind":
-                    task.Kind = ValidKind(RequireString(v, "Art"));
-                    break;
-                case "recurrence":
-                    task.Recurrence = ValidRecurrence(isNull ? "" : RequireString(v, "Wiederholung"));
-                    break;
-                case "dueDate":
-                    task.DueDate = isNull ? null : ParseDate(RequireString(v, "Fälligkeit"));
-                    if (task.DueDate is null)
-                    {
-                        task.DueTime = null;
-                    }
-                    break;
-                case "dueTime":
-                    task.DueTime = isNull ? null : ParseTime(RequireString(v, "Uhrzeit"));
-                    break;
-                case "remindAt":
-                    task.RemindAt = isNull ? null : v.GetDateTimeOffset().ToUniversalTime();
-                    task.RemindedAt = null;
-                    break;
-                case "myDay":
-                    task.MyDayOn = v.ValueKind == JsonValueKind.True ? clock.Today : null;
-                    break;
-                case "listId":
-                    task.ListId = isNull ? null : await OwnListAsync(v.GetInt32(), ct);
-                    break;
-                case "projectId":
-                    task.ProjectId = isNull ? null : await OpenProjectAsync(v.GetInt32(), ct);
-                    break;
-                case "assigneeId":
-                    newAssignee = await ActiveUserAsync(v.GetInt32(), ct);
-                    task.AssigneeId = newAssignee.Id;
-                    break;
-                default:
-                    throw ApiException.Invalid($"Unbekanntes Feld: {prop.Name}");
+                field = prop.Name;
+                var v = prop.Value;
+                var isNull = v.ValueKind == JsonValueKind.Null;
+                switch (prop.Name)
+                {
+                    case "version":
+                        break;
+                    case "title":
+                        task.Title = ValidTitle(RequireString(v, "Titel"));
+                        break;
+                    case "notes":
+                        task.Notes = ValidNotes(isNull ? "" : RequireString(v, "Notizen"));
+                        break;
+                    case "priority":
+                        task.Priority = ValidPriority(RequireString(v, "Priorität"));
+                        break;
+                    case "kind":
+                        task.Kind = ValidKind(RequireString(v, "Art"));
+                        break;
+                    case "recurrence":
+                        task.Recurrence = ValidRecurrence(isNull ? "" : RequireString(v, "Wiederholung"));
+                        break;
+                    case "dueDate":
+                        task.DueDate = isNull ? null : ParseDate(RequireString(v, "Fälligkeit"));
+                        if (task.DueDate is null)
+                        {
+                            task.DueTime = null;
+                        }
+                        break;
+                    case "dueTime":
+                        task.DueTime = isNull ? null : ParseTime(RequireString(v, "Uhrzeit"));
+                        break;
+                    case "remindAt":
+                        task.RemindAt = isNull ? null : v.GetDateTimeOffset().ToUniversalTime();
+                        task.RemindedAt = null;
+                        break;
+                    case "myDay":
+                        myDay = v.ValueKind == JsonValueKind.True;
+                        break;
+                    case "listId":
+                        if (viaGrant) throw ApiException.Forbidden(grantLimit);
+                        task.ListId = isNull ? null : await AccessibleListAsync(v.GetInt32(), ct);
+                        break;
+                    case "projectId":
+                        if (viaGrant) throw ApiException.Forbidden(grantLimit);
+                        task.ProjectId = isNull ? null : await OpenProjectAsync(v.GetInt32(), ct);
+                        break;
+                    case "assigneeId":
+                        if (viaGrant) throw ApiException.Forbidden(grantLimit);
+                        newAssignee = await ActiveUserAsync(v.GetInt32(), ct);
+                        task.AssigneeId = newAssignee.Id;
+                        break;
+                    default:
+                        throw ApiException.Invalid($"Unbekanntes Feld: {prop.Name}");
+                }
             }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or FormatException or OverflowException)
+        {
+            // z. B. Text statt Zahl oder null bei einem Pflichtwert
+            throw ApiException.Invalid($"Ungültiger Wert im Feld „{field}“.");
         }
 
         if (task.DueTime is not null && task.DueDate is null)
         {
             throw ApiException.Invalid("Eine Uhrzeit braucht auch ein Datum.");
         }
+
+        // "Mein Tag" gehört der verantwortlichen Person: Sie plant ihren Tag selbst.
+        if (myDay == true && task.AssigneeId != me.Id)
+        {
+            throw ApiException.Invalid("„Mein Tag“ plant jede Person selbst – diese Aufgabe liegt bei jemand anderem.");
+        }
+        if (myDay is bool md)
+        {
+            task.MyDayOn = md ? clock.Today : null;
+        }
+        else if (task.AssigneeId != previousAssignee && task.AssigneeId != me.Id)
+        {
+            task.MyDayOn = null;
+        }
+
         if (task.Recurrence != "" && task.DueDate is null)
         {
             task.DueDate = clock.Today;
@@ -341,13 +506,13 @@ public sealed class TaskService(
         {
             task.Project = null;
         }
-        Publish(task, previousAssignee);
+        await PublishAsync(task, ct, previousAssignee);
         return ToDto(task);
     }
 
     public async Task<TaskDto> CompleteAsync(int id, CancellationToken ct)
     {
-        var task = await LoadVisibleAsync(id, ct);
+        var task = await LoadEditableAsync(id, ct);
         if (task.IsDone)
         {
             return ToDto(task);
@@ -367,33 +532,36 @@ public sealed class TaskService(
             outbox.Enqueue(task.CreatedById, NotificationOutbox.Completed, task.Id, task.Title, "", me.User.DisplayName);
         }
 
+        // Wiederholung: höchstens eine Folgeaufgabe je Aufgabe, auch wenn sie wieder geöffnet
+        // und erneut erledigt wird.
         TaskItem? next = null;
-        if (task.Recurrence != "")
+        if (task.Recurrence != "" && !await db.TaskEvents.AnyAsync(e => e.TaskId == task.Id && e.Kind == "folgeaufgabe", ct))
         {
             next = BuildNextOccurrence(task);
             db.Tasks.Add(next);
         }
 
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await using var tx = await BeginAsync(ct);
         await db.SaveChangesAsync(ct);
         if (next is not null)
         {
-            AddEvent(next.Id, "angelegt", $"Wiederholung ({Recurrence.Label(task.Recurrence)})");
+            AddEvent(next.Id, "angelegt", $"als Wiederholung ({Recurrence.Label(task.Recurrence)})");
+            AddEvent(task.Id, "folgeaufgabe", $"nächster Termin {next.DueDate:dd.MM.yyyy}");
             await db.SaveChangesAsync(ct);
         }
-        await tx.CommitAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
 
-        Publish(task);
+        await PublishAsync(task, ct);
         if (next is not null)
         {
-            Publish(next);
+            await PublishAsync(next, ct);
         }
         return ToDto(task);
     }
 
     public async Task<TaskDto> ReopenAsync(int id, CancellationToken ct)
     {
-        var task = await LoadVisibleAsync(id, ct);
+        var task = await LoadEditableAsync(id, ct);
         if (!task.IsDone)
         {
             return ToDto(task);
@@ -406,18 +574,22 @@ public sealed class TaskService(
         task.UpdatedAt = clock.UtcNow;
         AddEvent(task.Id, "wieder-geoeffnet", "");
         await db.SaveChangesAsync(ct);
-        Publish(task);
+        await PublishAsync(task, ct);
         return ToDto(task);
     }
 
     public async Task DeleteAsync(int id, CancellationToken ct)
     {
-        var task = await LoadVisibleAsync(id, ct);
+        var task = await LoadEditableAsync(id, ct);
         if (!CanDelete(task))
         {
             throw ApiException.Forbidden("Nur die Person, die die Aufgabe angelegt hat, kann sie löschen.");
         }
-        var targets = new[] { task.CreatedById, task.AssigneeId };
+        var targets = new List<int> { task.CreatedById, task.AssigneeId };
+        if (task.ListId is int deletedListId)
+        {
+            targets.AddRange(await ListAudienceAsync(deletedListId, ct));
+        }
         var isProject = task.ProjectId is not null;
         db.Tasks.Remove(task);
         await db.SaveChangesAsync(ct);
@@ -434,7 +606,7 @@ public sealed class TaskService(
 
     public async Task<TaskDto> AddChecklistItemAsync(int id, ChecklistRequest req, CancellationToken ct)
     {
-        var task = await LoadVisibleAsync(id, ct);
+        var task = await LoadEditableAsync(id, ct);
         if (task.Checklist.Count >= MaxChecklist)
         {
             throw ApiException.Invalid($"Höchstens {MaxChecklist} Punkte pro Checkliste.");
@@ -446,13 +618,13 @@ public sealed class TaskService(
         });
         task.UpdatedAt = clock.UtcNow;
         await db.SaveChangesAsync(ct);
-        Publish(task);
+        await PublishAsync(task, ct);
         return ToDto(task);
     }
 
     public async Task<TaskDto> UpdateChecklistItemAsync(int id, int itemId, ChecklistRequest req, CancellationToken ct)
     {
-        var task = await LoadVisibleAsync(id, ct);
+        var task = await LoadEditableAsync(id, ct);
         var item = task.Checklist.FirstOrDefault(c => c.Id == itemId) ?? throw ApiException.NotFound("Checklistenpunkt");
         if (req.Title is not null)
         {
@@ -464,18 +636,18 @@ public sealed class TaskService(
         }
         task.UpdatedAt = clock.UtcNow;
         await db.SaveChangesAsync(ct);
-        Publish(task);
+        await PublishAsync(task, ct);
         return ToDto(task);
     }
 
     public async Task<TaskDto> DeleteChecklistItemAsync(int id, int itemId, CancellationToken ct)
     {
-        var task = await LoadVisibleAsync(id, ct);
+        var task = await LoadEditableAsync(id, ct);
         var item = task.Checklist.FirstOrDefault(c => c.Id == itemId) ?? throw ApiException.NotFound("Checklistenpunkt");
         task.Checklist.Remove(item);
         task.UpdatedAt = clock.UtcNow;
         await db.SaveChangesAsync(ct);
-        Publish(task);
+        await PublishAsync(task, ct);
         return ToDto(task);
     }
 
@@ -491,7 +663,7 @@ public sealed class TaskService(
 
     public async Task<EventDto> CommentAsync(int id, CommentRequest req, CancellationToken ct)
     {
-        var task = await LoadVisibleAsync(id, ct);
+        var task = await LoadEditableAsync(id, ct);
         var text = (req.Text ?? "").Trim();
         if (text.Length == 0 || text.Length > 4000)
         {
@@ -504,7 +676,7 @@ public sealed class TaskService(
         }
         task.UpdatedAt = clock.UtcNow;
         await db.SaveChangesAsync(ct);
-        Publish(task);
+        await PublishAsync(task, ct);
         return new EventDto(ev.Id, ev.Kind, ev.Text, UserRef.From(me.User), ev.CreatedAt);
     }
 
@@ -539,13 +711,29 @@ public sealed class TaskService(
         return next;
     }
 
-    private async Task<TaskItem> LoadVisibleAsync(int id, CancellationToken ct)
+    /// <summary>Eigene Transaktion nur, wenn nicht schon eine läuft (z. B. beim Starten einer Vorlage).</summary>
+    private async Task<IDbContextTransaction?> BeginAsync(CancellationToken ct) =>
+        db.Database.CurrentTransaction is null ? await db.Database.BeginTransactionAsync(ct) : null;
+
+    private Task<TaskItem> LoadVisibleAsync(int id, CancellationToken ct) => LoadAsync(id, false, ct);
+
+    private Task<TaskItem> LoadEditableAsync(int id, CancellationToken ct) => LoadAsync(id, true, ct);
+
+    private async Task<TaskItem> LoadAsync(int id, bool forEdit, CancellationToken ct)
     {
-        var task = await Base().FirstOrDefaultAsync(t => t.Id == id, ct) ?? throw ApiException.NotFound("Aufgabe");
-        if (!(task.CreatedById == me.Id || task.AssigneeId == me.Id || task.ProjectId is not null))
+        // Bewusst 404 statt 403: private Aufgaben anderer sollen nicht einmal "existieren".
+        var task = await Visible(Base(), forEdit).FirstOrDefaultAsync(t => t.Id == id, ct);
+        if (task is null)
         {
-            // Bewusst 404 statt 403: private Aufgaben anderer sollen nicht einmal "existieren".
+            if (forEdit && await Visible(db.Tasks).AnyAsync(t => t.Id == id, ct))
+            {
+                throw ApiException.Forbidden("Deine Freigabe erlaubt nur das Lesen dieser Aufgaben.");
+            }
             throw ApiException.NotFound("Aufgabe");
+        }
+        if (!await VisibleOwn(db.Tasks).AnyAsync(t => t.Id == id, ct))
+        {
+            await LogGrantAccessAsync(task.AssigneeId, forEdit ? "geaendert" : "geoeffnet", task.Id, ct);
         }
         return task;
     }
@@ -559,7 +747,7 @@ public sealed class TaskService(
         return ev;
     }
 
-    private void Publish(TaskItem task, params int[] extraUsers)
+    private async Task PublishAsync(TaskItem task, CancellationToken ct, params int[] extraUsers)
     {
         var message = new { type = "task", id = task.Id };
         if (task.ProjectId is not null)
@@ -567,15 +755,27 @@ public sealed class TaskService(
             hub.Broadcast(message);
             return;
         }
-        hub.Publish(new[] { task.CreatedById, task.AssigneeId }.Concat(extraUsers), message);
+        var targets = new List<int> { task.CreatedById, task.AssigneeId };
+        targets.AddRange(extraUsers);
+        if (task.ListId is int listId)
+        {
+            targets.AddRange(await ListAudienceAsync(listId, ct));
+        }
+        hub.Publish(targets, message);
     }
+
+    /// <summary>Besitzer und Mitglieder einer (geteilten) Liste.</summary>
+    private Task<List<int>> ListAudienceAsync(int listId, CancellationToken ct) =>
+        db.TaskLists.Where(l => l.Id == listId).Select(l => l.OwnerId)
+            .Concat(db.TaskListMembers.Where(m => m.ListId == listId).Select(m => m.UserId))
+            .ToListAsync(ct);
 
     private async Task<User> ActiveUserAsync(int id, CancellationToken ct) =>
         await db.Users.FirstOrDefaultAsync(u => u.Id == id && u.IsActive, ct)
         ?? throw ApiException.Invalid("Diese Person gibt es nicht oder sie ist nicht aktiv.");
 
-    private async Task<int> OwnListAsync(int id, CancellationToken ct) =>
-        await db.TaskLists.AnyAsync(l => l.Id == id && l.OwnerId == me.Id, ct) ? id : throw ApiException.Invalid("Diese Liste gehört dir nicht.");
+    private async Task<int> AccessibleListAsync(int id, CancellationToken ct) =>
+        await AccessibleLists().AnyAsync(l => l.Id == id, ct) ? id : throw ApiException.Invalid("Auf diese Liste hast du keinen Zugriff.");
 
     private async Task<int> OpenProjectAsync(int id, CancellationToken ct) =>
         await db.Projects.AnyAsync(p => p.Id == id && !p.Archived, ct) ? id : throw ApiException.Invalid("Dieses Projekt gibt es nicht oder es ist archiviert.");

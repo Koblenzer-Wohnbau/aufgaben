@@ -55,6 +55,16 @@ public sealed class TaskList
     public string Color { get; set; } = "blau";
     public int Position { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+    public List<TaskListMember> Members { get; set; } = [];
+}
+
+/// <summary>Geteilte Liste: Mitglieder sehen alle Aufgaben der Liste und können Aufgaben hinzufügen.</summary>
+public sealed class TaskListMember
+{
+    public int ListId { get; set; }
+    public int UserId { get; set; }
+    public User User { get; set; } = null!;
+    public DateTimeOffset AddedAt { get; set; }
 }
 
 /// <summary>
@@ -116,6 +126,59 @@ public sealed class AttachmentBlob
 {
     public int AttachmentId { get; set; }
     public required byte[] Data { get; set; }
+}
+
+/// <summary>
+/// Einsichtsrecht: Person B (Viewer) darf die Aufgaben von Person A (Owner) sehen – nur nach
+/// dokumentierter, unterschriebener Freigabe. Entwurf → aktiv (nach Bestätigung) → widerrufen.
+/// </summary>
+public sealed class AccessGrant
+{
+    public const string Draft = "entwurf";
+    public const string Active = "aktiv";
+    public const string Revoked = "widerrufen";
+
+    public int Id { get; set; }
+    public int OwnerId { get; set; }
+    public User Owner { get; set; } = null!;
+    public int ViewerId { get; set; }
+    public User Viewer { get; set; } = null!;
+
+    /// <summary>"lesen" oder "bearbeiten".</summary>
+    public string Permission { get; set; } = "lesen";
+
+    public DateOnly ValidFrom { get; set; }
+    public DateOnly? ValidUntil { get; set; }
+    public string Purpose { get; set; } = "";
+    public string Status { get; set; } = Draft;
+
+    public int CreatedById { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
+
+    public DateTimeOffset? ConfirmedAt { get; set; }
+    public int? ConfirmedById { get; set; }
+
+    /// <summary>Wo das unterschriebene Original liegt (z. B. "Personalakte").</summary>
+    public string ConsentNote { get; set; } = "";
+
+    public DateTimeOffset? RevokedAt { get; set; }
+    public int? RevokedById { get; set; }
+    public string RevokeReason { get; set; } = "";
+}
+
+/// <summary>Protokoll: wer hat wann über ein Einsichtsrecht fremde Aufgaben angesehen oder geändert.</summary>
+public sealed class AccessLogEntry
+{
+    public long Id { get; set; }
+    public int GrantId { get; set; }
+    public int ViewerId { get; set; }
+    public int OwnerId { get; set; }
+
+    /// <summary>"angesehen", "geoeffnet", "geaendert", "angelegt", "bestaetigt", "widerrufen".</summary>
+    public required string Action { get; set; }
+
+    public int? TaskId { get; set; }
+    public DateTimeOffset At { get; set; }
 }
 
 /// <summary>Protokoll der Mails aus dem Aufgaben-Postfach (verhindert doppelte Verarbeitung).</summary>

@@ -26,8 +26,8 @@ public static class Seed
                 Step(2, "Wohnung inserieren und Besichtigungen planen", -20, "normal", "Exposé erstellen\nInserat veröffentlichen\nBesichtigungstermine koordinieren", "Vermietung"),
                 Step(3, "Endabnahme und Schlüsselrückgabe", 0, "hoch", "Abnahmeprotokoll unterschreiben lassen\nSchlüssel zählen\nZählerstände ablesen", "Technik"),
                 Step(4, "Instandsetzung beauftragen", 2, "normal", "Mängelliste an Handwerker\nAuftrag freigeben", "Technik"),
-                Step(5, "Kaution abrechnen", 30, "normal", "Nebenkosten berücksichtigen\nAbrechnung versenden", "Buchhaltung"),
-                Step(6, "Übergabe an neue Mietpartei", 14, "hoch", "Übergabeprotokoll\nSchlüsselübergabe dokumentieren\nZählerstände", "Vermietung"),
+                Step(5, "Übergabe an neue Mietpartei", 14, "hoch", "Übergabeprotokoll\nSchlüsselübergabe dokumentieren\nZählerstände", "Vermietung"),
+                Step(6, "Kaution abrechnen", 30, "normal", "Nebenkosten berücksichtigen\nAbrechnung versenden", "Buchhaltung"),
             ],
         });
 

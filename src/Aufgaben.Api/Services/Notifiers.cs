@@ -22,6 +22,8 @@ public static class NotificationTexts
         NotificationOutbox.Commented => ("taskCommented", $"Neuer Kommentar: {n.Title}", $"{n.ActorName}: {Shorten(n.Body, 120)}"),
         NotificationOutbox.Reminder => ("taskReminder", $"Erinnerung: {n.Title}", $"Erinnerung: {n.Title}"),
         NotificationOutbox.Digest => ("dailyDigest", n.Title, n.Title),
+        NotificationOutbox.Access => ("accessChanged", n.Title, n.Title),
+        NotificationOutbox.ListShared => ("listShared", $"{n.ActorName} hat die Liste „{n.Title}“ mit dir geteilt", $"{n.ActorName} hat die Liste „{n.Title}“ mit dir geteilt"),
         _ => ("taskAssigned", n.Title, n.Title),
     };
 
@@ -56,11 +58,11 @@ public sealed class TeamsNotifier(GraphClient graph, IOptions<AufgabenOptions> o
         {
             new { name = "taskTitle", value = NotificationTexts.Shorten(n.Title, 100) },
         };
-        if (type is "taskAssigned" or "taskCompleted" or "taskCommented")
+        if (type is "taskAssigned" or "taskCompleted" or "taskCommented" or "listShared")
         {
             parameters.Add(new { name = "person", value = n.ActorName });
         }
-        if (type == "dailyDigest")
+        if (type is "dailyDigest" or "accessChanged")
         {
             parameters.Clear();
             parameters.Add(new { name = "summary", value = NotificationTexts.Shorten(n.Title, 100) });
@@ -159,10 +161,10 @@ public sealed class MailNotifier(IOptions<AufgabenOptions> options, ILogger<Mail
         using var client = new SmtpClient();
         if (!string.IsNullOrWhiteSpace(o.Mail.CaCertificatePath))
         {
-            var ca = X509CertificateLoader.LoadCertificateFromFile(o.Mail.CaCertificatePath);
+            var ca = TlsTrust.LoadCa(o.Mail.CaCertificatePath);
             client.ServerCertificateValidationCallback = (_, cert, _, errors) => TlsTrust.ValidateWithCustomCa(cert, errors, ca);
         }
-        var security = Enum.TryParse<SecureSocketOptions>(o.Mail.Security, true, out var s) ? s : SecureSocketOptions.StartTlsWhenAvailable;
+        var security = Enum.TryParse<SecureSocketOptions>(o.Mail.Security, true, out var s) ? s : SecureSocketOptions.StartTls;
         await client.ConnectAsync(o.Mail.Host, o.Mail.Port, security, ct);
         if (!string.IsNullOrWhiteSpace(o.Mail.Username))
         {
@@ -195,7 +197,25 @@ public sealed class MailNotifier(IOptions<AufgabenOptions> options, ILogger<Mail
 /// <summary>Prüft Serverzertifikate gegen eine interne Zertifizierungsstelle (für SMTP und IMAP).</summary>
 public static class TlsTrust
 {
-    public static bool ValidateWithCustomCa(X509Certificate? certificate, SslPolicyErrors errors, X509Certificate2 ca)
+    /// <summary>
+    /// Lädt die CA-Datei. Eine PEM-Datei darf mehrere Zertifikate enthalten (Stamm- und
+    /// Zwischenzertifikat einer zweistufigen PKI); DER-Dateien (.cer) enthalten genau eines.
+    /// </summary>
+    public static X509Certificate2Collection LoadCa(string path)
+    {
+        var all = new X509Certificate2Collection();
+        if (File.ReadAllText(path).Contains("-----BEGIN CERTIFICATE-----", StringComparison.Ordinal))
+        {
+            all.ImportFromPemFile(path);
+        }
+        else
+        {
+            all.Add(X509CertificateLoader.LoadCertificateFromFile(path));
+        }
+        return all;
+    }
+
+    public static bool ValidateWithCustomCa(X509Certificate? certificate, SslPolicyErrors errors, X509Certificate2Collection ca)
     {
         if (errors == SslPolicyErrors.None)
         {
@@ -207,7 +227,18 @@ public static class TlsTrust
         }
         using var chain = new X509Chain();
         chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-        chain.ChainPolicy.CustomTrustStore.Add(ca);
+        // Selbstsignierte Zertifikate der Datei sind Vertrauensanker, die übrigen helfen beim Kettenbau.
+        foreach (var c in ca)
+        {
+            if (c.SubjectName.RawData.AsSpan().SequenceEqual(c.IssuerName.RawData))
+            {
+                chain.ChainPolicy.CustomTrustStore.Add(c);
+            }
+            else
+            {
+                chain.ChainPolicy.ExtraStore.Add(c);
+            }
+        }
         chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
         return chain.Build(new X509Certificate2(certificate));
     }

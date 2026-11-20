@@ -15,6 +15,8 @@ public sealed class NotificationOutbox(AppDbContext db, AppClock clock)
     public const string Commented = "kommentar";
     public const string Reminder = "erinnerung";
     public const string Digest = "tagesuebersicht";
+    public const string ListShared = "liste-geteilt";
+    public const string Access = "einsicht";
 
     public void Enqueue(int userId, string kind, int? taskId, string title, string body, string actorName)
     {

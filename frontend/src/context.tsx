@@ -8,6 +8,7 @@ export interface AppData {
   users: UserRef[];
   lists: TaskList[];
   openTask: (id: number | null) => void;
+  selectedTaskId: number | null;
   notify: (title: string, intent?: "success" | "error" | "info") => void;
 }
 
@@ -38,6 +39,19 @@ export function matchUser(users: UserRef[], query: string): UserRef | undefined 
     users.find((u) => u.name.toLowerCase().split(/\s+/).some((part) => part.startsWith(q))) ??
     users.find((u) => u.email?.toLowerCase().startsWith(q))
   );
+}
+
+/**
+ * Kürzel für die Schnelleingabe, das genau diese Person trifft: Nachname, Vorname oder der
+ * Anfang der E-Mail-Adresse – je nachdem, was eindeutig ist (z. B. bei gleichen Nachnamen).
+ */
+export function mentionFor(user: UserRef, users: UserRef[]): string {
+  const parts = user.name.split(/\s+/).filter(Boolean);
+  const local = user.email?.split("@")[0];
+  const candidates = [parts.at(-1), parts[0], local].filter(
+    (c): c is string => !!c && /^[\p{L}\p{N}][\p{L}\p{N}._-]*$/u.test(c),
+  );
+  return candidates.find((c) => matchUser(users, c)?.id === user.id) ?? candidates[0] ?? user.name;
 }
 
 export function initials(name: string): string {

@@ -1,7 +1,7 @@
 import { authHeaders } from "./api";
 
 export interface LiveMessage {
-  type: "task" | "task-deleted" | "verbunden";
+  type: "task" | "task-deleted" | "lists" | "verbunden";
   id?: number;
 }
 

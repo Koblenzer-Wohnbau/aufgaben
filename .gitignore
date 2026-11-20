@@ -31,3 +31,6 @@ Thumbs.db
 
 # Lokale Werkzeuge
 .claude/
+
+# Lokale Spielwiese (fertig gebaute Kopie)
+.spielwiese/

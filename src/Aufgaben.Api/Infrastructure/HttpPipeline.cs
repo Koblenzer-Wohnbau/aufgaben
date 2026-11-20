@@ -92,17 +92,22 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
         "'self' https://teams.microsoft.com https://*.teams.microsoft.com https://*.cloud.microsoft " +
         "https://*.office.com https://outlook.office.com https://*.skype.com";
 
+    // connect-src: TeamsJS lädt beim Start die Liste gültiger Teams-Domains von res.cdn.office.net.
     private const string Csp =
         "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
-        "font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self' https://login.microsoftonline.com; " +
-        "frame-ancestors " + FrameAncestors;
+        "font-src 'self' data:; connect-src 'self' https://res.cdn.office.net; object-src 'none'; base-uri 'self'; " +
+        "form-action 'self' https://login.microsoftonline.com; frame-ancestors " + FrameAncestors;
 
     public Task InvokeAsync(HttpContext ctx)
     {
         ctx.Response.OnStarting(() =>
         {
             var h = ctx.Response.Headers;
-            h["Content-Security-Policy"] = Csp;
+            // Eine strengere Regel eines Endpunkts (z. B. Sandbox für Anhänge) bleibt erhalten.
+            if (!h.ContainsKey("Content-Security-Policy"))
+            {
+                h["Content-Security-Policy"] = Csp;
+            }
             h["X-Content-Type-Options"] = "nosniff";
             h["Referrer-Policy"] = "same-origin";
             h["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";

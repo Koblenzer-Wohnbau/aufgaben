@@ -56,5 +56,6 @@ public static class TaskEndpoints
         });
 
         api.MapGet("/counts", (TaskService svc, CancellationToken ct) => svc.CountsAsync(ct));
+        api.MapGet("/suggestions", (TaskService svc, CancellationToken ct) => svc.SuggestionsAsync(ct));
     }
 }

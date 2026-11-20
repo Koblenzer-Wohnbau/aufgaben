@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using Aufgaben.Api.Data;
 using Aufgaben.Api.Options;
@@ -23,6 +24,9 @@ public static class AuthSetup
 {
     public const string SmartScheme = "smart";
     public const string CookieName = "aufgaben.sitzung";
+
+    /// <summary>Zeitpunkt der Anmeldung in der Sitzung (für die Höchstdauer).</summary>
+    private const string LoginAtItem = ".aufgaben.anmeldung";
 
     public static void AddAufgabenAuth(this WebApplicationBuilder builder, AufgabenOptions opts)
     {
@@ -97,6 +101,38 @@ public static class AuthSetup
         o.Cookie.SecurePolicy = opts.IsHttps ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
         o.ExpireTimeSpan = TimeSpan.FromHours(Math.Clamp(opts.Auth.SessionHours, 1, 24 * 14));
         o.SlidingExpiration = true;
+
+        // Höchstdauer ab der Anmeldung: Ohne sie verlängert ein dauerhaft offener Tab die Sitzung
+        // immer weiter – und eine in Entra entzogene Rolle käme nie an.
+        var maxAge = TimeSpan.FromHours(Math.Clamp(opts.Auth.MaxSessionHours, 1, 24 * 14));
+        var previousSigningIn = o.Events.OnSigningIn;
+        o.Events.OnSigningIn = async ctx =>
+        {
+            await previousSigningIn(ctx);
+            ctx.Properties.Items[LoginAtItem] = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+        };
+        var previousValidate = o.Events.OnValidatePrincipal;
+        o.Events.OnValidatePrincipal = async ctx =>
+        {
+            await previousValidate(ctx);
+            if (ctx.Principal is null)
+            {
+                return;
+            }
+            if (!ctx.Properties.Items.TryGetValue(LoginAtItem, out var raw)
+                || !DateTimeOffset.TryParse(raw, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var loginAt))
+            {
+                // Sitzung von vor dieser Regel: ab jetzt zählen
+                ctx.Properties.Items[LoginAtItem] = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture);
+                ctx.ShouldRenew = true;
+                return;
+            }
+            if (DateTimeOffset.UtcNow - loginAt > maxAge)
+            {
+                ctx.RejectPrincipal();
+                await ctx.HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            }
+        };
         o.Events.OnRedirectToLogin = ctx =>
         {
             ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
@@ -150,7 +186,8 @@ public static class AuthSetup
             {
                 return Results.Redirect("/");
             }
-            var props = new AuthenticationProperties { RedirectUri = SafeReturnUrl(returnUrl) };
+            // Kontoauswahl anzeigen: wichtig an gemeinsam genutzten PCs mit mehreren Firmenkonten.
+            var props = new OpenIdConnectChallengeProperties { RedirectUri = SafeReturnUrl(returnUrl), Prompt = "select_account" };
             return Results.Challenge(props, [OpenIdConnectDefaults.AuthenticationScheme]);
         }).AllowAnonymous();
 

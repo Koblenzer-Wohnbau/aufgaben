@@ -177,6 +177,8 @@ public sealed class MailInboxTests(AppFixture app)
         Assert.Equal(System.Net.HttpStatusCode.OK, ok.StatusCode);
         Assert.Equal("application/octet-stream", ok.Content.Headers.ContentType?.MediaType);
         Assert.Equal("attachment", ok.Content.Headers.ContentDisposition?.DispositionType);
+        // Die strenge Regel des Endpunkts darf nicht von der allgemeinen CSP überschrieben werden.
+        Assert.Equal("default-src 'none'; sandbox", Assert.Single(ok.Headers.GetValues("Content-Security-Policy")));
 
         var thomas = await app.LoginAsync("dev-thomas");
         var denied = await thomas.GetAsync($"/api/tasks/{result.TaskId}/attachments/{attachmentId}");

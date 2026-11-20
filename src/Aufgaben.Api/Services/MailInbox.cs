@@ -175,7 +175,8 @@ public sealed partial class MailInboxProcessor(
     private async Task<int?> FindProjectAsync(string query, CancellationToken ct)
     {
         var q = query.ToLowerInvariant();
-        var open = db.Projects.Where(p => !p.Archived);
+        // Feste Reihenfolge, damit bei mehreren Treffern immer derselbe gewinnt.
+        var open = db.Projects.Where(p => !p.Archived).OrderBy(p => p.Number).ThenBy(p => p.Name).ThenBy(p => p.Id);
         return await open.Where(p => p.Number != null && p.Number.ToLower() == q).Select(p => (int?)p.Id).FirstOrDefaultAsync(ct)
                ?? await open.Where(p => p.Number != null && p.Number.ToLower().StartsWith(q)).Select(p => (int?)p.Id).FirstOrDefaultAsync(ct)
                ?? await open.Where(p => p.Name.ToLower().StartsWith(q)).Select(p => (int?)p.Id).FirstOrDefaultAsync(ct);
@@ -184,7 +185,8 @@ public sealed partial class MailInboxProcessor(
     private async Task<int?> FindUserAsync(string query, CancellationToken ct)
     {
         var q = query.ToLowerInvariant();
-        var users = await db.Users.Where(u => u.IsActive).Select(u => new { u.Id, u.DisplayName, u.Email }).ToListAsync(ct);
+        var users = await db.Users.Where(u => u.IsActive).OrderBy(u => u.DisplayName).ThenBy(u => u.Id)
+            .Select(u => new { u.Id, u.DisplayName, u.Email }).ToListAsync(ct);
         return users.FirstOrDefault(u => u.DisplayName.ToLowerInvariant().Split(' ').Contains(q))?.Id
                ?? users.FirstOrDefault(u => u.DisplayName.ToLowerInvariant().Split(' ').Any(p => p.StartsWith(q)))?.Id
                ?? users.FirstOrDefault(u => u.Email != null && u.Email.ToLowerInvariant().StartsWith(q))?.Id;
@@ -327,7 +329,7 @@ public sealed class MailInboxPoller(IServiceScopeFactory scopes, IOptions<Aufgab
         using var client = new ImapClient();
         if (!string.IsNullOrWhiteSpace(o.CaCertificatePath))
         {
-            var ca = System.Security.Cryptography.X509Certificates.X509CertificateLoader.LoadCertificateFromFile(o.CaCertificatePath);
+            var ca = TlsTrust.LoadCa(o.CaCertificatePath);
             client.ServerCertificateValidationCallback = (_, cert, _, errors) => TlsTrust.ValidateWithCustomCa(cert, errors, ca);
         }
         var security = Enum.TryParse<SecureSocketOptions>(o.Security, true, out var s) ? s : SecureSocketOptions.SslOnConnect;
