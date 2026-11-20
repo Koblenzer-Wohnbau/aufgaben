@@ -170,7 +170,7 @@ public sealed class MailNotifier(IOptions<AufgabenOptions> options, ILogger<Mail
         {
             await client.AuthenticateAsync(o.Mail.Username, o.Mail.Password, ct);
         }
-        await client.SendAsync(message, ct);
+        await client.SendAsync(new SmtpSendRequest(message), ct);
         await client.DisconnectAsync(true, ct);
     }
 
