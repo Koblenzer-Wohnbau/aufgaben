@@ -91,7 +91,8 @@ cd frontend; npm test       # Tests der Schnelleingabe und des Freigabe-Formular
    Aktuelle Fassung mit Import aus der Zwischenablage: <https://github.com/zerox80/ssh-hardening>
 2. Server vorbereiten: `sudo bash deploy/server/haerten.sh` (fragt alles ab: Firewall, SSH nur mit Schlüssel,
    optional nur bestimmte IPs)
-3. Repository auf den Server holen, `.env.example` nach `.env` kopieren und ausfüllen (`chmod 600 .env`)
+3. Repository auf den Server holen, `.env.example` nach `.env` kopieren und ausfüllen (`chmod 600 .env`),
+   dabei auch die Angaben für die Datenschutzhinweise (siehe unten)
 4. Anmeldung der App bei Entra: App-Zertifikat als `secrets/app.pfx` (lesbar für UID 1654, den Benutzer im
    Container) – oder übergangsweise ein Clientschlüssel (`AzureAd__ClientCredentials__0__SourceType=ClientSecret`,
    `…__ClientSecret=` mit dem **Wert**, nicht der „Geheimen ID“)
@@ -121,6 +122,29 @@ cd frontend; npm test       # Tests der Schnelleingabe und des Freigabe-Formular
 
 Die App nimmt Schema und Host im Betrieb immer aus `Aufgaben__BaseUrl` – die Anmeldung funktioniert dadurch
 auch, wenn der Reverse Proxy `Host` oder `X-Forwarded-Proto` nicht richtig weiterreicht.
+
+### Datenschutzhinweise
+
+Die Seite `/datenschutz.html` (im Teams-Paket als Datenschutz-URL hinterlegt) baut der Server aus einer
+eingebetteten Vorlage und den Angaben in der `.env` – am Image ändert sich nichts:
+
+| Variable | Inhalt |
+|---|---|
+| `Aufgaben__Privacy__Controller` | Verantwortlicher mit Anschrift und Kontakt (Pflicht) |
+| `Aufgaben__Privacy__DpoContact` | Datenschutzbeauftragte bzw. Datenschutzbeauftragter mit Kontakt (Pflicht) |
+| `Aufgaben__Privacy__Retention` | Speicherdauer und Löschfristen (Pflicht) |
+| `Aufgaben__Privacy__Hosting` | Speicherort, ggf. Auftragsverarbeiter (optional, leer = eigener Server im Unternehmen) |
+
+```bash
+Aufgaben__Privacy__Controller=Beispiel GmbH | Musterstraße 1 | 12345 Musterstadt | info@example.de
+```
+
+* `|` (oder `\n`) trennt Zeilen; die Werte erscheinen als reiner Text, HTML aus der `.env` wird nie ausgeführt.
+* Fehlt eine Pflichtangabe, steht an der Stelle weiter der Platzhalter, und oben bleibt der gelbe Hinweis „Vorlage“.
+  Er verschwindet erst, wenn alle drei Pflichtangaben gesetzt sind.
+* Ob alles vollständig ist, zeigt **Verwaltung → System → Datenschutzhinweise** (mit Link auf die Seite).
+* Nach einer Änderung der `.env`: `sudo docker compose up -d` (legt den Container mit den neuen Werten neu an).
+* Die Texte sind eine Vorlage – vor dem Betrieb von der bzw. dem Datenschutzbeauftragten prüfen lassen.
 
 ### Updates
 

@@ -18,6 +18,7 @@ public sealed class AufgabenOptions
     public MailInboxOptions MailInbox { get; set; } = new();
     public WorkerOptions Worker { get; set; } = new();
     public DatabaseOptions Database { get; set; } = new();
+    public PrivacyOptions Privacy { get; set; } = new();
     public MistralOptions Mistral { get; set; } = new();
 
     public string NormalizedBaseUrl => BaseUrl.TrimEnd('/');
@@ -151,6 +152,25 @@ public sealed class DatabaseOptions
 {
     public bool AutoMigrate { get; set; } = true;
     public bool SeedExampleTemplates { get; set; } = true;
+}
+
+/// <summary>
+/// Angaben für die Datenschutzhinweise unter /datenschutz.html. Mehrere Zeilen mit "|" oder "\n" trennen,
+/// z. B. "Beispiel GmbH | Musterstraße 1 | 12345 Musterstadt". Die Werte werden als Text eingesetzt, nie als HTML.
+/// </summary>
+public sealed class PrivacyOptions
+{
+    /// <summary>Verantwortlicher mit Anschrift und Kontakt (Pflicht).</summary>
+    public string Controller { get; set; } = "";
+
+    /// <summary>Datenschutzbeauftragte bzw. Datenschutzbeauftragter mit Kontakt (Pflicht).</summary>
+    public string DpoContact { get; set; } = "";
+
+    /// <summary>Speicherdauer und Löschfristen (Pflicht).</summary>
+    public string Retention { get; set; } = "";
+
+    /// <summary>Speicherort und ggf. Auftragsverarbeiter. Leer = eigener Server im Unternehmen.</summary>
+    public string Hosting { get; set; } = "";
 }
 
 /// <summary>

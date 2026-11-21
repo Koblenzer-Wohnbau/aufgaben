@@ -12,6 +12,7 @@ import {
   DialogTitle,
   Field,
   Input,
+  Link,
   makeStyles,
   MessageBar,
   MessageBarBody,
@@ -62,6 +63,7 @@ const useStyles = makeStyles({
   stat: { padding: "14px 16px" },
   statValue: { fontSize: "24px", fontWeight: tokens.fontWeightSemibold },
   log: { display: "flex", flexDirection: "column", gap: "6px", maxHeight: "50vh", overflowY: "auto" },
+  code: { fontFamily: tokens.fontFamilyMonospace, wordBreak: "break-all" },
 });
 
 
@@ -489,6 +491,25 @@ function SystemSection() {
             <Caption1 className={styles.muted}>
               Aufgaben-Postfach {s.mailInboxConfigured ? "aktiv" : "aus"} · letzter Abruf {s.lastMailInboxRun ? shortDateTime(s.lastMailInboxRun) : "–"}{" "}
               {s.lastMailInboxResult ? `(${s.lastMailInboxResult})` : ""} · abgelehnt (7 Tage): {s.rejectedMailsLast7Days}
+            </Caption1>
+          </Card>
+          <Card className={styles.stat}>
+            <Text weight="semibold">
+              Datenschutzhinweise{" "}
+              {s.privacyMissing.length === 0 ? <Badge color="success">vollständig</Badge> : <Badge color="warning">unvollständig</Badge>}
+            </Text>
+            <Caption1 className={styles.muted}>
+              {s.privacyMissing.length === 0 ? (
+                "Verantwortlicher, Datenschutzbeauftragte/r und Speicherdauer stehen in der .env."
+              ) : (
+                <>
+                  In der .env fehlt noch: <span className={styles.code}>{s.privacyMissing.join(", ")}</span>. Bis dahin zeigt die Seite
+                  Platzhalter und den Hinweis „Vorlage“.
+                </>
+              )}{" "}
+              <Link href="/datenschutz.html" target="_blank" rel="noopener">
+                Seite ansehen
+              </Link>
             </Caption1>
           </Card>
         </div>

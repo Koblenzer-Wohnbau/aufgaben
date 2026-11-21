@@ -11,8 +11,11 @@
 </style>
 </head>
 <body>
+<!-- Vorlage: Der Server setzt die Angaben aus der .env (Aufgaben__Privacy__…) HTML-kodiert ein. -->
 <h1>Datenschutzhinweise zur App „Aufgaben“</h1>
-<p class="hinweis"><strong>Vorlage:</strong> Diese Seite muss vor dem Betrieb von der bzw. dem Datenschutzbeauftragten geprüft und ergänzt werden (Verantwortlicher, Kontaktdaten, Speicherort, Auftragsverarbeiter).</p>
+{{VORLAGE}}
+<h2>Verantwortlicher</h2>
+<p>{{VERANTWORTLICHER}}</p>
 
 <h2>Zweck</h2>
 <p>Die App dient der Organisation dienstlicher Aufgaben: persönliche Aufgaben, Delegation an Kolleginnen und Kollegen, Projektaufgaben und Vorlagen für wiederkehrende Abläufe.</p>
@@ -37,13 +40,16 @@
   <li>Es gibt keine Auswertungen oder Statistiken zur Leistung einzelner Personen.</li>
 </ul>
 
+<h2>Speicherort</h2>
+<p>{{SPEICHERORT}}</p>
+
 <h2>Benachrichtigungen</h2>
 <p>Benachrichtigungen werden über den Teams-Aktivitätsfeed (Microsoft Graph) oder per E-Mail versendet. Dabei werden Titel und ggf. Kommentartext der Aufgabe übermittelt.</p>
 
 <h2>Speicherdauer</h2>
-<p>[Durch den Verantwortlichen festzulegen, z. B. Löschung erledigter Aufgaben nach X Monaten; Protokolle nach 30 Tagen.]</p>
+<p>{{SPEICHERDAUER}}</p>
 
 <h2>Kontakt</h2>
-<p>[Name und Kontakt der bzw. des Datenschutzbeauftragten]</p>
+<p>{{DATENSCHUTZBEAUFTRAGTE}}</p>
 </body>
 </html>

@@ -31,6 +31,9 @@ public sealed class AppFixture : IAsyncLifetime
             ["Aufgaben__Auth__AllowDevLogin"] = "true",
             ["Aufgaben__Worker__Enabled"] = "false",
             ["Aufgaben__Directory__SyncEnabled"] = "false",
+            // Datenschutzhinweise: Speicherdauer fehlt absichtlich (siehe PrivacyPageApiTests)
+            ["Aufgaben__Privacy__Controller"] = "Beispiel GmbH | Musterstraße 1 | 12345 Musterstadt",
+            ["Aufgaben__Privacy__DpoContact"] = "<script>alert(1)</script> | datenschutz@example.test",
         };
         foreach (var (key, value) in settings)
         {

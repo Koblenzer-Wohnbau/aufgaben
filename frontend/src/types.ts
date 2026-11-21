@@ -220,6 +220,8 @@ export interface AdminStatus {
   lastMailInboxResult: string | null;
   rejectedMailsLast7Days: number;
   version: string;
+  /** Pflichtangaben der Datenschutzhinweise, die in der .env fehlen – leer = vollständig. */
+  privacyMissing: string[];
 }
 
 export interface Suggestions {

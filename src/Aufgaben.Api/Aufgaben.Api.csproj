@@ -32,4 +32,10 @@
     <EmbeddedResource Include="..\..\teams\outline.png" LogicalName="Teams.outline.png" />
   </ItemGroup>
 
+  <!-- Datenschutzhinweise: Vorlage, in die der Server die Angaben aus der .env einsetzt (/datenschutz.html). -->
+  <ItemGroup>
+    <None Remove="Resources\datenschutz.html" />
+    <EmbeddedResource Include="Resources\datenschutz.html" LogicalName="Pages.datenschutz.html" />
+  </ItemGroup>
+
 </Project>

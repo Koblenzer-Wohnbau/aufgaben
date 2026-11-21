@@ -33,6 +33,8 @@ export default defineConfig({
       "/api": { target: "http://localhost:5080", changeOrigin: false },
       "/auth": { target: "http://localhost:5080", changeOrigin: false },
       "/kalender": { target: "http://localhost:5080", changeOrigin: false },
+      // Die Datenschutzseite baut der Server aus Vorlage und .env.
+      "/datenschutz.html": { target: "http://localhost:5080", changeOrigin: false },
     },
   },
 });
