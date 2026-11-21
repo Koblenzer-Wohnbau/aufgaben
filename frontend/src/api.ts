@@ -1,5 +1,5 @@
 import type {
-  AccessGrant, AccessLogEntry, AdminStatus, AuthConfig, Counts, MyAccess, CreateTask, Me, Project, Suggestions, Task, TaskDetail, TaskEvent, TaskList, Template, UserRef, ViewKey,
+  AccessGrant, AccessLogEntry, AdminStatus, Attachment, AuthConfig, Counts, MyAccess, CreateTask, Me, Project, Suggestions, Task, TaskDetail, TaskEvent, TaskList, Template, UserRef, ViewKey,
 } from "./types";
 
 export class ApiError extends Error {
@@ -114,6 +114,43 @@ export const api = {
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  },
+  uploadAttachment: async (taskId: number, file: Blob, fileName: string): Promise<Attachment> => {
+    const res = await fetch(`/api/tasks/${taskId}/attachments?name=${encodeURIComponent(fileName)}`, {
+      method: "POST",
+      headers: {
+        "X-Aufgaben-Request": "1",
+        "Content-Type": file.type || "application/octet-stream",
+        ...(await authHeaders()),
+      },
+      credentials: "same-origin",
+      body: file,
+    });
+    if (!res.ok) {
+      // 413 ohne JSON kommt von Nginx: dessen Grenze für Uploads ist noch nicht eingerichtet
+      let message = res.status === 413
+        ? "Die Datei ist zu groß für den Server. Höchstens 10 MB – sonst die Nginx-Einrichtung aktualisieren."
+        : `Hochladen fehlgeschlagen (${res.status}).`;
+      try {
+        const data = await res.json();
+        if (data?.error) message = data.error;
+      } catch {
+        /* keine JSON-Antwort */
+      }
+      throw new ApiError(res.status, message);
+    }
+    return (await res.json()) as Attachment;
+  },
+  deleteAttachment: (taskId: number, attachmentId: number) =>
+    request<Task>("DELETE", `/api/tasks/${taskId}/attachments/${attachmentId}`),
+  /** Bildvorschau mit Anmeldung laden (in Teams per Token) und als Objekt-URL zurückgeben. */
+  attachmentPreview: async (taskId: number, attachmentId: number): Promise<string> => {
+    const res = await fetch(`/api/tasks/${taskId}/attachments/${attachmentId}/vorschau`, {
+      headers: await authHeaders(),
+      credentials: "same-origin",
+    });
+    if (!res.ok) throw new ApiError(res.status, "Vorschau nicht verfügbar.");
+    return URL.createObjectURL(await res.blob());
   },
   comment: (id: number, text: string) => request<TaskEvent>("POST", `/api/tasks/${id}/comments`, { text }),
 

@@ -4,6 +4,12 @@ import {
   Button,
   Caption1,
   Checkbox,
+  Dialog,
+  DialogActions,
+  DialogBody,
+  DialogContent,
+  DialogSurface,
+  DialogTitle,
   Divider,
   Dropdown,
   DrawerBody,
@@ -35,9 +41,10 @@ import {
 } from "@fluentui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
+import { filesFrom, isPreviewable, uploadName, uploadProblem } from "../attachments";
 import { initials, useApp } from "../context";
 import { fromLocalInput, RECURRENCE_LABEL, shortDateTime, toLocalInput } from "../dates";
-import type { Task, TaskEvent } from "../types";
+import type { Attachment, Task, TaskEvent } from "../types";
 import { PersonPicker } from "./PersonPicker";
 
 const useStyles = makeStyles({
@@ -72,6 +79,12 @@ const useStyles = makeStyles({
     marginBottom: "4px",
   },
   attachmentName: { flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  thumbButton: { border: "none", padding: 0, background: "transparent", cursor: "zoom-in", display: "flex", flexShrink: 0 },
+  thumb: { width: "44px", height: "44px", objectFit: "cover", borderRadius: tokens.borderRadiusSmall, border: `1px solid ${tokens.colorNeutralStroke2}` },
+  attachActions: { display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" },
+  editor: { display: "flex", flexDirection: "column", gap: "14px", borderRadius: tokens.borderRadiusMedium, outline: "2px dashed transparent", outlineOffset: "6px" },
+  dropActive: { outline: `2px dashed ${tokens.colorBrandStroke1}`, backgroundColor: tokens.colorBrandBackground2 },
+  previewImage: { maxWidth: "100%", maxHeight: "70vh", display: "block", margin: "0 auto", borderRadius: tokens.borderRadiusMedium },
   // Gruppiert Felder, die gemeinsam gesperrt werden (z. B. bei einer Lese-Freigabe).
   fieldset: { border: "none", padding: 0, margin: 0, minWidth: 0, display: "flex", flexDirection: "column", gap: "14px" },
 });
@@ -90,7 +103,39 @@ const EVENT_TEXT: Record<string, string> = {
   termin: "hat den Termin geändert:",
   folgeaufgabe: "hat die Folgeaufgabe angelegt,",
   kommentar: "",
+  anhang: "hat angehängt:",
+  "anhang-entfernt": "hat den Anhang entfernt:",
 };
+
+/** Kleine Vorschau für Bildanhänge – mit Anmeldung geladen (in Teams per Token), danach freigegeben. */
+function AttachmentThumb({ taskId, attachment, onOpen }: { taskId: number; attachment: Attachment; onOpen: (url: string) => void }) {
+  const styles = useStyles();
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    let created: string | null = null;
+    api
+      .attachmentPreview(taskId, attachment.id)
+      .then((u) => {
+        if (cancelled) URL.revokeObjectURL(u);
+        else {
+          created = u;
+          setUrl(u);
+        }
+      })
+      .catch(() => setUrl(null));
+    return () => {
+      cancelled = true;
+      if (created) URL.revokeObjectURL(created);
+    };
+  }, [taskId, attachment.id]);
+  if (!url) return <AttachRegular />;
+  return (
+    <button type="button" className={styles.thumbButton} onClick={() => onOpen(url)} aria-label={`${attachment.fileName} groß anzeigen`}>
+      <img src={url} alt="" className={styles.thumb} />
+    </button>
+  );
+}
 
 export function TaskDrawer({ taskId, onClose, overlay }: { taskId: number | null; onClose: () => void; overlay: boolean }) {
   const styles = useStyles();
@@ -156,6 +201,10 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
   const [notes, setNotes] = useState(task.notes);
   const [newItem, setNewItem] = useState("");
   const [comment, setComment] = useState("");
+  const [uploading, setUploading] = useState(0);
+  const [dragOver, setDragOver] = useState(false);
+  const [preview, setPreview] = useState<{ url: string; attachment: Attachment } | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const done = task.status === "erledigt";
 
   // Live-Änderungen übernehmen – aber nie Text überschreiben, den die Person gerade tippt.
@@ -196,8 +245,60 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
 
   const assignee = users.find((u) => u.id === task.assignee.id) ?? task.assignee;
 
+  // Anhänge: Strg+V (z. B. ein Screenshot), Ziehen und Ablegen oder „Datei anhängen“.
+  const uploadFiles = async (files: File[]) => {
+    if (!canEdit || files.length === 0) return;
+    let added = 0;
+    setUploading((n) => n + files.length);
+    for (const file of files) {
+      const problem = uploadProblem(file);
+      try {
+        if (problem) throw new Error(`${file.name || "Datei"}: ${problem}`);
+        await api.uploadAttachment(task.id, file, uploadName(file));
+        added++;
+      } catch (e) {
+        notify(e instanceof Error ? e.message : "Hochladen fehlgeschlagen", "error");
+      } finally {
+        setUploading((n) => n - 1);
+      }
+    }
+    await refresh();
+    if (added > 0) notify(added === 1 ? "Anhang hinzugefügt" : `${added} Anhänge hinzugefügt`);
+  };
+
+  const onPaste = (e: React.ClipboardEvent) => {
+    if (!canEdit) return;
+    const files = filesFrom(e.clipboardData);
+    if (files.length === 0) return;
+    // In einem Textfeld mit Text in der Zwischenablage (z. B. aus Word kopiert): normal einfügen
+    const target = e.target as HTMLElement;
+    const inTextField = target.closest("input, textarea") !== null;
+    if (inTextField && e.clipboardData.types.includes("text/plain")) return;
+    e.preventDefault();
+    void uploadFiles(files);
+  };
+  const dragHasFiles = (e: React.DragEvent) => canEdit && Array.from(e.dataTransfer.types).includes("Files");
+
   return (
-    <>
+    <div
+      className={`${styles.editor} ${dragOver ? styles.dropActive : ""}`}
+      onPaste={onPaste}
+      onDragOver={(e) => {
+        if (!dragHasFiles(e)) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+        if (!dragOver) setDragOver(true);
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false);
+      }}
+      onDrop={(e) => {
+        if (!dragHasFiles(e)) return;
+        e.preventDefault();
+        setDragOver(false);
+        void uploadFiles(filesFrom(e.dataTransfer));
+      }}
+    >
       {viaGrant && (
         <MessageBar intent={canEdit ? "info" : "warning"}>
           <MessageBarBody>
@@ -351,12 +452,23 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
       </Field>
       </fieldset>
 
-      {task.attachments.length > 0 && (
-        <Field label={`Anhänge (${task.attachments.length})`} hint="Anhänge werden heruntergeladen, nie im Browser geöffnet.">
+      {(canEdit || task.attachments.length > 0) && (
+        <Field
+          label={`Anhänge${task.attachments.length ? ` (${task.attachments.length})` : ""}`}
+          hint={
+            canEdit
+              ? "Bild mit Strg+V einfügen oder Dateien hierher ziehen (bis 10 MB). Anhänge werden heruntergeladen, nie im Browser geöffnet."
+              : "Anhänge werden heruntergeladen, nie im Browser geöffnet."
+          }
+        >
           <div>
             {task.attachments.map((a) => (
               <div key={a.id} className={styles.attachment}>
-                <AttachRegular />
+                {isPreviewable(a.contentType) ? (
+                  <AttachmentThumb taskId={task.id} attachment={a} onOpen={(url) => setPreview({ url, attachment: a })} />
+                ) : (
+                  <AttachRegular />
+                )}
                 <Text className={styles.attachmentName} title={a.fileName}>
                   {a.fileName}
                 </Text>
@@ -368,11 +480,66 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
                   aria-label={`${a.fileName} herunterladen`}
                   onClick={() => api.downloadAttachment(task.id, a.id, a.fileName).catch((e) => notify(e.message, "error"))}
                 />
+                {canEdit && (
+                  <Button
+                    size="small"
+                    appearance="subtle"
+                    icon={<DeleteRegular />}
+                    aria-label={`${a.fileName} entfernen`}
+                    onClick={() => {
+                      if (window.confirm(`Anhang „${a.fileName}“ entfernen?`)) {
+                        void run(() => api.deleteAttachment(task.id, a.id), "Anhang entfernt");
+                      }
+                    }}
+                  />
+                )}
               </div>
             ))}
+            {canEdit && (
+              <div className={styles.attachActions}>
+                <Button size="small" icon={<AttachRegular />} disabled={uploading > 0} onClick={() => fileInput.current?.click()}>
+                  Datei anhängen
+                </Button>
+                {uploading > 0 && <Spinner size="extra-tiny" label="Wird hochgeladen …" />}
+                <input
+                  ref={fileInput}
+                  type="file"
+                  multiple
+                  hidden
+                  onChange={(e) => {
+                    const files = Array.from(e.target.files ?? []);
+                    e.target.value = "";
+                    void uploadFiles(files);
+                  }}
+                />
+              </div>
+            )}
           </div>
         </Field>
       )}
+
+      <Dialog open={preview !== null} onOpenChange={(_, d) => !d.open && setPreview(null)}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>{preview?.attachment.fileName}</DialogTitle>
+            <DialogContent>{preview && <img src={preview.url} alt={preview.attachment.fileName} className={styles.previewImage} />}</DialogContent>
+            <DialogActions>
+              <Button
+                icon={<ArrowDownloadRegular />}
+                onClick={() =>
+                  preview &&
+                  api.downloadAttachment(task.id, preview.attachment.id, preview.attachment.fileName).catch((e) => notify(e.message, "error"))
+                }
+              >
+                Herunterladen
+              </Button>
+              <Button appearance="primary" onClick={() => setPreview(null)}>
+                Schließen
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
 
       <Field label="Notizen">
         <Textarea
@@ -440,6 +607,6 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
           </Button>
         )}
       </div>
-    </>
+    </div>
   );
 }

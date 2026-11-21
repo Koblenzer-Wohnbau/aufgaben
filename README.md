@@ -20,6 +20,8 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 * **Vorlagen** für wiederkehrende Abläufe (Beispiele: Mieterwechsel, Wohnungsabnahme, Mängelmeldung)
 * **Mail an Aufgabe**: Mail an ein eigenes Postfach weiterleiten – fertig ist die Aufgabe mit Text und Anhängen
   (IMAP, sicher auch mit Exchange Server on-premises, siehe [docs/mail-an-aufgabe.md](docs/mail-an-aufgabe.md))
+* **Anhänge direkt an der Aufgabe**: Screenshot mit `Strg+V` einfügen, Dateien hineinziehen oder auswählen –
+  bis 10 MB pro Datei, Vorschau für Bilder, Programme und Skripte gesperrt, Download statt Anzeige im Browser
 * **Kalender-Feed** für Outlook, **Tagesübersicht** am Morgen, **Wiedervorlagen**
 * **Einsichtsrechte** mit Formular zum Drucken, Unterschriftsbestätigung, Ablaufdatum und Zugriffsprotokoll
   (Verwaltung → Einsichtsrechte, siehe [docs/einsichtsrechte.md](docs/einsichtsrechte.md))
@@ -124,6 +126,11 @@ sudo sed -i 's/^APP_VERSION=.*/APP_VERSION=X.Y.Z/' .env && sudo docker compose p
 ```
 
 Zurück auf die vorherige Version: alte Nummer in `.env` eintragen und denselben Befehl ausführen.
+
+Ab der Version mit hochladbaren Anhängen braucht Nginx eine eigene `location` für
+`/api/tasks/<id>/attachments` mit `client_max_body_size 11m` (in beiden Vorlagen unter `deploy/nginx/`
+enthalten). Die Nginx-Seite deshalb einmal aus der aktuellen Vorlage neu schreiben – sonst lehnt Nginx
+Dateien über 1 MB mit „413“ ab.
 Vor Updates mit Datenbankänderungen vorher `deploy/backup/backup.sh` laufen lassen.
 
 Organisationsspezifisches (Domain, Mandant, Mailserver, Zertifikate) steht **nur** in `.env` und `secrets/`

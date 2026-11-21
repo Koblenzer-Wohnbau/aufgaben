@@ -36,7 +36,17 @@ const useStyles = makeStyles({
   muted: { color: tokens.colorNeutralForeground3 },
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))", gap: "16px", marginTop: "20px" },
   steps: { margin: "4px 0 0", paddingLeft: "20px", display: "flex", flexDirection: "column", gap: "4px" },
-  stepRow: { display: "grid", gridTemplateColumns: "1fr 200px", gap: "8px", alignItems: "center" },
+  stepRow: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0, 1fr) minmax(0, 240px)",
+    gap: "8px",
+    alignItems: "center",
+    // Fluent-Comboboxen haben eine Mindestbreite (~250 px) – sonst ragt die Auswahl über den Dialog
+    // hinaus und es entsteht ein seitlicher Scrollbalken.
+    "& .fui-Combobox": { minWidth: 0, width: "100%", boxSizing: "border-box" },
+    "& .fui-Combobox__input": { minWidth: 0 },
+    "@media (max-width: 560px)": { gridTemplateColumns: "minmax(0, 1fr)", gap: "4px" },
+  },
   form: { display: "flex", flexDirection: "column", gap: "14px" },
 });
 
