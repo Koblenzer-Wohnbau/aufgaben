@@ -12,8 +12,10 @@ import {
 } from "@fluentui/react-components";
 import { NavigationRegular } from "@fluentui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { clipboardInput } from "./ai";
 import { api, ApiError } from "./api";
 import { AppContext, type AppData } from "./context";
+import type { AiInput } from "./types";
 import { connectLive } from "./realtime";
 import { useRoute } from "./route";
 import { inChannelTab, inTeams, type TeamsInfo } from "./teams";
@@ -28,6 +30,7 @@ const TemplatesView = lazy(() => import("./components/TemplatesView").then((m) =
 const SettingsDialog = lazy(() => import("./components/SettingsDialog").then((m) => ({ default: m.SettingsDialog })));
 const ChannelConfig = lazy(() => import("./components/ChannelConfig").then((m) => ({ default: m.ChannelConfig })));
 const AdminView = lazy(() => import("./components/AdminView").then((m) => ({ default: m.AdminView })));
+const AiCaptureDialog = lazy(() => import("./components/AiCaptureDialog").then((m) => ({ default: m.AiCaptureDialog })));
 
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
@@ -185,6 +188,26 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
     [dispatchToast],
   );
 
+  // KI-Eingabe: Strg+V irgendwo auf der Seite (nicht in einem Eingabefeld oder Dialog) öffnet den Dialog
+  // gleich mit dem eingefügten Text oder Bildschirmfoto – etwa einer kopierten Teams-Nachricht.
+  const [aiInput, setAiInput] = useState<AiInput | null>(null);
+  const openAi = useCallback((input?: AiInput) => setAiInput(input ?? {}), []);
+  const aiAvailable = me.data?.aiAvailable ?? false;
+  useEffect(() => {
+    if (!aiAvailable) return;
+    const onPaste = (e: ClipboardEvent) => {
+      if (e.defaultPrevented || isTyping(e.target)) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('[role="dialog"], [role="alertdialog"], .fui-InlineDrawer, .fui-OverlayDrawer, .fui-DrawerBody')) return;
+      const input = clipboardInput(e.clipboardData);
+      if (!input) return;
+      e.preventDefault();
+      setAiInput(input);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [aiAvailable]);
+
   const data: AppData | null = useMemo(() => {
     if (!me.data) return null;
     return {
@@ -196,8 +219,9 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
       openTask: setTaskId,
       selectedTaskId: taskId,
       notify,
+      openAi,
     };
-  }, [me.data, projects.data, users.data, lists.data, notify, taskId]);
+  }, [me.data, projects.data, users.data, lists.data, notify, taskId, openAi]);
 
   if (!data) return null;
 
@@ -253,6 +277,11 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
       {settingsOpen && (
         <Suspense fallback={null}>
           <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} inTeams={inTeams} />
+        </Suspense>
+      )}
+      {aiInput && (
+        <Suspense fallback={null}>
+          <AiCaptureDialog initial={aiInput} onClose={() => setAiInput(null)} />
         </Suspense>
       )}
       <Toaster toasterId={toasterId} position="bottom-end" />

@@ -77,6 +77,45 @@ export interface Task {
   deletedBy: UserRef | null;
 }
 
+export interface AiOption {
+  value: string;
+  label: string;
+}
+
+/** Rückfrage der KI zu einem unsicheren Feld */
+export interface AiQuestion {
+  field: "verantwortlich" | "faellig" | "projekt";
+  text: string;
+  options: AiOption[];
+}
+
+/** Vorgeschlagene Aufgabe – noch nicht angelegt. assignee null: bei der eingebenden Person. */
+export interface AiTaskDraft {
+  title: string;
+  notes: string | null;
+  dueDate: string | null;
+  dueTime: string | null;
+  priority: Priority;
+  kind: Kind;
+  assignee: UserRef | null;
+  project: ProjectRef | null;
+  checklist: string[];
+  source: string | null;
+  questions: AiQuestion[];
+}
+
+export interface AiSuggestion {
+  tasks: AiTaskDraft[];
+  note: string | null;
+  model: string;
+}
+
+/** Was in den KI-Dialog übernommen wird: Text und/oder ein Bildschirmfoto */
+export interface AiInput {
+  text?: string;
+  image?: Blob;
+}
+
 export type BulkAction = "erledigen" | "loeschen" | "wiederherstellen" | "endgueltig-loeschen";
 
 export interface BulkResult {
@@ -204,6 +243,8 @@ export interface Me {
   today: string;
   mailInboxAddress: string | null;
   digestOnWeekends: boolean;
+  /** KI-Vorschläge (Mistral) auf diesem Server eingeschaltet */
+  aiAvailable: boolean;
 }
 
 export interface DevUser {
@@ -250,6 +291,8 @@ export interface CreateTask {
   myDay?: boolean;
   recurrence?: RecurrenceRule;
   checklist?: string[];
+  /** aus einem bestätigten KI-Vorschlag */
+  fromAi?: boolean;
 }
 
 export type ViewKey =
