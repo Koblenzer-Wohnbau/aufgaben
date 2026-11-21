@@ -29,6 +29,10 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
   an die Vertretung übergeben (mit Hinweis) oder bis nach dem Urlaub zurückstellen, auf Wunsch alles mit einem Klick.
   Die Vertretung sieht ein Banner mit den übergebenen Aufgaben; nach der Rückkehr zeigt „Mein Tag“, was passiert ist,
   und holt Offenes mit „Zurück an mich“ zurück. Im Urlaub kommt keine Tagesübersicht
+* **Mit KI erfassen** (optional): eine Teams-Nachricht, Mail oder ein Protokoll kopieren und in Aufgaben
+  irgendwo `Strg+V` drücken – auch ein Bildschirmfoto. Die KI (GLM 5.3 über die Mistral-API) schlägt eine oder
+  mehrere Aufgaben mit Person, Frist und Projekt vor und fragt bei Unklarem nach; angelegt wird erst nach
+  Bestätigung. Standardmäßig aus (`Aufgaben__Mistral__…` in `.env`)
 * **Mehrere Aufgaben auf einmal**: „Auswählen“ mit „Alle“ und Umschalt+Klick – erledigen, später oder löschen;
   „Erledigte löschen“ räumt in einem Schritt auf
 * **Papierkorb**: Gelöschtes bleibt 30 Tage wiederherstellbar und wird danach endgültig gelöscht

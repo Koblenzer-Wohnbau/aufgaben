@@ -94,7 +94,7 @@ public sealed class AbsenceService(
 
         var items = await db.Tasks.Include(t => t.Assignee)
             .Where(t => t.Status == open && (candidates.Contains(t.Id) || decided.Contains(t.Id)))
-            .OrderBy(t => t.DueDate ?? t.SnoozedUntil)
+            .OrderBy(t => t.DueDate != null ? t.DueDate : t.SnoozedUntil)
             .ThenBy(t => t.Title)
             .Take(300)
             .ToListAsync(ct);
@@ -315,7 +315,7 @@ public sealed class AbsenceService(
         var decided = db.AbsenceTasks.Where(h => h.AbsenceId == id && h.ReturnedAt == null).Select(h => h.TaskId);
         var open = await Candidates(absence.Until).Include(t => t.Assignee)
             .Where(t => !decided.Contains(t.Id))
-            .OrderBy(t => t.DueDate ?? t.SnoozedUntil).ThenBy(t => t.Title)
+            .OrderBy(t => t.DueDate != null ? t.DueDate : t.SnoozedUntil).ThenBy(t => t.Title)
             .Take(300)
             .ToListAsync(ct);
         if (open.Count == 0)

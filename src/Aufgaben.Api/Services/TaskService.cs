@@ -415,6 +415,7 @@ public sealed class TaskService(
         {
             "vorlage" => "aus einer Vorlage",
             "mail" => "aus einer E-Mail",
+            "ki" => "mit KI-Vorschlag",
             _ => "",
         });
         if (assignee.Id != me.Id)

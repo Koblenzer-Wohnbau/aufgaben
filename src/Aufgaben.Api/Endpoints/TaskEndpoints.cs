@@ -19,7 +19,8 @@ public static class TaskEndpoints
 
         tasks.MapPost("/", async (CreateTaskRequest req, TaskService svc, CancellationToken ct) =>
         {
-            var created = await svc.CreateAsync(req, "app", ct);
+            // Aus einem bestätigten KI-Vorschlag: im Verlauf steht „mit KI-Vorschlag angelegt“.
+            var created = await svc.CreateAsync(req, req.FromAi == true ? "ki" : "app", ct);
             return Results.Created($"/api/tasks/{created.Id}", created);
         });
 
