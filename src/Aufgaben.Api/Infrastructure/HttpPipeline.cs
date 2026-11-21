@@ -94,7 +94,7 @@ public sealed class SecurityHeadersMiddleware(RequestDelegate next)
 
     // connect-src: TeamsJS lädt beim Start die Liste gültiger Teams-Domains von res.cdn.office.net.
     private const string Csp =
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; " +
+        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; " +
         "font-src 'self' data:; connect-src 'self' https://res.cdn.office.net; object-src 'none'; base-uri 'self'; " +
         "form-action 'self' https://login.microsoftonline.com; frame-ancestors " + FrameAncestors;
 

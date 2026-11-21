@@ -661,6 +661,55 @@ public sealed class TaskService(
         return (meta, blob.Data);
     }
 
+    /// <summary>Anhang hochladen (Strg+V, Ziehen und Ablegen, Dateiauswahl) – wer die Aufgabe bearbeiten darf.</summary>
+    public async Task<AttachmentDto> AddAttachmentAsync(int id, string? fileName, string? contentType, byte[] data, CancellationToken ct)
+    {
+        var task = await LoadEditableAsync(id, ct);
+        var name = AttachmentRules.CheckFile(fileName, data);
+        if (task.Attachments.Count >= AttachmentRules.MaxPerTask)
+        {
+            throw ApiException.Invalid($"Höchstens {AttachmentRules.MaxPerTask} Anhänge pro Aufgabe – erst nicht mehr gebrauchte entfernen.");
+        }
+        if (task.Attachments.Sum(a => a.Size) + data.Length > AttachmentRules.MaxTotalBytes)
+        {
+            throw ApiException.Invalid($"Die Anhänge dieser Aufgabe wären zusammen größer als {AttachmentRules.MaxTotalBytes / 1024 / 1024} MB – erst nicht mehr gebrauchte entfernen.");
+        }
+
+        var attachment = new TaskAttachment
+        {
+            TaskId = task.Id,
+            FileName = name,
+            ContentType = AttachmentRules.ContentType(contentType, data),
+            Size = data.Length,
+            Sha256 = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(data)),
+            CreatedAt = clock.UtcNow,
+        };
+        await using var tx = await BeginAsync(ct);
+        task.Attachments.Add(attachment);
+        await db.SaveChangesAsync(ct);
+        db.AttachmentBlobs.Add(new AttachmentBlob { AttachmentId = attachment.Id, Data = data });
+        AddEvent(task.Id, "anhang", name);
+        task.UpdatedAt = clock.UtcNow;
+        await db.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
+        await PublishAsync(task, ct);
+        return new AttachmentDto(attachment.Id, attachment.FileName, attachment.ContentType, attachment.Size);
+    }
+
+    /// <summary>Anhang entfernen – wer die Aufgabe bearbeiten darf; der Verlauf hält es fest.</summary>
+    public async Task<TaskDto> DeleteAttachmentAsync(int id, int attachmentId, CancellationToken ct)
+    {
+        var task = await LoadEditableAsync(id, ct);
+        var meta = task.Attachments.FirstOrDefault(a => a.Id == attachmentId) ?? throw ApiException.NotFound("Anhang");
+        task.Attachments.Remove(meta);
+        db.TaskAttachments.Remove(meta); // der Inhalt (AttachmentBlob) folgt per ON DELETE CASCADE
+        AddEvent(task.Id, "anhang-entfernt", meta.FileName);
+        task.UpdatedAt = clock.UtcNow;
+        await db.SaveChangesAsync(ct);
+        await PublishAsync(task, ct);
+        return ToDto(task);
+    }
+
     public async Task<EventDto> CommentAsync(int id, CommentRequest req, CancellationToken ct)
     {
         var task = await LoadEditableAsync(id, ct);

@@ -1,6 +1,8 @@
 using System.Text.Json;
 using Aufgaben.Api.Contracts;
+using Aufgaben.Api.Infrastructure;
 using Aufgaben.Api.Services;
+using Microsoft.AspNetCore.Http.Features;
 
 namespace Aufgaben.Api.Endpoints;
 
@@ -54,6 +56,36 @@ public static class TaskEndpoints
             ctx.Response.Headers.CacheControl = "private, no-store";
             return Results.File(data, "application/octet-stream", meta.FileName);
         });
+
+        // Vorschau nur für echte Bilder (erkannt an den ersten Bytes) – alles andere bleibt Download.
+        tasks.MapGet("/{id:int}/attachments/{attachmentId:int}/vorschau", async (int id, int attachmentId, HttpContext ctx, TaskService svc, CancellationToken ct) =>
+        {
+            var (_, data) = await svc.GetAttachmentAsync(id, attachmentId, ct);
+            var type = AttachmentRules.ImageType(data) ?? throw ApiException.NotFound("Vorschau");
+            ctx.Response.Headers["Content-Security-Policy"] = "default-src 'none'; sandbox";
+            ctx.Response.Headers.CacheControl = "private, no-store";
+            return Results.File(data, type);
+        });
+
+        // Anhang hochladen: Dateiinhalt roh im Body, Name als ?name=…. Die größere Grenze gilt nur hier
+        // (sonst 1 MB pro Anfrage); Nginx braucht dafür eine eigene location (deploy/nginx).
+        tasks.MapPost("/{id:int}/attachments", async (int id, string? name, HttpContext ctx, TaskService svc, CancellationToken ct) =>
+        {
+            var sizeFeature = ctx.Features.Get<IHttpMaxRequestBodySizeFeature>();
+            if (sizeFeature is { IsReadOnly: false })
+            {
+                sizeFeature.MaxRequestBodySize = AttachmentRules.MaxFileBytes + 1;
+            }
+            if (ctx.Request.ContentLength > AttachmentRules.MaxFileBytes)
+            {
+                throw AttachmentRules.TooLarge();
+            }
+            var data = await AttachmentRules.ReadLimitedAsync(ctx.Request.Body, AttachmentRules.MaxFileBytes, ct);
+            return await svc.AddAttachmentAsync(id, name, ctx.Request.ContentType, data, ct);
+        });
+
+        tasks.MapDelete("/{id:int}/attachments/{attachmentId:int}", (int id, int attachmentId, TaskService svc, CancellationToken ct) =>
+            svc.DeleteAttachmentAsync(id, attachmentId, ct));
 
         api.MapGet("/counts", (TaskService svc, CancellationToken ct) => svc.CountsAsync(ct));
         api.MapGet("/suggestions", (TaskService svc, CancellationToken ct) => svc.SuggestionsAsync(ct));
