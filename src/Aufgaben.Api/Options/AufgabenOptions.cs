@@ -215,6 +215,13 @@ public sealed class MistralOptions
 
     public string Model { get; set; } = "zai-glm-latest";
 
+    /// <summary>
+    /// Wo Mistral rechnet: leer = globaler Endpunkt (Mistral sagt keinen Standort zu), "eu" = api.eu.mistral.ai
+    /// (Rechenzentren in EU/EFTA), "us" = api.us.mistral.ai. Regional kostet 10 % mehr, und nicht jedes Modell
+    /// wird in jeder Region angeboten.
+    /// </summary>
+    public string Region { get; set; } = "";
+
     /// <summary>none, high oder max (max nur bei GLM); auto heißt bei GLM max, sonst high.</summary>
     public string ReasoningEffort { get; set; } = "high";
 

@@ -115,6 +115,18 @@ public class PrivacyPageTests
         Assert.Empty(PrivacyPage.Missing(options, ai: true));
     }
 
+    [Theory]
+    [InlineData("eu", "über den EU-Endpunkt von Mistral in Rechenzentren in der EU bzw. im EWR")]
+    [InlineData("us", "in Rechenzentren in den USA")]
+    [InlineData("", "globalen Endpunkt von Mistral; für ihn sagt Mistral keinen bestimmten Ort")]
+    [InlineData(null, "globalen Endpunkt von Mistral")]
+    public void The_page_says_where_mistral_processes(string? region, string expected)
+    {
+        var html = PrivacyPage.Render(Complete(), ai: true, aiRegion: region);
+        Assert.Contains(expected, html);
+        Assert.DoesNotContain("{{", html);
+    }
+
     [Fact]
     public void With_the_teams_bot_the_page_explains_what_happens_with_the_message()
     {

@@ -32,7 +32,8 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 * **Mit KI erfassen** (optional): eine Teams-Nachricht, Mail oder ein Protokoll kopieren und in Aufgaben
   irgendwo `Strg+V` drücken – auch ein Bildschirmfoto. Die KI (GLM 5.3 über die Mistral-API) schlägt eine oder
   mehrere Aufgaben mit Person, Frist und Projekt vor und fragt bei Unklarem nach; angelegt wird erst nach
-  Bestätigung. Standardmäßig aus (`Aufgaben__Mistral__…` in `.env`)
+  Bestätigung. Standardmäßig aus (`Aufgaben__Mistral__…` in `.env`). Mit `Aufgaben__Mistral__Region=eu` rechnet
+  Mistral nur in Rechenzentren in der EU/EFTA (EU-Endpunkt, 10 % Aufpreis); die Datenschutzseite nennt den Standort
 * **„Als Aufgabe“ in Teams** (optional): an jeder Nachricht im „…“-Menü – öffnet die KI-Erfassung mit dem Text
   der Nachricht direkt in Teams, der Link zur Nachricht kommt in die Notizen. Braucht eine kostenlose
   Bot-Registrierung ohne Geheimnis, siehe [docs/teams-nachricht.md](docs/teams-nachricht.md)
