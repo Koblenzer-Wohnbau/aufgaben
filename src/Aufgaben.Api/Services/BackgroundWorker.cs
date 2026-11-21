@@ -10,8 +10,9 @@ namespace Aufgaben.Api.Services;
 /// Läuft im Hintergrund (Standard: alle 30 Sekunden):
 /// 1. fällige Erinnerungen in den Ausgangskorb legen,
 /// 2. einmal täglich die Tagesübersicht erzeugen,
-/// 3. den Ausgangskorb versenden (Teams oder E-Mail, mit Wiederholungen),
-/// 4. regelmäßig Personen aus Entra übernehmen.
+/// 3. bei „Warte auf …“ am Tag zum Nachhaken erinnern,
+/// 4. den Ausgangskorb versenden (Teams oder E-Mail, mit Wiederholungen),
+/// 5. regelmäßig Personen aus Entra übernehmen.
 ///
 /// Betrieb mit genau einer Instanz vorgesehen (wie auf der Ubuntu-VM).
 /// </summary>
@@ -40,6 +41,7 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
     {
         await Safe("Erinnerungen", ct, (sp, c) => QueueRemindersAsync(sp, c));
         await Safe("Tagesübersicht", ct, (sp, c) => QueueDigestsAsync(sp, c));
+        await Safe("Nachhaken", ct, (sp, c) => IsOfficeTime(sp) ? QueueFollowUpsAsync(sp, c) : Task.CompletedTask);
         await Safe("Aufgaben-Postfach", ct, (sp, c) => PollInboxAsync(sp, c));
         await Safe("Versand", ct, (sp, c) => DispatchAsync(sp, c));
         await Safe("Verzeichnisabgleich", ct, (sp, c) => SyncDirectoryAsync(sp, c));
@@ -117,8 +119,9 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
             var open = db.Tasks.Where(t => t.AssigneeId == user.Id && t.Status == Values.Open);
             var dueToday = await open.CountAsync(t => t.DueDate == today, ct);
             var overdue = await open.CountAsync(t => t.DueDate != null && t.DueDate < today, ct);
-            var myDay = await open.CountAsync(t => t.MyDayOn == today && (t.DueDate == null || t.DueDate > today), ct);
-            if (dueToday + overdue + myDay == 0)
+            var followUp = await open.CountAsync(t => t.WaitingFor != "" && t.SnoozedUntil != null && t.SnoozedUntil <= today, ct);
+            var myDay = await open.CountAsync(t => t.MyDayOn == today && (t.DueDate == null || t.DueDate > today) && t.WaitingFor == "", ct);
+            if (dueToday + overdue + myDay + followUp == 0)
             {
                 continue;
             }
@@ -126,6 +129,7 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
             if (dueToday > 0) parts.Add($"{dueToday} heute fällig");
             if (overdue > 0) parts.Add($"{overdue} überfällig");
             if (myDay > 0) parts.Add($"{myDay} für deinen Tag geplant");
+            if (followUp > 0) parts.Add($"{followUp} zum Nachhaken");
             var titles = await open
                 .Where(t => t.DueDate != null && t.DueDate <= today)
                 .OrderBy(t => t.DueDate).ThenBy(t => t.DueTime)
@@ -136,6 +140,52 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
                 string.Join("\n", titles.Select(t => "• " + t)), "");
         }
         if (users.Count > 0)
+        {
+            await db.SaveChangesAsync(ct);
+        }
+    }
+
+    /// <summary>Ab der Uhrzeit der Tagesübersicht, am Wochenende nur, wenn die Tagesübersicht dann auch kommt.</summary>
+    private static bool IsOfficeTime(IServiceProvider sp)
+    {
+        var local = sp.GetRequiredService<AppClock>().LocalNow;
+        var opts = sp.GetRequiredService<IOptions<AufgabenOptions>>().Value.Worker;
+        return local.Hour >= opts.DigestHour
+               && (opts.DigestOnWeekends || local.DayOfWeek is not (DayOfWeek.Saturday or DayOfWeek.Sunday));
+    }
+
+    /// <summary>
+    /// „Warte auf …“: Ist der Tag zum Nachhaken da, einmal erinnern. Die Aufgabe steht dann ohnehin
+    /// wieder in „Mein Tag“ – die Nachricht sorgt dafür, dass es auch auffällt.
+    /// </summary>
+    internal static async Task QueueFollowUpsAsync(IServiceProvider sp, CancellationToken ct)
+    {
+        var db = sp.GetRequiredService<AppDbContext>();
+        var clock = sp.GetRequiredService<AppClock>();
+        var outbox = sp.GetRequiredService<NotificationOutbox>();
+        var today = clock.Today;
+        var now = clock.UtcNow;
+
+        var due = await db.Tasks
+            .Where(t => t.Status == Values.Open && t.WaitingFor != "" && t.SnoozedUntil != null && t.SnoozedUntil <= today
+                        && t.FollowUpNotifiedAt == null)
+            .OrderBy(t => t.SnoozedUntil)
+            .Take(200)
+            .ToListAsync(ct);
+        foreach (var task in due)
+        {
+            task.FollowUpNotifiedAt = now;
+            // Nach längerem Stillstand keine Flut alter Erinnerungen – die Aufgaben stehen ja wieder in den Listen.
+            if (task.SnoozedUntil!.Value < today.AddDays(-3))
+            {
+                continue;
+            }
+            var body = task.WaitingSince is { } since
+                ? $"Du wartest seit dem {since:dd.MM.yyyy} auf {task.WaitingFor}."
+                : $"Du wartest auf {task.WaitingFor}.";
+            outbox.Enqueue(task.AssigneeId, NotificationOutbox.FollowUp, task.Id, task.Title, body, task.WaitingFor);
+        }
+        if (due.Count > 0)
         {
             await db.SaveChangesAsync(ct);
         }

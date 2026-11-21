@@ -21,6 +21,8 @@ public static class NotificationTexts
         NotificationOutbox.Completed => ("taskCompleted", $"Erledigt: {n.Title}", $"{n.ActorName} hat „{n.Title}“ erledigt"),
         NotificationOutbox.Commented => ("taskCommented", $"Neuer Kommentar: {n.Title}", $"{n.ActorName}: {Shorten(n.Body, 120)}"),
         NotificationOutbox.Reminder => ("taskReminder", $"Erinnerung: {n.Title}", $"Erinnerung: {n.Title}"),
+        // Nutzt die vorhandene Aktivität "taskReminder" – so braucht es kein neues Teams-Paket.
+        NotificationOutbox.FollowUp => ("taskReminder", $"Nachhaken: {n.Title}", $"Noch keine Antwort von {n.ActorName} – nachhaken?"),
         NotificationOutbox.Digest => ("dailyDigest", n.Title, n.Title),
         NotificationOutbox.Access => ("accessChanged", n.Title, n.Title),
         NotificationOutbox.ListShared => ("listShared", $"{n.ActorName} hat die Liste „{n.Title}“ mit dir geteilt", $"{n.ActorName} hat die Liste „{n.Title}“ mit dir geteilt"),

@@ -9,7 +9,9 @@ import {
   CheckmarkCircleFilled,
   CheckmarkCircleRegular,
   CircleRegular,
+  HourglassHalfRegular,
   NumberSymbolRegular,
+  SnoozeRegular,
   StarFilled,
   StarRegular,
   TaskListLtrRegular,
@@ -20,7 +22,9 @@ import { api } from "../api";
 import { initials, useApp } from "../context";
 import { relativeDay } from "../dates";
 import { startTaskDrag } from "../dnd";
+import { followUpChoices, followUpDue, laterAction, sinceLabel, weekdayDate } from "../later";
 import type { Task } from "../types";
+import { LaterMenu } from "./LaterMenu";
 
 const useStyles = makeStyles({
   row: {
@@ -37,6 +41,16 @@ const useStyles = makeStyles({
     transitionProperty: "box-shadow, transform, opacity",
     transitionDuration: tokens.durationFaster,
     ":hover": { backgroundColor: tokens.colorNeutralBackground1Hover, boxShadow: tokens.shadow4, transform: "translateY(-1px)" },
+    // „Später“ erscheint beim Darüberfahren oder mit der Tastatur
+    "&:hover .aufgaben-later, &:focus-within .aufgaben-later": { opacity: 1 },
+  },
+  later: {
+    opacity: 0,
+    transitionProperty: "opacity",
+    transitionDuration: tokens.durationFaster,
+    ":hover": { color: tokens.colorBrandForeground1 },
+    // Touch-Geräte kennen kein Darüberfahren
+    "@media (hover: none)": { opacity: 1 },
   },
   dragging: { opacity: 0.45, transform: "scale(0.98)" },
   selected: { outline: `2px solid ${tokens.colorBrandStroke1}` },
@@ -60,6 +74,8 @@ const useStyles = makeStyles({
   today: { color: tokens.colorBrandForeground1 },
   project: { color: tokens.colorBrandForeground2 },
   followUp: { color: tokens.colorPaletteMarigoldForeground1 },
+  waiting: { color: tokens.colorBrandForeground2 },
+  waitingDue: { color: tokens.colorPaletteDarkOrangeForeground1, fontWeight: tokens.fontWeightSemibold },
   star: {
     border: "none",
     background: "transparent",
@@ -131,10 +147,24 @@ export function TaskRow({ task, selected, showAssignee }: Props) {
     }
   };
 
+  const later = async (date: string) => {
+    const action = laterAction(task, date, today);
+    try {
+      await api.patchTask(task.id, action.patch);
+      notify(action.message);
+      await refresh();
+    } catch (err) {
+      notify(err instanceof Error ? err.message : "Fehler", "error");
+    }
+  };
+
   const checkDone = task.checklist.filter((c) => c.done).length;
   const dueLabel = task.dueDate ? relativeDay(task.dueDate, today) + (task.dueTime ? `, ${task.dueTime}` : "") : null;
   const delegatedToOther = task.isDelegated && task.assignee.id !== me.id;
   const fromOther = task.isDelegated && task.createdBy.id !== me.id;
+  const waitingDue = followUpDue(task, today);
+  // „Später“ plant die verantwortliche Person selbst
+  const canPlan = !done && task.assignee.id === me.id;
 
   return (
     <div
@@ -174,6 +204,22 @@ export function TaskRow({ task, selected, showAssignee }: Props) {
             </span>
           )}
           {task.recurrence && <ArrowRepeatAllRegular aria-label="Wiederholt sich" />}
+          {task.waitingFor && !done && (
+            <span
+              className={mergeClasses(styles.metaItem, waitingDue ? styles.waitingDue : styles.waiting)}
+              title={task.waitingSince ? `Wartet ${sinceLabel(task.waitingSince, today)}` : undefined}
+            >
+              <HourglassHalfRegular />
+              {waitingDue
+                ? `Nachhaken: ${task.waitingFor}${task.waitingSince ? ` (${sinceLabel(task.waitingSince, today)})` : ""}`
+                : `Wartet auf ${task.waitingFor}${task.snoozedUntil ? ` · nachhaken ${weekdayDate(task.snoozedUntil)}` : ""}`}
+            </span>
+          )}
+          {!task.waitingFor && task.isSnoozed && task.snoozedUntil && !done && (
+            <span className={styles.metaItem}>
+              <SnoozeRegular /> zurückgestellt bis {weekdayDate(task.snoozedUntil)}
+            </span>
+          )}
           {task.kind === "wiedervorlage" && (
             <span className={mergeClasses(styles.metaItem, styles.followUp)}>
               <ClockAlarmRegular /> Wiedervorlage
@@ -207,6 +253,22 @@ export function TaskRow({ task, selected, showAssignee }: Props) {
         <Tooltip content={`Verantwortlich: ${task.assignee.name}`} relationship="label">
           <Avatar size={28} name={task.assignee.name} initials={initials(task.assignee.name)} color="colorful" />
         </Tooltip>
+      )}
+      {canPlan && (
+        <LaterMenu
+          choices={task.waitingFor ? followUpChoices(today) : undefined}
+          title={task.waitingFor ? "Wann nachhaken?" : undefined}
+          trigger={
+            <button
+              className={mergeClasses(styles.star, styles.later, "aufgaben-later")}
+              aria-label={task.waitingFor ? "Später nachhaken" : "Später"}
+              title={task.waitingFor ? "Später nachhaken" : "Später"}
+            >
+              <SnoozeRegular />
+            </button>
+          }
+          onPick={(date) => void later(date)}
+        />
       )}
       <button className={mergeClasses(styles.star, high && styles.starOn)} onClick={toggleStar} aria-label="Wichtig umschalten">
         {high ? <StarFilled /> : <StarRegular />}

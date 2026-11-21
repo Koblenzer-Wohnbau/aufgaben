@@ -14,6 +14,8 @@ public sealed class NotificationOutbox(AppDbContext db, AppClock clock)
     public const string Completed = "erledigt";
     public const string Commented = "kommentar";
     public const string Reminder = "erinnerung";
+    /// <summary>„Warte auf …“: Der Tag zum Nachhaken ist da. ActorName = auf wen gewartet wird.</summary>
+    public const string FollowUp = "nachhaken";
     public const string Digest = "tagesuebersicht";
     public const string ListShared = "liste-geteilt";
     public const string Access = "einsicht";

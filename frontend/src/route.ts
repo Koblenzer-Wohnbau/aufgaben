@@ -7,7 +7,7 @@ export type Route =
   | { page: "verwaltung" }
   | { page: "teams-config" };
 
-const SIMPLE_VIEWS: ViewKey[] = ["mein-tag", "aufgaben", "wichtig", "geplant", "zugewiesen", "delegiert", "wiedervorlagen", "erledigt"];
+const SIMPLE_VIEWS: ViewKey[] = ["mein-tag", "aufgaben", "wichtig", "geplant", "zugewiesen", "delegiert", "wiedervorlagen", "warteschleife", "erledigt"];
 
 export function parseHash(hash: string): Route {
   const parts = hash.replace(/^#\/?/, "").split("/").filter(Boolean).map(decodeURIComponent);

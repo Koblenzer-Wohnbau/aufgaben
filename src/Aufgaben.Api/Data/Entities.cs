@@ -92,6 +92,20 @@ public sealed class TaskItem
     public DateTimeOffset? RemindAt { get; set; }
     public DateTimeOffset? RemindedAt { get; set; }
     public DateOnly? MyDayOn { get; set; }
+
+    /// <summary>
+    /// Zurückgestellt: bis zu diesem Tag aus den eigenen Listen ausgeblendet, an dem Tag wieder in „Mein Tag“.
+    /// Bei „Warte auf …“ ist das der Tag zum Nachhaken. Eine Fälligkeit davor holt die Aufgabe früher zurück.
+    /// </summary>
+    public DateOnly? SnoozedUntil { get; set; }
+
+    /// <summary>„Warte auf …“: Person oder Firma, von der eine Antwort fehlt – frei eingegeben, auch Externe.</summary>
+    public string WaitingFor { get; set; } = "";
+    public DateOnly? WaitingSince { get; set; }
+
+    /// <summary>Wann ans Nachhaken erinnert wurde – einmal je Termin.</summary>
+    public DateTimeOffset? FollowUpNotifiedAt { get; set; }
+
     public string Recurrence { get; set; } = "";
     public DateTimeOffset? CompletedAt { get; set; }
     public int? CompletedById { get; set; }

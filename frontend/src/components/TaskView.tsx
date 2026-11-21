@@ -26,6 +26,7 @@ import {
   ClockAlarmRegular,
   EyeRegular,
   HomeRegular,
+  HourglassHalfRegular,
   ListRegular,
   NumberSymbolRegular,
   PeopleTeamRegular,
@@ -40,6 +41,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "../api";
 import { initials, useApp } from "../context";
 import { dueGroup, GROUP_LABEL, longDate, type DueGroup } from "../dates";
+import { followUpDue } from "../later";
 import type { Route } from "../route";
 import type { CreateTask, Task } from "../types";
 import { Confetti } from "./Confetti";
@@ -159,6 +161,14 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
         return { title: "Wartet auf andere", icon: <SendRegular />, subtitle: "Was du delegiert hast – live mit Status", defaults: {}, empty: "Du hast nichts delegiert. Tipp: @Name in der Eingabe." };
       case "wiedervorlagen":
         return { title: "Wiedervorlagen", icon: <ClockAlarmRegular />, subtitle: "Fristen und Dinge, die wieder auf den Tisch müssen", defaults: { kind: "wiedervorlage" }, empty: "Keine Wiedervorlagen." };
+      case "warteschleife":
+        return {
+          title: "Warteschleife",
+          icon: <HourglassHalfRegular />,
+          subtitle: "Warte auf Antwort und Zurückgestelltes – kommt am Tag von selbst in „Mein Tag“ zurück",
+          defaults: {},
+          empty: "Nichts in der Warteschleife. In einer Aufgabe auf „Warte auf …“ oder „Später“ klicken.",
+        };
       case "erledigt":
         return { title: "Erledigt", icon: <CheckmarkCircleRegular />, subtitle: "Die letzten 30 Tage", defaults: {}, empty: "Noch nichts erledigt." };
       case "liste":
@@ -206,7 +216,12 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
     const openTasks = tasks.filter((t) => t.status !== "erledigt");
     const doneTasks = tasks.filter((t) => t.status === "erledigt");
 
-    if (groupByPerson) {
+    if (route.view === "warteschleife") {
+      // Reihenfolge vom Server: was zuerst wieder dran ist, steht oben.
+      for (const t of openTasks) if (followUpDue(t, today)) push("nachhaken", "Jetzt nachhaken", t, true);
+      for (const t of openTasks) if (t.waitingFor && !followUpDue(t, today)) push("warten", "Warte auf Antwort", t);
+      for (const t of openTasks) if (!t.waitingFor) push("zurueckgestellt", "Zurückgestellt", t);
+    } else if (groupByPerson) {
       for (const t of openTasks) push(`p${t.assignee.id}`, t.assignee.name, t);
       order.sort((a, b) => map.get(a)!.label.localeCompare(map.get(b)!.label));
     } else if (sort === "faelligkeit") {
@@ -226,7 +241,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
     }
     for (const t of doneTasks) push("erledigt", "Erledigt", t);
     return order.map((key) => ({ key, ...map.get(key)! }));
-  }, [query.data, groupByPerson, sort, today]);
+  }, [query.data, groupByPerson, sort, today, route.view]);
 
   // Konfetti, sobald der letzte Punkt von "Mein Tag" erledigt ist.
   const openCount = query.data?.filter((t) => t.status !== "erledigt").length ?? 0;
@@ -299,7 +314,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
                 Nach Person
               </ToggleButton>
             )}
-            {route.view !== "erledigt" && (
+            {route.view !== "erledigt" && route.view !== "warteschleife" && (
               <Menu>
                 <MenuTrigger disableButtonEnhancement>
                   <Button icon={<ArrowSortRegular />} appearance="subtle" aria-label="Sortierung">
@@ -323,7 +338,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
 
       {myDay && suggestionsOpen && <SuggestionsPanel compact={compact} onClose={() => setSuggestionsOpen(false)} />}
 
-      {route.view !== "erledigt" && route.view !== "suche" && route.view !== "person" && (
+      {route.view !== "erledigt" && route.view !== "suche" && route.view !== "person" && route.view !== "warteschleife" && (
         <div className={`${styles.add} ${compact ? styles.compactAdd : ""}`}>
           <QuickAdd defaults={info.defaults} />
         </div>

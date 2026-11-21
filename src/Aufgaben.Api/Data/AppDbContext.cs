@@ -80,6 +80,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             e.Property(x => x.Priority).HasMaxLength(16);
             e.Property(x => x.Recurrence).HasMaxLength(16);
             e.Property(x => x.Source).HasMaxLength(32);
+            e.Property(x => x.WaitingFor).HasMaxLength(200);
             e.Property(x => x.Version).IsConcurrencyToken();
             e.Ignore(x => x.IsDone);
             e.HasIndex(x => new { x.AssigneeId, x.Status });
@@ -87,6 +88,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             e.HasIndex(x => new { x.ProjectId, x.Status });
             e.HasIndex(x => x.DueDate);
             e.HasIndex(x => x.RemindAt);
+            e.HasIndex(x => x.SnoozedUntil);
             e.HasOne(x => x.CreatedBy).WithMany().HasForeignKey(x => x.CreatedById).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Assignee).WithMany().HasForeignKey(x => x.AssigneeId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.CompletedBy).WithMany().HasForeignKey(x => x.CompletedById).OnDelete(DeleteBehavior.SetNull);

@@ -65,6 +65,13 @@ export interface Task {
   isOverdue: boolean;
   canDelete: boolean;
   attachments: Attachment[];
+  /** „Warte auf …“ – leer, wenn auf niemanden gewartet wird */
+  waitingFor: string;
+  waitingSince: string | null;
+  /** Zurückgestellt bis (bei „Warte auf …“: Tag zum Nachhaken) */
+  snoozedUntil: string | null;
+  /** Gerade ausgeblendet – eine Fälligkeit holt die Aufgabe früher zurück */
+  isSnoozed: boolean;
 }
 
 export interface TaskEvent {
@@ -95,6 +102,10 @@ export interface Counts {
   overdue: number;
   lists: Record<string, number>;
   projects: Record<string, number>;
+  /** Warteschleife: „Warte auf …“ und Zurückgestelltes */
+  waiting: number;
+  /** davon: Tag zum Nachhaken ist da */
+  waitingDue: number;
 }
 
 export interface TaskList {
@@ -236,6 +247,7 @@ export type ViewKey =
   | "zugewiesen"
   | "delegiert"
   | "wiedervorlagen"
+  | "warteschleife"
   | "erledigt"
   | "liste"
   | "projekt"
