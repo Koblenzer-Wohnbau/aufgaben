@@ -36,6 +36,7 @@ public static partial class PrivacyPage
           <li>damit Personen und Projekte zugeordnet werden können: Name, Funktion und interne Kennung aller aktiven Nutzerinnen und Nutzer sowie die Bezeichnungen der Projekte.</li>
         </ul>
         <p>E-Mail-Adressen, gespeicherte Aufgaben und Notizen werden nicht übermittelt. Als Aufgabe gespeichert wird ein Vorschlag erst, wenn die Person ihn bestätigt; vorher speichert die App weder Text noch Vorschlag. Die Funktion ist freiwillig – Aufgaben lassen sich jederzeit ohne KI anlegen.</p>
+        <p>{{KISTANDORT}}</p>
         <p>{{KIANBIETER}}</p>
 
         """;
@@ -74,7 +75,7 @@ public static partial class PrivacyPage
     /// Fertige Seite. Fehlende Angaben behalten den Platzhaltertext; der Vorlagen-Hinweis bleibt, bis alle Pflichtangaben
     /// gesetzt sind. Die Abschnitte zur KI und zu „Als Aufgabe“ erscheinen nur, wenn die Funktion eingeschaltet ist.
     /// </summary>
-    public static string Render(PrivacyOptions o, bool ai = false, bool teamsMessages = false)
+    public static string Render(PrivacyOptions o, bool ai = false, bool teamsMessages = false, string? aiRegion = null)
     {
         var values = new Dictionary<string, string>
         {
@@ -85,13 +86,23 @@ public static partial class PrivacyPage
             ["DATENSCHUTZBEAUFTRAGTE"] = Text(o.DpoContact, DpoContactPlaceholder),
             ["TEAMSNACHRICHT"] = teamsMessages ? TeamsMessageItem : "",
             // Der KI-Abschnitt ist feste Vorlage; nur die Angabe zum Anbieter kommt (kodiert) aus der .env.
-            ["KI"] = ai ? AiSection.Replace("{{KIANBIETER}}", Text(o.Ai, AiPlaceholder)) : "",
+            ["KI"] = ai
+                ? AiSection.Replace("{{KISTANDORT}}", AiLocation(aiRegion)).Replace("{{KIANBIETER}}", Text(o.Ai, AiPlaceholder))
+                : "",
         };
         // Ein Durchgang: Eingesetzte Werte werden nicht noch einmal nach Platzhaltern durchsucht.
         return Placeholder().Replace(Template.Value, m => values.TryGetValue(m.Groups[1].Value, out var v)
             ? v
             : throw new InvalidOperationException($"Unbekannter Platzhalter {m.Value} in der Datenschutz-Vorlage."));
     }
+
+    /// <summary>Wo Mistral rechnet – passend zu Aufgaben__Mistral__Region (siehe MistralClient.BaseAddress).</summary>
+    internal static string AiLocation(string? region) => (region ?? "").Trim().ToLowerInvariant() switch
+    {
+        "eu" => "Die Verarbeitung erfolgt über den EU-Endpunkt von Mistral in Rechenzentren in der EU bzw. im EWR.",
+        "us" => "Die Verarbeitung erfolgt über den US-Endpunkt von Mistral in Rechenzentren in den USA.",
+        _ => "Die App nutzt den globalen Endpunkt von Mistral; für ihn sagt Mistral keinen bestimmten Ort der Verarbeitung zu.",
+    };
 
     /// <summary>Wert aus der .env in Zeilen zerlegen: echte Zeilenumbrüche, "\n" als Zeichenfolge oder "|".</summary>
     internal static List<string> Lines(string? value) =>

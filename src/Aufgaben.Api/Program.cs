@@ -135,9 +135,11 @@ builder.Services.AddHttpClient<GraphClient>(c =>
     c.Timeout = TimeSpan.FromSeconds(30);
 });
 // KI-Vorschläge (Mistral, Standard GLM 5.3). Nachdenken braucht Zeit – daher die eigene, längere Grenze.
+// Region (global, eu, us) schon beim Start prüfen: ein Tippfehler soll nicht erst beim ersten Vorschlag auffallen.
+var mistralBase = MistralClient.BaseAddress(opts.Mistral.Region);
 builder.Services.AddHttpClient<MistralClient>(c =>
 {
-    c.BaseAddress = new Uri("https://api.mistral.ai/");
+    c.BaseAddress = mistralBase;
     c.Timeout = TimeSpan.FromSeconds(Math.Clamp(opts.Mistral.TimeoutSeconds, 10, 900));
 });
 builder.Services.AddScoped<TaskAssistant>();
@@ -218,7 +220,7 @@ app.MapMethods("/datenschutz.html", [HttpMethods.Get, HttpMethods.Head], (HttpCo
 {
     ctx.Response.Headers.CacheControl = "no-cache";
     var v = o.Value;
-    return Results.Content(PrivacyPage.Render(v.Privacy, v.Mistral.Enabled, v.Teams.BotEnabled), "text/html; charset=utf-8");
+    return Results.Content(PrivacyPage.Render(v.Privacy, v.Mistral.Enabled, v.Teams.BotEnabled, v.Mistral.Region), "text/html; charset=utf-8");
 }).AllowAnonymous();
 
 var api = app.MapGroup("/api").RequireAuthorization();
@@ -239,6 +241,10 @@ app.MapFallbackToFile("index.html", new StaticFileOptions
 
 var log = app.Services.GetRequiredService<ILogger<Program>>();
 log.LogInformation("Aufgaben startet: {BaseUrl}, Anmeldung {Mode}, Zeitzone {Zone}", opts.NormalizedBaseUrl, opts.Auth.Mode, opts.TimeZone);
+if (opts.Mistral.Enabled)
+{
+    log.LogInformation("KI-Vorschläge: {Model} über {Host}", opts.Mistral.Model, mistralBase.Host);
+}
 if (opts.Auth.IsDev)
 {
     log.LogWarning("ENTWICKLUNGS-LOGIN AKTIV – nur für lokale Tests, niemals im Betrieb verwenden.");

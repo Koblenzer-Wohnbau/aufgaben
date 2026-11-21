@@ -48,6 +48,15 @@ public sealed class MistralClient(HttpClient http, IOptions<AufgabenOptions> opt
         }
     }
 
+    /// <summary>Basisadresse je Region (Aufgaben__Mistral__Region): global, EU oder USA.</summary>
+    public static Uri BaseAddress(string? region) => (region ?? "").Trim().ToLowerInvariant() switch
+    {
+        "" or "global" => new Uri("https://api.mistral.ai/"),
+        "eu" => new Uri("https://api.eu.mistral.ai/"),
+        "us" => new Uri("https://api.us.mistral.ai/"),
+        var other => throw new InvalidOperationException($"Aufgaben__Mistral__Region „{other}“: erlaubt sind leer (global), eu oder us."),
+    };
+
     public static bool IsGlm(string model) => model.Trim().ToLowerInvariant() is "zai-glm-5-3" or "zai-glm-latest";
 
     /// <summary>Wie im ProjektCockpit: auto = max bei GLM, sonst high; max ist nur bei GLM erlaubt.</summary>
@@ -78,7 +87,7 @@ public sealed class MistralClient(HttpClient http, IOptions<AufgabenOptions> opt
             ["response_format"] = new { type = "json_object" },
             ["reasoning_effort"] = ReasoningEffort(O.Model, O.ReasoningEffort),
         };
-        using var doc = await SendAsync("v1/chat/completions", payload, attempts, ct);
+        using var doc = await SendAsync("v1/chat/completions", payload, O.Model, attempts, ct);
         var choices = doc.RootElement.TryGetProperty("choices", out var c) && c.ValueKind == JsonValueKind.Array ? c : default;
         if (choices.ValueKind != JsonValueKind.Array || choices.GetArrayLength() == 0
             || !choices[0].TryGetProperty("message", out var message) || !message.TryGetProperty("content", out var content))
@@ -100,7 +109,7 @@ public sealed class MistralClient(HttpClient http, IOptions<AufgabenOptions> opt
                 ["image_url"] = $"data:{mediaType};base64,{Convert.ToBase64String(image)}",
             },
         };
-        using var doc = await SendAsync("v1/ocr", payload, 2, ct);
+        using var doc = await SendAsync("v1/ocr", payload, O.OcrModel, 2, ct);
         if (!doc.RootElement.TryGetProperty("pages", out var pages) || pages.ValueKind != JsonValueKind.Array)
         {
             return "";
@@ -140,7 +149,7 @@ public sealed class MistralClient(HttpClient http, IOptions<AufgabenOptions> opt
         return sb.ToString();
     }
 
-    private async Task<JsonDocument> SendAsync(string path, object payload, int attempts, CancellationToken ct)
+    private async Task<JsonDocument> SendAsync(string path, object payload, string model, int attempts, CancellationToken ct)
     {
         var key = ApiKey();
         if (!O.Enabled || key.Length == 0)
@@ -182,6 +191,13 @@ public sealed class MistralClient(HttpClient http, IOptions<AufgabenOptions> opt
                     await Wait(TimeSpan.FromSeconds(delay), ct);
                     continue;
                 }
+                // Modell in dieser Region nicht im Angebot (z. B. am EU-Endpunkt): eigene, verständliche Meldung.
+                if (status is 400 or 404 && await IsUnknownModelAsync(response, ct))
+                {
+                    var host = http.BaseAddress?.Host ?? "Mistral";
+                    log.LogWarning("Mistral-Modell {Model} wird an {Host} nicht angeboten", model, host);
+                    throw new AiException($"Das KI-Modell „{model}“ wird an {host} nicht angeboten – bitte Aufgaben__Mistral__Model bzw. Aufgaben__Mistral__Region prüfen.");
+                }
                 // Der Antworttext kann Teile des gesendeten Inhalts enthalten – nicht protokollieren.
                 log.LogWarning("Mistral-Aufruf {Path} fehlgeschlagen: HTTP {Status}", path, status);
                 throw new AiException(status switch
@@ -191,6 +207,31 @@ public sealed class MistralClient(HttpClient http, IOptions<AufgabenOptions> opt
                     _ => $"Der KI-Dienst hat einen Fehler gemeldet (HTTP {status}).",
                 });
             }
+        }
+    }
+
+    /// <summary>
+    /// Fehlerart „unbekanntes Modell“ erkennen. Gelesen wird nur das Feld „type“ bzw. der Anfang der Meldung –
+    /// der übrige Antworttext kann Inhalte der Anfrage enthalten und wird nicht weitergegeben.
+    /// </summary>
+    internal static async Task<bool> IsUnknownModelAsync(HttpResponseMessage response, CancellationToken ct)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+            var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+            var type = root.TryGetProperty("type", out var t) && t.ValueKind == JsonValueKind.String ? t.GetString() ?? "" : "";
+            var message = root.TryGetProperty("message", out var m) && m.ValueKind == JsonValueKind.String ? m.GetString() ?? "" : "";
+            return type.Equals("invalid_model", StringComparison.OrdinalIgnoreCase)
+                || message.StartsWith("Invalid model", StringComparison.OrdinalIgnoreCase);
+        }
+        catch (JsonException)
+        {
+            return false;
         }
     }
 }
