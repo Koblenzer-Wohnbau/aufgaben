@@ -188,6 +188,52 @@ public sealed class AccessGrant
     public string RevokeReason { get; set; } = "";
 }
 
+/// <summary>
+/// Urlaub (oder andere Abwesenheit) mit Vertretung. From und Until sind der erste und der letzte freie Tag.
+/// Die Übergabe arbeitet nur mit Zuweisungen – Einsichtsrechte entstehen dadurch nicht.
+/// </summary>
+public sealed class Absence
+{
+    public int Id { get; set; }
+    public int UserId { get; set; }
+    public User User { get; set; } = null!;
+    public DateOnly From { get; set; }
+    public DateOnly Until { get; set; }
+    public int DeputyId { get; set; }
+    public User Deputy { get; set; } = null!;
+    public DateTimeOffset CreatedAt { get; set; }
+
+    /// <summary>Vorzeitig beendet – ab dann gilt die Person als zurück.</summary>
+    public DateTimeOffset? ClosedAt { get; set; }
+
+    /// <summary>Die Übersicht „Was ist passiert?“ nach der Rückkehr wurde geschlossen.</summary>
+    public DateTimeOffset? SummaryClosedAt { get; set; }
+
+    public List<AbsenceTask> Tasks { get; set; } = [];
+}
+
+/// <summary>
+/// Entscheidung zu einer Aufgabe im Rahmen einer Abwesenheit: an die Vertretung übergeben oder behalten
+/// (dann bis zum ersten Arbeitstag danach zurückgestellt). Je Abwesenheit und Aufgabe gilt die letzte Entscheidung.
+/// </summary>
+public sealed class AbsenceTask
+{
+    public const string HandedOver = "uebergeben";
+    public const string Kept = "behalten";
+
+    public int AbsenceId { get; set; }
+    public int TaskId { get; set; }
+    public required string Decision { get; set; }
+    public DateTimeOffset DecidedAt { get; set; }
+
+    /// <summary>Übergeben: zurück bei der abwesenden Person. Behalten: vorzeitig wieder hervorgeholt.</summary>
+    public DateTimeOffset? ReturnedAt { get; set; }
+
+    /// <summary>Behalten: Stand vor dem Zurückstellen – damit ein abgesagter Urlaub ihn wiederherstellen kann.</summary>
+    public DateOnly? PreviousSnoozedUntil { get; set; }
+    public DateOnly? PreviousDueDate { get; set; }
+}
+
 /// <summary>Protokoll: wer hat wann über ein Einsichtsrecht fremde Aufgaben angesehen oder geändert.</summary>
 public sealed class AccessLogEntry
 {

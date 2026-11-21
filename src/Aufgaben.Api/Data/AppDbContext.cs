@@ -21,6 +21,8 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<InboundMail> InboundMails => Set<InboundMail>();
     public DbSet<AccessGrant> AccessGrants => Set<AccessGrant>();
     public DbSet<AccessLogEntry> AccessLog => Set<AccessLogEntry>();
+    public DbSet<Absence> Absences => Set<Absence>();
+    public DbSet<AbsenceTask> AbsenceTasks => Set<AbsenceTask>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
 
     // Checklisten, Anhänge und Verlauf hängen an Aufgaben mit Papierkorb-Filter. Sie werden nie ohne ihre
@@ -148,6 +150,25 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             e.HasIndex(x => new { x.OwnerId, x.At });
             e.Property(x => x.Action).HasMaxLength(16);
             e.HasOne<AccessGrant>().WithMany().HasForeignKey(x => x.GrantId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<Absence>(e =>
+        {
+            e.ToTable("absences");
+            e.HasIndex(x => new { x.UserId, x.Until });
+            e.HasIndex(x => new { x.DeputyId, x.Until });
+            e.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Deputy).WithMany().HasForeignKey(x => x.DeputyId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Tasks).WithOne().HasForeignKey(x => x.AbsenceId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        b.Entity<AbsenceTask>(e =>
+        {
+            e.ToTable("absence_tasks");
+            e.HasKey(x => new { x.AbsenceId, x.TaskId });
+            e.HasIndex(x => x.TaskId);
+            e.Property(x => x.Decision).HasMaxLength(16);
+            e.HasOne<TaskItem>().WithMany().HasForeignKey(x => x.TaskId).OnDelete(DeleteBehavior.Cascade);
         });
 
         b.Entity<InboundMail>(e =>

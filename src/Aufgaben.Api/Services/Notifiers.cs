@@ -23,6 +23,8 @@ public static class NotificationTexts
         NotificationOutbox.Reminder => ("taskReminder", $"Erinnerung: {n.Title}", $"Erinnerung: {n.Title}"),
         // Nutzt die vorhandene Aktivität "taskReminder" – so braucht es kein neues Teams-Paket.
         NotificationOutbox.FollowUp => ("taskReminder", $"Nachhaken: {n.Title}", $"Noch keine Antwort von {n.ActorName} – nachhaken?"),
+        // Nutzt die vorhandene Aktivität "taskAssigned": „{person} hat dir „12 Aufgaben für die Urlaubsvertretung“ zugewiesen“.
+        NotificationOutbox.Handover => ("taskAssigned", $"{n.ActorName} hat dir {n.Title} übergeben", $"{n.ActorName} hat dir {n.Title} übergeben"),
         NotificationOutbox.Digest => ("dailyDigest", n.Title, n.Title),
         NotificationOutbox.Access => ("accessChanged", n.Title, n.Title),
         NotificationOutbox.ListShared => ("listShared", $"{n.ActorName} hat die Liste „{n.Title}“ mit dir geteilt", $"{n.ActorName} hat die Liste „{n.Title}“ mit dir geteilt"),

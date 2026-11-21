@@ -1,4 +1,5 @@
 import type {
+  Absence, AbsenceDecision, AbsenceItem, AbsencePlan, AbsenceStatus, AbsenceSummary,
   AccessGrant, AccessLogEntry, AdminStatus, AiSuggestion, Attachment, AuthConfig, BulkAction, BulkResult, Counts, MyAccess, CreateTask, Me, Project, Suggestions, Task, TaskDetail, TaskEvent, TaskList, Template, UserRef, ViewKey,
 } from "./types";
 
@@ -208,6 +209,20 @@ export const api = {
   directorySync: () => request<{ added: number; updated: number; deactivated: number }>("POST", "/api/admin/directory-sync"),
   pollInbox: () => request<{ created: number; result: string }>("POST", "/api/admin/mail-inbox/poll"),
   downloadTeamsPackage: () => download("/api/admin/teams-package"),
+
+  absenceStatus: () => request<AbsenceStatus>("GET", "/api/absences/status"),
+  createAbsence: (body: { from: string; until: string; deputyId: number }) => request<Absence>("POST", "/api/absences", body),
+  /** Urlaub absagen: Übergebenes kommt zurück, Zurückgestelltes ist wieder wie vorher */
+  deleteAbsence: (id: number) => request<void>("DELETE", `/api/absences/${id}`),
+  endAbsence: (id: number) => request<Absence>("POST", `/api/absences/${id}/end`),
+  absencePlan: (id: number) => request<AbsencePlan>("GET", `/api/absences/${id}/plan`),
+  decideAbsenceTask: (id: number, taskId: number, decision: AbsenceDecision, note?: string) =>
+    request<AbsenceItem>("POST", `/api/absences/${id}/tasks/${taskId}`, { decision, note: note || null }),
+  handOverAll: (id: number) => request<{ count: number }>("POST", `/api/absences/${id}/handover-all`),
+  /** „Zurück an mich“ – ohne Auswahl alles, was noch bei der Vertretung liegt */
+  takeBack: (id: number, taskIds?: number[]) => request<{ count: number }>("POST", `/api/absences/${id}/take-back`, { taskIds: taskIds ?? null }),
+  absenceSummary: (id: number) => request<AbsenceSummary>("GET", `/api/absences/${id}/summary`),
+  closeAbsenceSummary: (id: number) => request<void>("POST", `/api/absences/${id}/summary/close`),
 
   templates: () => request<Template[]>("GET", "/api/templates"),
   applyTemplate: (id: number, body: { startDate: string; projectId?: number | null; defaultAssigneeId?: number | null; assignees?: Record<number, number>; titleSuffix?: string }) =>

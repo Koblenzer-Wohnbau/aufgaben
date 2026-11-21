@@ -36,6 +36,7 @@ import {
   NumberSymbolRegular,
   PeopleTeamRegular,
   PersonAddRegular,
+  PeopleSwapRegular,
   PersonArrowLeftRegular,
   SearchRegular,
   SendRegular,
@@ -59,6 +60,7 @@ import { MyDayHero } from "./MyDayHero";
 import { QuickAdd } from "./QuickAdd";
 import { ShareListDialog } from "./ShareListDialog";
 import { ListMenu } from "./ListMenu";
+import { DeputyBanner, ReturnSummary } from "./ReturnSummary";
 import { SuggestionsPanel } from "./SuggestionsPanel";
 import { TaskRow } from "./TaskRow";
 
@@ -184,6 +186,9 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
   const list = route.view === "liste" ? lists.find((l) => l.id === route.id) : undefined;
   const access = useQuery({ queryKey: ["access-mine"], queryFn: api.accessMine, enabled: route.view === "person", staleTime: 60_000 });
   const grant = route.view === "person" ? access.data?.find((a) => a.owner.id === route.id) : undefined;
+  // Urlaubsübergabe: Banner der Vertretung und „Was ist passiert?“ in „Mein Tag“, Titel der Ansicht „Vertretung“
+  const absences = useQuery({ queryKey: ["absences"], queryFn: api.absenceStatus, staleTime: 60_000 });
+  const represented = route.view === "vertretung" ? absences.data?.deputy.find((d) => d.absenceId === route.id) : undefined;
 
   const info: ViewInfo = useMemo(() => {
     switch (route.view) {
@@ -234,6 +239,14 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
       case "papierkorb":
         // Eigene Ansicht (TrashView); hier nur, damit jede Ansicht einen Titel hat.
         return { title: "Papierkorb", icon: <DeleteRegular />, defaults: {}, empty: "Der Papierkorb ist leer." };
+      case "vertretung":
+        return {
+          title: represented ? `Vertretung für ${represented.person.name}` : "Vertretung",
+          icon: <PeopleSwapRegular />,
+          subtitle: represented ? `Im Urlaub übergeben · bis ${weekdayDate(represented.until)}` : "Im Urlaub übergeben",
+          defaults: {},
+          empty: "Keine übergebenen Aufgaben mehr – alles erledigt oder zurückgegeben.",
+        };
       case "person":
         return {
           title: grant ? `Aufgaben von ${grant.owner.name}` : "Freigegebene Aufgaben",
@@ -243,7 +256,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
           empty: "Keine offenen Aufgaben.",
         };
     }
-  }, [route, today, list, projects, grant]);
+  }, [route, today, list, projects, grant, represented]);
 
   const groups = useMemo(() => {
     const tasks = query.data ?? [];
@@ -529,6 +542,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
         route.view !== "erledigt" &&
         route.view !== "suche" &&
         route.view !== "person" &&
+        route.view !== "vertretung" &&
         route.view !== "warteschleife" && (
           <div className={`${styles.add} ${styles.addRow} ${compact ? styles.compactAdd : ""}`}>
             <div className={styles.addInput}>
@@ -546,6 +560,8 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
       )}
 
       <div className={`${styles.list} ${compact ? styles.compactList : ""}`}>
+        {myDay && absences.data?.returned && <ReturnSummary absence={absences.data.returned} />}
+        {myDay && absences.data?.deputy.map((d) => <DeputyBanner key={d.absenceId} deputy={d} />)}
         {query.isLoading && <Spinner style={{ marginTop: 32 }} />}
         {query.error && (
           <MessageBar intent="error">

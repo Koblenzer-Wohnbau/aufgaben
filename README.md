@@ -25,6 +25,10 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 * **Warte auf …** und **Später**: Aufgabe auf „Warte auf Fa. Müller“ setzen oder bis Montag zurückstellen – sie
   verschwindet aus den Listen in die **Warteschleife** und steht am Tag zum Nachhaken wieder in „Mein Tag“,
   mit Erinnerung per Teams oder E-Mail. Eine Fälligkeit holt sie immer früher zurück
+* **Urlaubsübergabe**: Urlaub mit Vertretung eintragen, dann für jede Aufgabe, die im Urlaub fällig wird, entscheiden –
+  an die Vertretung übergeben (mit Hinweis) oder bis nach dem Urlaub zurückstellen, auf Wunsch alles mit einem Klick.
+  Die Vertretung sieht ein Banner mit den übergebenen Aufgaben; nach der Rückkehr zeigt „Mein Tag“, was passiert ist,
+  und holt Offenes mit „Zurück an mich“ zurück. Im Urlaub kommt keine Tagesübersicht
 * **Mit KI erfassen** (optional): eine Teams-Nachricht, Mail oder ein Protokoll kopieren und in Aufgaben
   irgendwo `Strg+V` drücken – auch ein Bildschirmfoto. Die KI (GLM 5.3 über die Mistral-API) schlägt eine oder
   mehrere Aufgaben mit Person, Frist und Projekt vor und fragt bei Unklarem nach; angelegt wird erst nach

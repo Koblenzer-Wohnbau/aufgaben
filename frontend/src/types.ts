@@ -249,6 +249,88 @@ export interface Me {
   aiAvailable: boolean;
 }
 
+/** Eigener Urlaub mit Vertretung (from/until: erster und letzter freier Tag). */
+export interface Absence {
+  id: number;
+  from: string;
+  until: string;
+  /** erster Arbeitstag danach */
+  returnDay: string;
+  deputy: UserRef;
+  started: boolean;
+  /** vorbei oder vorzeitig beendet */
+  ended: boolean;
+  /** gerade an die Vertretung übergeben */
+  handedOver: number;
+  /** behalten und bis nach dem Urlaub zurückgestellt */
+  kept: number;
+}
+
+/** Ich vertrete gerade jemanden. open: übergebene Aufgaben, die noch offen sind. */
+export interface DeputyInfo {
+  absenceId: number;
+  person: UserRef;
+  from: string;
+  until: string;
+  open: number;
+}
+
+export interface AbsenceStatus {
+  /** eingetragener oder laufender eigener Urlaub */
+  current: Absence | null;
+  /** zurück – „Was ist passiert?“ ist noch nicht geschlossen */
+  returned: Absence | null;
+  deputy: DeputyInfo[];
+}
+
+export type AbsenceDecision = "uebergeben" | "behalten";
+
+export interface AbsenceItem {
+  taskId: number;
+  title: string;
+  kind: Kind;
+  dueDate: string | null;
+  waitingFor: string;
+  /** bei „Warte auf …“: Tag zum Nachhaken */
+  followUp: string | null;
+  decision: AbsenceDecision | null;
+  assignee: UserRef;
+  canOpen: boolean;
+}
+
+export interface AbsencePlan {
+  absence: Absence;
+  items: AbsenceItem[];
+}
+
+export interface HandoverState {
+  taskId: number;
+  title: string;
+  status: "offen" | "erledigt";
+  assignee: UserRef;
+  completedBy: UserRef | null;
+  completedAt: string | null;
+  canTakeBack: boolean;
+  canOpen: boolean;
+}
+
+export interface SummaryEvent {
+  id: number;
+  taskId: number;
+  taskTitle: string;
+  kind: string;
+  text: string;
+  actor: UserRef | null;
+  createdAt: string;
+}
+
+export interface AbsenceSummary {
+  absence: Absence;
+  handovers: HandoverState[];
+  kept: number;
+  events: SummaryEvent[];
+}
+
 export interface DevUser {
   oid: string;
   name: string;
@@ -309,6 +391,7 @@ export type ViewKey =
   | "warteschleife"
   | "erledigt"
   | "papierkorb"
+  | "vertretung"
   | "liste"
   | "projekt"
   | "suche";

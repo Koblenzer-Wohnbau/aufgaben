@@ -17,7 +17,7 @@ export function parseHash(hash: string): Route {
   if (first === "verwaltung") return { page: "verwaltung" };
   if (first === "teams" && second === "config") return { page: "teams-config" };
   if (first === "aufgabe" && second) return { page: "tasks", view: "mein-tag", taskId: Number(second) };
-  if ((first === "liste" || first === "projekt" || first === "person") && second) return { page: "tasks", view: first, id: Number(second) };
+  if ((first === "liste" || first === "projekt" || first === "person" || first === "vertretung") && second) return { page: "tasks", view: first, id: Number(second) };
   if (first === "suche") return { page: "tasks", view: "suche", q: second ?? "" };
   if ((SIMPLE_VIEWS as string[]).includes(first)) return { page: "tasks", view: first as ViewKey };
   return { page: "tasks", view: "mein-tag" };
@@ -27,7 +27,7 @@ export function hrefFor(route: Route): string {
   if (route.page === "vorlagen") return "#/vorlagen";
   if (route.page === "verwaltung") return "#/verwaltung";
   if (route.page === "teams-config") return "#/teams/config";
-  if (route.view === "liste" || route.view === "projekt" || route.view === "person") return `#/${route.view}/${route.id}`;
+  if (route.view === "liste" || route.view === "projekt" || route.view === "person" || route.view === "vertretung") return `#/${route.view}/${route.id}`;
   if (route.view === "suche") return `#/suche/${encodeURIComponent(route.q ?? "")}`;
   return route.view === "mein-tag" ? "#/" : `#/${route.view}`;
 }
