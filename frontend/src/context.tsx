@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import type { ConfirmRequest } from "./components/ConfirmDialog";
 import type { AiInput, Me, Project, TaskList, UserRef } from "./types";
 
 export interface AppData {
@@ -12,6 +13,8 @@ export interface AppData {
   notify: (title: string, intent?: "success" | "error" | "info") => void;
   /** KI-Dialog öffnen, optional schon mit Text oder Bildschirmfoto */
   openAi: (input?: AiInput) => void;
+  /** Rückfrage als Dialog – statt window.confirm, das Teams in Tabs blockiert. true = bestätigt. */
+  confirm: (request: ConfirmRequest) => Promise<boolean>;
 }
 
 export const AppContext = createContext<AppData | null>(null);

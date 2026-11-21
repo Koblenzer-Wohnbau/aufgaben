@@ -67,7 +67,7 @@ const useStyles = makeStyles({
 /** Papierkorb: gelöschte Aufgaben wiederherstellen oder endgültig löschen. Nach 30 Tagen leert der Server ihn selbst. */
 export function TrashView({ compact }: { compact: boolean }) {
   const styles = useStyles();
-  const { me, notify } = useApp();
+  const { me, notify, confirm } = useApp();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: ["tasks", "papierkorb"], queryFn: () => api.tasks("papierkorb") });
   const [picked, setPicked] = useState<Set<number>>(() => new Set());
@@ -105,16 +105,26 @@ export function TrashView({ compact }: { compact: boolean }) {
       return `„${t.title}“ wiederhergestellt`;
     });
 
-  const purge = (list: Task[]) => {
+  const purge = async (list: Task[]) => {
     if (list.length === 0) return;
     const what = list.length === 1 ? `„${list[0].title}“` : tasksLabel(list.length);
-    if (!window.confirm(`${what} endgültig löschen? Das lässt sich nicht rückgängig machen.`)) return;
-    void bulk("endgueltig-loeschen", list);
+    const ok = await confirm({
+      title: `${what} endgültig löschen?`,
+      text: "Das lässt sich nicht rückgängig machen.",
+      confirmLabel: "Endgültig löschen",
+      danger: true,
+    });
+    if (ok) await bulk("endgueltig-loeschen", list);
   };
 
-  const empty = () => {
-    if (!window.confirm(`Alle ${tasksLabel(tasks.length)} im Papierkorb endgültig löschen? Das lässt sich nicht rückgängig machen.`)) return;
-    void run(async () => `${tasksLabel((await api.emptyTrash()).done)} endgültig gelöscht`);
+  const empty = async () => {
+    const ok = await confirm({
+      title: "Papierkorb leeren?",
+      text: `Alle ${tasksLabel(tasks.length)} im Papierkorb werden endgültig gelöscht. Das lässt sich nicht rückgängig machen.`,
+      confirmLabel: "Endgültig löschen",
+      danger: true,
+    });
+    if (ok) await run(async () => `${tasksLabel((await api.emptyTrash()).done)} endgültig gelöscht`);
   };
 
   const select = (id: number, range: boolean) => {
@@ -137,7 +147,7 @@ export function TrashView({ compact }: { compact: boolean }) {
           </Text>
         </div>
         {tasks.length > 0 && (
-          <Button icon={<DeleteDismissRegular />} disabled={busy} onClick={empty}>
+          <Button icon={<DeleteDismissRegular />} disabled={busy} onClick={() => void empty()}>
             Papierkorb leeren
           </Button>
         )}
@@ -155,7 +165,7 @@ export function TrashView({ compact }: { compact: boolean }) {
           <Button icon={<ArrowUndoRegular />} disabled={busy || chosen.length === 0} onClick={() => void bulk("wiederherstellen", chosen)}>
             Wiederherstellen
           </Button>
-          <Button icon={<DeleteDismissRegular />} disabled={busy || chosen.length === 0} onClick={() => purge(chosen)}>
+          <Button icon={<DeleteDismissRegular />} disabled={busy || chosen.length === 0} onClick={() => void purge(chosen)}>
             Endgültig löschen
           </Button>
         </div>
@@ -208,7 +218,7 @@ export function TrashView({ compact }: { compact: boolean }) {
                 <Button size="small" icon={<ArrowUndoRegular />} disabled={busy} onClick={() => void restore(t)}>
                   Wiederherstellen
                 </Button>
-                <Button size="small" appearance="subtle" icon={<DeleteDismissRegular />} disabled={busy} aria-label="Endgültig löschen" title="Endgültig löschen" onClick={() => purge([t])} />
+                <Button size="small" appearance="subtle" icon={<DeleteDismissRegular />} disabled={busy} aria-label="Endgültig löschen" title="Endgültig löschen" onClick={() => void purge([t])} />
               </div>
             </div>
           );

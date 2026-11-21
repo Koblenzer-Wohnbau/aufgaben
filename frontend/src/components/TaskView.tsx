@@ -155,7 +155,7 @@ interface ViewInfo {
 
 export function TaskView({ route, compact }: { route: Extract<Route, { page: "tasks" }>; compact: boolean }) {
   const styles = useStyles();
-  const { today, lists, projects, me, selectedTaskId, notify, openAi } = useApp();
+  const { today, lists, projects, me, selectedTaskId, notify, openAi, confirm } = useApp();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [groupByPerson, setGroupByPerson] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
@@ -334,10 +334,15 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
 
   const completePicked = () => runBulk("erledigen", chosen.filter((t) => t.status !== "erledigt").map((t) => t.id));
 
-  const deletePicked = () => {
-    if (chosen.length === 0) return;
-    if (!window.confirm(`${tasksLabel(chosen.length)} in den Papierkorb legen? Dort lassen sie sich ${TRASH_DAYS} Tage lang wiederherstellen.`)) return;
-    void runBulk("loeschen", chosen.map((t) => t.id));
+  const deletePicked = async () => {
+    if (chosen.length === 0 || busy) return;
+    const ids = chosen.map((t) => t.id);
+    const ok = await confirm({
+      title: `${tasksLabel(ids.length)} in den Papierkorb legen?`,
+      text: `Dort lassen sie sich ${TRASH_DAYS} Tage lang wiederherstellen.`,
+      confirmLabel: "In den Papierkorb",
+    });
+    if (ok) await runBulk("loeschen", ids);
   };
 
   const laterPicked = async (date: string) => {
@@ -360,7 +365,12 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
   };
 
   const deleteCompleted = async () => {
-    if (!window.confirm(`Alle erledigten Aufgaben, die du angelegt hast, in den Papierkorb legen? Dort lassen sie sich ${TRASH_DAYS} Tage lang wiederherstellen.`)) return;
+    const ok = await confirm({
+      title: "Erledigte in den Papierkorb legen?",
+      text: `Alle erledigten Aufgaben, die du angelegt hast. Dort lassen sie sich ${TRASH_DAYS} Tage lang wiederherstellen.`,
+      confirmLabel: "In den Papierkorb",
+    });
+    if (!ok) return;
     try {
       const result = await api.deleteCompleted();
       notify(
@@ -381,12 +391,13 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
   useEffect(() => {
     if (!selecting) return;
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable='true']")) return;
+      // In der Rückfrage gehört Esc dem Dialog – sonst wäre danach auch die Auswahl weg.
+      if ((e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable='true'], [role='dialog'], [role='alertdialog']")) return;
       if (e.key === "Escape") {
         exitSelect();
       } else if (e.key === "Delete") {
         e.preventDefault();
-        keys.current.deletePicked();
+        void keys.current.deletePicked();
       } else if (e.key.toLowerCase() === "a" && (e.ctrlKey || e.metaKey)) {
         e.preventDefault();
         setPicked(new Set(keys.current.allIds));
@@ -531,7 +542,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
             }
             onPick={(date) => void laterPicked(date)}
           />
-          <Button icon={<DeleteRegular />} disabled={busy || chosen.length === 0} onClick={deletePicked}>
+          <Button icon={<DeleteRegular />} disabled={busy || chosen.length === 0} onClick={() => void deletePicked()}>
             Löschen
           </Button>
           <Button appearance="subtle" onClick={exitSelect}>

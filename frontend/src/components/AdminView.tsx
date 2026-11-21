@@ -113,7 +113,7 @@ export function AdminView() {
 
 function AccessSection() {
   const styles = useStyles();
-  const { notify } = useApp();
+  const { notify, confirm } = useApp();
   const queryClient = useQueryClient();
   const grants = useQuery({ queryKey: ["admin-access"], queryFn: api.adminAccess });
   const [creating, setCreating] = useState(false);
@@ -131,7 +131,7 @@ function AccessSection() {
   };
 
   const remove = async (g: AccessGrant) => {
-    if (!window.confirm(`Entwurf für ${g.owner.name} → ${g.viewer.name} löschen?`)) return;
+    if (!(await confirm({ title: "Entwurf löschen?", text: `${g.owner.name} → ${g.viewer.name}`, confirmLabel: "Löschen" }))) return;
     try {
       await api.deleteAccess(g.id);
       await refresh();

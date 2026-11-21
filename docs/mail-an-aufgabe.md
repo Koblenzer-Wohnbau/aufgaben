@@ -88,6 +88,20 @@ Aufgaben__MailInbox__SendConfirmation=true
 
 Die Bestätigungsmails laufen über die SMTP-Einstellungen unter `Aufgaben__Mail__*`.
 
+**Senden mit Anmeldung an Exchange:** Port **587** des Exchange-Servers direkt verwenden (Empfangsconnector
+„Client Frontend“), nicht Port 25 und nicht ein vorgeschaltetes Mail-Gateway – dort scheitert die Anmeldung
+normaler Konten meist mit `535`. Auf 587 zeigt Exchange oft ebenfalls sein Standardzertifikat; dann denselben
+Fingerabdruck wie beim Abholen eintragen. Die App meldet sich mit Benutzername und Passwort an (LOGIN),
+auch wenn Exchange zusätzlich NTLM oder Kerberos anbietet.
+
+```ini
+Aufgaben__Mail__Host=mail.example.de
+Aufgaben__Mail__Port=587
+Aufgaben__Mail__Security=StartTls
+Aufgaben__Mail__Username=FIRMA\konto
+Aufgaben__Mail__CertificateThumbprint=AB:CD:…
+```
+
 **Selbst ausgestelltes Exchange-Zertifikat:** Zeigt Exchange für IMAP nur sein Standardzertifikat
 (ausgestellt auf den Servernamen, z. B. `server.firma.local`), lehnt die App die Verbindung zunächst ab.
 Statt einer CA-Datei genügt dann der Fingerabdruck genau dieses Zertifikats – die App akzeptiert nur

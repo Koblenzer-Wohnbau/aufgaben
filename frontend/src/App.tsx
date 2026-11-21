@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
   makeStyles,
@@ -24,6 +24,7 @@ import { Sidebar } from "./components/Sidebar";
 import { TaskView } from "./components/TaskView";
 import { TrashView } from "./components/TrashView";
 import { TaskDrawer } from "./components/TaskDrawer";
+import { ConfirmDialog, type ConfirmRequest } from "./components/ConfirmDialog";
 
 // Selten genutzte Bereiche erst bei Bedarf laden – kleinerer Start-Download.
 const TemplatesView = lazy(() => import("./components/TemplatesView").then((m) => ({ default: m.TemplatesView })));
@@ -36,6 +37,11 @@ const AiCaptureDialog = lazy(() => import("./components/AiCaptureDialog").then((
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
   return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
+}
+
+/** Taste kam aus einem Dialog – dann gehört z. B. Esc dem Dialog und schließt nicht noch die Aufgabe dahinter. */
+function inDialog(target: EventTarget | null) {
+  return !!(target as HTMLElement | null)?.closest?.('[role="dialog"], [role="alertdialog"]');
 }
 
 const useStyles = makeStyles({
@@ -160,7 +166,7 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (e.key === "Escape" && !isTyping(e.target)) {
+      if (e.key === "Escape" && !isTyping(e.target) && !inDialog(e.target)) {
         setTaskId(null);
         return;
       }
@@ -199,6 +205,26 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
   // gleich mit dem eingefügten Text oder Bildschirmfoto – etwa einer kopierten Teams-Nachricht.
   const [aiInput, setAiInput] = useState<AiInput | null>(null);
   const openAi = useCallback((input?: AiInput) => setAiInput(input ?? {}), []);
+  // Rückfragen: eine zur Zeit. Kommt eine neue, gilt die offene als abgebrochen.
+  const answerConfirm = useRef<((ok: boolean) => void) | null>(null);
+  const [confirmRequest, setConfirmRequest] = useState<ConfirmRequest | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const confirm = useCallback(
+    (request: ConfirmRequest) =>
+      new Promise<boolean>((resolve) => {
+        answerConfirm.current?.(false);
+        answerConfirm.current = resolve;
+        setConfirmRequest(request);
+        setConfirmOpen(true);
+      }),
+    [],
+  );
+  const onConfirmAnswer = useCallback((ok: boolean) => {
+    answerConfirm.current?.(ok);
+    answerConfirm.current = null;
+    setConfirmOpen(false);
+  }, []);
+
   const aiAvailable = me.data?.aiAvailable ?? false;
   useEffect(() => {
     if (!aiAvailable) return;
@@ -227,8 +253,11 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
       selectedTaskId: taskId,
       notify,
       openAi,
+      confirm,
     };
-  }, [me.data, projects.data, users.data, lists.data, notify, taskId, openAi]);
+  }, [me.data, projects.data, users.data, lists.data, notify, taskId, openAi, confirm]);
+
+  const confirmDialog = <ConfirmDialog request={confirmRequest} open={confirmOpen} onAnswer={onConfirmAnswer} />;
 
   if (!data) return null;
 
@@ -238,6 +267,7 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
         <Suspense fallback={<Spinner />}>
           <ChannelConfig teams={teams} />
         </Suspense>
+        {confirmDialog}
       </AppContext.Provider>
     );
   }
@@ -297,6 +327,7 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
           <AiCaptureDialog initial={aiInput} onClose={() => setAiInput(null)} />
         </Suspense>
       )}
+      {confirmDialog}
       <Toaster toasterId={toasterId} position="bottom-end" />
     </AppContext.Provider>
   );
