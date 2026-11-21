@@ -191,6 +191,12 @@ public sealed class PrivacyOptions
 
     /// <summary>Speicherort und ggf. Auftragsverarbeiter. Leer = eigener Server im Unternehmen.</summary>
     public string Hosting { get; set; } = "";
+
+    /// <summary>
+    /// KI-Anbieter: Vertrag zur Auftragsverarbeitung und Speicherdauer beim Anbieter.
+    /// Pflicht, sobald KI-Vorschläge eingeschaltet sind (Aufgaben__Mistral__Enabled=true).
+    /// </summary>
+    public string Ai { get; set; } = "";
 }
 
 /// <summary>

@@ -217,7 +217,8 @@ app.MapCalendarFeed();
 app.MapMethods("/datenschutz.html", [HttpMethods.Get, HttpMethods.Head], (HttpContext ctx, IOptions<AufgabenOptions> o) =>
 {
     ctx.Response.Headers.CacheControl = "no-cache";
-    return Results.Content(PrivacyPage.Render(o.Value.Privacy), "text/html; charset=utf-8");
+    var v = o.Value;
+    return Results.Content(PrivacyPage.Render(v.Privacy, v.Mistral.Enabled, v.Teams.BotEnabled), "text/html; charset=utf-8");
 }).AllowAnonymous();
 
 var api = app.MapGroup("/api").RequireAuthorization();

@@ -16,12 +16,33 @@ public static partial class PrivacyPage
     public const string ControllerSetting = "Aufgaben__Privacy__Controller";
     public const string DpoContactSetting = "Aufgaben__Privacy__DpoContact";
     public const string RetentionSetting = "Aufgaben__Privacy__Retention";
+    public const string AiSetting = "Aufgaben__Privacy__Ai";
 
     internal const string ControllerPlaceholder = "[Name, Anschrift und Kontakt des Verantwortlichen]";
     internal const string DpoContactPlaceholder = "[Name und Kontakt der bzw. des Datenschutzbeauftragten]";
     internal const string RetentionPlaceholder =
         "[Durch den Verantwortlichen festzulegen, z. B. Löschung erledigter Aufgaben nach X Monaten; Protokolle nach 30 Tagen.]";
     internal const string DefaultHosting = "Die Daten werden auf einem eigenen Server im Unternehmen gespeichert.";
+    internal const string AiPlaceholder =
+        "[Durch den Verantwortlichen zu ergänzen: Vertrag zur Auftragsverarbeitung mit dem Anbieter und Speicherdauer beim Anbieter.]";
+
+    /// <summary>Nur mit eingeschalteten KI-Vorschlägen: was an die Mistral-API geht und was nicht.</summary>
+    private const string AiSection = """
+        <h2>KI-Vorschläge</h2>
+        <p>Wer „Mit KI erfassen“ nutzt oder „Als Aufgabe“ an einer Teams-Nachricht wählt, kann sich Aufgaben vorschlagen lassen. Dafür übermittelt der Server an die Mistral-API (Mistral AI, Frankreich):</p>
+        <ul>
+          <li>den eingefügten Text bzw. die gewählte Teams-Nachricht, bei einem eingefügten Bildschirmfoto das Bild zur Texterkennung,</li>
+          <li>Name und interne Kennung der eingebenden Person sowie das heutige Datum,</li>
+          <li>damit Personen und Projekte zugeordnet werden können: Name, Funktion und interne Kennung aller aktiven Nutzerinnen und Nutzer sowie die Bezeichnungen der Projekte.</li>
+        </ul>
+        <p>E-Mail-Adressen, gespeicherte Aufgaben und Notizen werden nicht übermittelt. Als Aufgabe gespeichert wird ein Vorschlag erst, wenn die Person ihn bestätigt; vorher speichert die App weder Text noch Vorschlag. Die Funktion ist freiwillig – Aufgaben lassen sich jederzeit ohne KI anlegen.</p>
+        <p>{{KIANBIETER}}</p>
+
+        """;
+
+    private const string TeamsMessageItem =
+        "<li>Bei „Als Aufgabe“ an einer Teams-Nachricht: Text, Absender, Zeitpunkt und Link der gewählten Nachricht – " +
+        "höchstens 30 Minuten im Arbeitsspeicher und nur für die Person, die die Nachricht gewählt hat, bis sie die Aufgabe anlegt.</li>";
 
     internal const string TemplateNotice =
         "<p class=\"hinweis\"><strong>Vorlage:</strong> Diese Seite muss vor dem Betrieb von der bzw. dem " +
@@ -35,26 +56,36 @@ public static partial class PrivacyPage
     [GeneratedRegex(@"\{\{([A-Z]+)\}\}")]
     private static partial Regex Placeholder();
 
-    /// <summary>Pflichtangaben, die in der .env noch fehlen (Namen der Umgebungsvariablen). Leer = vollständig.</summary>
-    public static IReadOnlyList<string> Missing(PrivacyOptions o)
+    /// <summary>
+    /// Pflichtangaben, die in der .env noch fehlen (Namen der Umgebungsvariablen). Leer = vollständig.
+    /// Mit eingeschalteter KI gehört die Angabe zum KI-Anbieter dazu.
+    /// </summary>
+    public static IReadOnlyList<string> Missing(PrivacyOptions o, bool ai = false)
     {
         var missing = new List<string>();
         if (Lines(o.Controller).Count == 0) missing.Add(ControllerSetting);
         if (Lines(o.DpoContact).Count == 0) missing.Add(DpoContactSetting);
         if (Lines(o.Retention).Count == 0) missing.Add(RetentionSetting);
+        if (ai && Lines(o.Ai).Count == 0) missing.Add(AiSetting);
         return missing;
     }
 
-    /// <summary>Fertige Seite. Fehlende Angaben behalten den Platzhaltertext; der Vorlagen-Hinweis bleibt, bis alle Pflichtangaben gesetzt sind.</summary>
-    public static string Render(PrivacyOptions o)
+    /// <summary>
+    /// Fertige Seite. Fehlende Angaben behalten den Platzhaltertext; der Vorlagen-Hinweis bleibt, bis alle Pflichtangaben
+    /// gesetzt sind. Die Abschnitte zur KI und zu „Als Aufgabe“ erscheinen nur, wenn die Funktion eingeschaltet ist.
+    /// </summary>
+    public static string Render(PrivacyOptions o, bool ai = false, bool teamsMessages = false)
     {
         var values = new Dictionary<string, string>
         {
-            ["VORLAGE"] = Missing(o).Count == 0 ? "" : TemplateNotice,
+            ["VORLAGE"] = Missing(o, ai).Count == 0 ? "" : TemplateNotice,
             ["VERANTWORTLICHER"] = Text(o.Controller, ControllerPlaceholder),
             ["SPEICHERORT"] = Text(o.Hosting, DefaultHosting),
             ["SPEICHERDAUER"] = Text(o.Retention, RetentionPlaceholder),
             ["DATENSCHUTZBEAUFTRAGTE"] = Text(o.DpoContact, DpoContactPlaceholder),
+            ["TEAMSNACHRICHT"] = teamsMessages ? TeamsMessageItem : "",
+            // Der KI-Abschnitt ist feste Vorlage; nur die Angabe zum Anbieter kommt (kodiert) aus der .env.
+            ["KI"] = ai ? AiSection.Replace("{{KIANBIETER}}", Text(o.Ai, AiPlaceholder)) : "",
         };
         // Ein Durchgang: Eingesetzte Werte werden nicht noch einmal nach Platzhaltern durchsucht.
         return Placeholder().Replace(Template.Value, m => values.TryGetValue(m.Groups[1].Value, out var v)
