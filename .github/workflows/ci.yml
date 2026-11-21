@@ -46,6 +46,16 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  server-scripts:
+    name: Server-Skripte
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: ShellCheck
+        run: shellcheck -x deploy/server/nginx-einrichten.sh tests/deploy/*.sh
+      - name: Nginx-Einrichtung in einem frischen Ubuntu
+        run: docker run --rm -v "$PWD:/src:ro" ubuntu:24.04 bash /src/tests/deploy/nginx-einrichten.sh
+
   secrets:
     name: Secret-Scan
     runs-on: ubuntu-latest
