@@ -1,4 +1,5 @@
 import type { DragEvent } from "react";
+import { addDays, weekdayDate, workday } from "./later";
 import type { Route } from "./route";
 import type { Task } from "./types";
 
@@ -34,6 +35,10 @@ export function dropPatch(to: Route, today: string): { patch: Record<string, unk
       return { patch: { listId: null }, label: "Aus der Liste genommen" };
     case "wiedervorlagen":
       return { patch: { kind: "wiedervorlage" }, label: "Als Wiedervorlage markiert" };
+    case "warteschleife": {
+      const date = workday(addDays(today, 7));
+      return { patch: { snoozedUntil: date }, label: `Zurückgestellt bis ${weekdayDate(date)}` };
+    }
     case "liste":
       return to.id ? { patch: { listId: to.id }, label: "In die Liste verschoben" } : null;
     case "projekt":

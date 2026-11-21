@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Linq.Expressions;
 using System.Text.Json;
 using Aufgaben.Api.Auth;
 using Aufgaben.Api.Contracts;
@@ -26,9 +27,17 @@ public sealed class TaskService(
     public const int MaxTitle = 500;
     public const int MaxNotes = 20000;
     public const int MaxChecklist = 100;
+    public const int MaxWaitingFor = 200;
 
     public static readonly string[] Views =
-        ["mein-tag", "aufgaben", "person", "wichtig", "geplant", "zugewiesen", "delegiert", "wiedervorlagen", "liste", "projekt", "erledigt", "suche"];
+        ["mein-tag", "aufgaben", "person", "wichtig", "geplant", "zugewiesen", "delegiert", "wiedervorlagen", "warteschleife", "liste", "projekt", "erledigt", "suche"];
+
+    /// <summary>
+    /// Nicht zurückgestellt (oder der Tag ist da) – oder schon fällig: Eine Fälligkeit geht immer vor,
+    /// damit keine Frist in der Warteschleife verschwindet.
+    /// </summary>
+    private static Expression<Func<TaskItem, bool>> Present(DateOnly today) =>
+        t => t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today);
 
     private IQueryable<TaskItem> Base() => db.Tasks
         .Include(t => t.CreatedBy)
@@ -115,31 +124,38 @@ public sealed class TaskService(
         var done = Values.Done;
 
         var q = Base();
+        // Zurückgestellte Aufgaben fehlen nur in den eigenen Ansichten der verantwortlichen Person –
+        // wer delegiert hat, im Projekt mitliest oder sucht, sieht sie weiterhin.
+        var present = Present(today);
         switch (view)
         {
             case "mein-tag":
                 q = q.Where(t => t.AssigneeId == u && (
                     (t.Status == open && (t.MyDayOn == today || (t.DueDate != null && t.DueDate <= today))) ||
-                    (t.Status == done && t.CompletedAt >= startToday && (t.MyDayOn == today || (t.DueDate != null && t.DueDate <= today)))));
+                    (t.Status == done && t.CompletedAt >= startToday && (t.MyDayOn == today || (t.DueDate != null && t.DueDate <= today))))).Where(present);
                 break;
             case "wichtig":
-                q = q.Where(t => t.AssigneeId == u && t.Status == open && t.Priority == "hoch");
+                q = q.Where(t => t.AssigneeId == u && t.Status == open && t.Priority == "hoch").Where(present);
                 break;
             case "geplant":
-                q = q.Where(t => t.AssigneeId == u && t.Status == open && t.DueDate != null);
+                q = q.Where(t => t.AssigneeId == u && t.Status == open && t.DueDate != null).Where(present);
                 break;
             case "zugewiesen":
-                q = q.Where(t => t.AssigneeId == u && t.CreatedById != u && (t.Status == open || t.CompletedAt >= recent));
+                q = q.Where(t => t.AssigneeId == u && t.CreatedById != u && (t.Status == open || t.CompletedAt >= recent)).Where(present);
                 break;
             case "delegiert":
                 q = q.Where(t => t.CreatedById == u && t.AssigneeId != u && (t.Status == open || t.CompletedAt >= recent));
                 break;
             case "wiedervorlagen":
-                q = q.Where(t => t.AssigneeId == u && t.Status == open && t.Kind == "wiedervorlage");
+                q = q.Where(t => t.AssigneeId == u && t.Status == open && t.Kind == "wiedervorlage").Where(present);
+                break;
+            case "warteschleife":
+                // „Warte auf …“ (auch wenn der Tag zum Nachhaken schon da ist) und Zurückgestelltes
+                q = q.Where(t => t.AssigneeId == u && t.Status == open && (t.WaitingFor != "" || t.SnoozedUntil > today));
                 break;
             case "aufgaben":
                 // Wie "Aufgaben" in To Do: alles, was mir gehört und in keiner Liste steckt.
-                q = q.Where(t => t.AssigneeId == u && t.ListId == null && (t.Status == open || t.CompletedAt >= recent));
+                q = q.Where(t => t.AssigneeId == u && t.ListId == null && (t.Status == open || t.CompletedAt >= recent)).Where(present);
                 break;
             case "liste":
                 var listId = id ?? throw ApiException.Invalid("Liste fehlt.");
@@ -147,8 +163,10 @@ public sealed class TaskService(
                 {
                     throw ApiException.NotFound("Liste");
                 }
-                // Geteilte Liste: alle Aufgaben der Liste, egal wer sie angelegt hat.
-                q = q.Where(t => t.ListId == listId && (t.Status == open || t.CompletedAt >= recent));
+                // Geteilte Liste: alle Aufgaben der Liste, egal wer sie angelegt hat. Zurückgestellt
+                // heißt nur für die verantwortliche Person „ausgeblendet“.
+                q = q.Where(t => t.ListId == listId && (t.Status == open || t.CompletedAt >= recent)
+                                 && (t.AssigneeId != u || t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today)));
                 break;
             case "person":
                 var ownerId = id ?? throw ApiException.Invalid("Person fehlt.");
@@ -183,14 +201,18 @@ public sealed class TaskService(
             return [];
         }
 
-        IOrderedQueryable<TaskItem> ordered = view == "erledigt"
-            ? q.OrderByDescending(t => t.CompletedAt)
-            : q.OrderBy(t => t.Status == done ? 1 : 0)
+        IOrderedQueryable<TaskItem> ordered = view switch
+        {
+            "erledigt" => q.OrderByDescending(t => t.CompletedAt),
+            // Was zuerst wieder dran ist, steht oben.
+            "warteschleife" => q.OrderBy(t => t.SnoozedUntil == null ? 1 : 0).ThenBy(t => t.SnoozedUntil).ThenByDescending(t => t.CreatedAt),
+            _ => q.OrderBy(t => t.Status == done ? 1 : 0)
                 .ThenBy(t => t.DueDate == null ? 1 : 0)
                 .ThenBy(t => t.DueDate)
                 .ThenBy(t => t.DueTime)
                 .ThenBy(t => t.Priority == "hoch" ? 0 : t.Priority == "normal" ? 1 : 2)
-                .ThenByDescending(t => t.CreatedAt);
+                .ThenByDescending(t => t.CreatedAt),
+        };
 
         var items = await ordered.Take(500).ToListAsync(ct);
         if (view == "suche" && items.Count > 0)
@@ -214,19 +236,33 @@ public sealed class TaskService(
 
         // Eine einzige Abfrage mit bedingten Zählungen statt einer Abfrage pro Zähler –
         // die Seitenleiste wird bei jeder Live-Änderung neu geladen.
+        // "Mine" zählt nur, was in den eigenen Ansichten auch zu sehen ist (siehe Present).
         var c = await db.Tasks
             .Where(t => t.Status == open && (t.AssigneeId == u || t.CreatedById == u))
             .GroupBy(_ => 1)
             .Select(g => new
             {
-                MyDay = g.Count(t => t.AssigneeId == u && (t.MyDayOn == today || (t.DueDate != null && t.DueDate <= today))),
-                Important = g.Count(t => t.AssigneeId == u && t.Priority == "hoch"),
-                Planned = g.Count(t => t.AssigneeId == u && t.DueDate != null),
-                Assigned = g.Count(t => t.AssigneeId == u && t.CreatedById != u),
-                FollowUps = g.Count(t => t.AssigneeId == u && t.Kind == "wiedervorlage"),
+                MyDay = g.Count(t =>
+                {
+                    var isAssignee = t.AssigneeId == u;
+                    var isMyDayOrDue = t.MyDayOn == today || (t.DueDate != null && t.DueDate <= today);
+                    var isUnsnoozedOrDue = t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today);
+                    return isAssignee && isMyDayOrDue && isUnsnoozedOrDue;
+                }),
+                Important = g.Count(t => t.AssigneeId == u && t.Priority == "hoch"
+                                         && (t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today))),
+                Planned = g.Count(t => t.AssigneeId == u && t.DueDate != null
+                                       && (t.SnoozedUntil == null || t.SnoozedUntil <= today || t.DueDate <= today)),
+                Assigned = g.Count(t => t.AssigneeId == u && t.CreatedById != u
+                                        && (t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today))),
+                FollowUps = g.Count(t => t.AssigneeId == u && t.Kind == "wiedervorlage"
+                                         && (t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today))),
                 Overdue = g.Count(t => t.AssigneeId == u && t.DueDate != null && t.DueDate < today),
                 Delegated = g.Count(t => t.CreatedById == u && t.AssigneeId != u),
-                Inbox = g.Count(t => t.AssigneeId == u && t.ListId == null),
+                Inbox = g.Count(t => t.AssigneeId == u && t.ListId == null
+                                     && (t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today))),
+                Waiting = g.Count(t => t.AssigneeId == u && (t.WaitingFor != "" || t.SnoozedUntil > today)),
+                WaitingDue = g.Count(t => t.AssigneeId == u && t.WaitingFor != "" && t.SnoozedUntil != null && t.SnoozedUntil <= today),
             })
             .FirstOrDefaultAsync(ct);
 
@@ -245,7 +281,7 @@ public sealed class TaskService(
 
         return new CountsDto(
             c?.MyDay ?? 0, c?.Important ?? 0, c?.Planned ?? 0, c?.Assigned ?? 0, c?.Delegated ?? 0,
-            c?.FollowUps ?? 0, c?.Overdue ?? 0, lists, projects, c?.Inbox ?? 0);
+            c?.FollowUps ?? 0, c?.Overdue ?? 0, lists, projects, c?.Inbox ?? 0, c?.Waiting ?? 0, c?.WaitingDue ?? 0);
     }
 
     /// <summary>
@@ -264,6 +300,7 @@ public sealed class TaskService(
             .Where(t => t.AssigneeId == u && t.Status == open
                         && t.MyDayOn != today
                         && (t.DueDate == null || t.DueDate > today)
+                        && (t.SnoozedUntil == null || t.SnoozedUntil <= today)
                         && ((t.MyDayOn != null && t.MyDayOn < today)
                             || (t.DueDate != null && t.DueDate <= soon)
                             || t.Priority == "hoch"
@@ -388,6 +425,9 @@ public sealed class TaskService(
 
         User? newAssignee = null;
         bool? myDay = null;
+        string? waitingFor = null;
+        var snoozeSet = false;
+        DateOnly? snooze = null;
         var field = "";
         try
         {
@@ -432,6 +472,13 @@ public sealed class TaskService(
                     case "myDay":
                         myDay = v.ValueKind == JsonValueKind.True;
                         break;
+                    case "snoozedUntil":
+                        snoozeSet = true;
+                        snooze = isNull ? null : ParseDate(RequireString(v, "Zurückstellen bis"));
+                        break;
+                    case "waitingFor":
+                        waitingFor = isNull ? "" : RequireString(v, "Warte auf").Trim();
+                        break;
                     case "listId":
                         if (viaGrant) throw ApiException.Forbidden(grantLimit);
                         task.ListId = isNull ? null : await AccessibleListAsync(v.GetInt32(), ct);
@@ -473,6 +520,29 @@ public sealed class TaskService(
         else if (task.AssigneeId != previousAssignee && task.AssigneeId != me.Id)
         {
             task.MyDayOn = null;
+        }
+
+        // „Mein Tag“ heißt jetzt: Eine zurückgestellte Aufgabe ist damit wieder da.
+        if (myDay == true && !snoozeSet)
+        {
+            task.SnoozedUntil = null;
+        }
+
+        // Neue verantwortliche Person: Zurückstellen und „Warte auf …“ waren die Planung der bisherigen.
+        if (task.AssigneeId != previousAssignee && waitingFor is null && !snoozeSet)
+        {
+            if (task.SnoozedUntil is not null && myDay is null)
+            {
+                task.MyDayOn = null;
+            }
+            task.SnoozedUntil = null;
+            task.WaitingFor = "";
+            task.WaitingSince = null;
+        }
+
+        if (waitingFor is not null || snoozeSet)
+        {
+            ApplyWaitingAndSnooze(task, waitingFor, snoozeSet, snooze, viaGrant);
         }
 
         if (task.Recurrence != "" && task.DueDate is null)
@@ -520,6 +590,10 @@ public sealed class TaskService(
 
         var now = clock.UtcNow;
         task.Status = Values.Done;
+        // Erledigt: Es wird auf nichts mehr gewartet und nichts mehr zurückgestellt.
+        task.SnoozedUntil = null;
+        task.WaitingFor = "";
+        task.WaitingSince = null;
         task.CompletedAt = now;
         task.CompletedById = me.Id;
         task.CompletedBy = me.User;
@@ -731,6 +805,126 @@ public sealed class TaskService(
 
     // ---------------------------------------------------------------- Hilfen
 
+    /// <summary>
+    /// „Warte auf …“ und Zurückstellen. Beides plant die verantwortliche Person (oder ihre Vertretung
+    /// mit Freigabe zum Bearbeiten) – wer nur delegiert hat, blendet anderen nichts aus.
+    /// </summary>
+    private void ApplyWaitingAndSnooze(TaskItem task, string? waitingFor, bool snoozeSet, DateOnly? snooze, bool viaGrant)
+    {
+        if (task.AssigneeId != me.Id && !viaGrant)
+        {
+            throw ApiException.Invalid("Zurückstellen und „Warte auf …“ plant die verantwortliche Person selbst – diese Aufgabe liegt bei jemand anderem.");
+        }
+        if (task.IsDone)
+        {
+            throw ApiException.Invalid("Die Aufgabe ist schon erledigt.");
+        }
+
+        var today = clock.Today;
+        var previousWaiting = task.WaitingFor;
+        var wasSnoozed = task.SnoozedUntil is { } previous && previous > today;
+        var resumeNow = false;
+
+        if (waitingFor is not null)
+        {
+            if (waitingFor.Length > MaxWaitingFor)
+            {
+                throw ApiException.Invalid($"„Warte auf“ darf höchstens {MaxWaitingFor} Zeichen haben.");
+            }
+            if (waitingFor == "")
+            {
+                task.WaitingFor = "";
+                task.WaitingSince = null;
+                if (previousWaiting != "")
+                {
+                    AddEvent(task.Id, "antwort-da", previousWaiting);
+                    if (!snoozeSet)
+                    {
+                        task.SnoozedUntil = null;
+                        resumeNow = true;
+                    }
+                }
+            }
+            else
+            {
+                if (previousWaiting == "")
+                {
+                    task.WaitingSince = today;
+                }
+                task.WaitingFor = waitingFor;
+                // Ohne eigenen Tag: in einer Woche nachhaken. Wird nur der Name korrigiert, bleibt der Tag.
+                if (!snoozeSet && (previousWaiting == "" || task.SnoozedUntil is null))
+                {
+                    snoozeSet = true;
+                    snooze = DefaultFollowUp(today);
+                }
+            }
+        }
+
+        if (snoozeSet && snooze is { } until)
+        {
+            if (until <= today)
+            {
+                throw ApiException.Invalid("Bitte einen Tag ab morgen wählen.");
+            }
+            if (until > today.AddYears(2))
+            {
+                throw ApiException.Invalid("Höchstens zwei Jahre im Voraus.");
+            }
+            // Eine normale Aufgabe, die schon fällig ist, käme sofort zurück – die Fälligkeit geht vor.
+            if (task.WaitingFor == "" && task.Kind != "wiedervorlage" && task.DueDate is { } due && due <= today)
+            {
+                throw ApiException.Invalid("Die Aufgabe ist schon fällig – verschieb stattdessen die Fälligkeit.");
+            }
+            // Bei einer Wiedervorlage ist das Fälligkeitsdatum der Tag der Wiedervorlage – es wandert mit.
+            if (task.Kind == "wiedervorlage" && task.DueDate is { } resubmission && resubmission < until)
+            {
+                task.DueDate = until;
+            }
+            task.SnoozedUntil = until;
+            task.MyDayOn = until; // an dem Tag wieder oben in „Mein Tag“
+            task.FollowUpNotifiedAt = null;
+            if (task.WaitingFor != "")
+            {
+                AddEvent(task.Id, "warten", $"auf {task.WaitingFor}, nachhaken am {until:dd.MM.yyyy}");
+            }
+            else
+            {
+                AddEvent(task.Id, "zurueckgestellt", $"bis {until:dd.MM.yyyy}");
+            }
+        }
+        else if (snoozeSet)
+        {
+            task.SnoozedUntil = null;
+            resumeNow = true;
+            if (wasSnoozed && waitingFor is null)
+            {
+                AddEvent(task.Id, "zurueckgeholt", "");
+            }
+        }
+        else if (waitingFor is { Length: > 0 } && waitingFor != previousWaiting)
+        {
+            AddEvent(task.Id, "warten", $"auf {waitingFor}");
+        }
+
+        if (resumeNow)
+        {
+            // Wieder da – heute gibt es etwas zu tun.
+            task.MyDayOn = today;
+        }
+    }
+
+    /// <summary>Samstag und Sonntag auf den folgenden Montag schieben.</summary>
+    internal static DateOnly Workday(DateOnly day) => day.DayOfWeek switch
+    {
+        DayOfWeek.Saturday => day.AddDays(2),
+        DayOfWeek.Sunday => day.AddDays(1),
+        _ => day,
+    };
+
+    /// <summary>„Warte auf …“ ohne eigenen Tag: in einer Woche nachhaken, immer an einem Werktag.</summary>
+    internal static DateOnly DefaultFollowUp(DateOnly today) => Workday(today.AddDays(7));
+
     internal TaskItem BuildNextOccurrence(TaskItem task)
     {
         var baseDate = task.DueDate ?? clock.Today;
@@ -861,7 +1055,12 @@ public sealed class TaskService(
             t.CreatedById != t.AssigneeId,
             overdue,
             CanDelete(t),
-            t.Attachments.OrderBy(a => a.Id).Select(a => new AttachmentDto(a.Id, a.FileName, a.ContentType, a.Size)).ToList());
+            t.Attachments.OrderBy(a => a.Id).Select(a => new AttachmentDto(a.Id, a.FileName, a.ContentType, a.Size)).ToList(),
+            t.WaitingFor,
+            t.WaitingSince?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            t.SnoozedUntil?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            // Gerade ausgeblendet – eine Fälligkeit holt die Aufgabe früher zurück.
+            !t.IsDone && t.SnoozedUntil is { } snoozed && snoozed > today && !(t.DueDate is { } dueDay && dueDay <= today));
     }
 
     // ---------------------------------------------------------------- Validierung

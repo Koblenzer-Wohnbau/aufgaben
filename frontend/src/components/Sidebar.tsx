@@ -19,6 +19,7 @@ import {
   DocumentBulletListRegular,
   EyeRegular,
   HomeRegular,
+  HourglassHalfRegular,
   ListRegular,
   NumberSymbolRegular,
   PeopleRegular,
@@ -256,6 +257,7 @@ export function Sidebar({ route, open, overlay, online, onClose, onSettings }: P
         {item({ page: "tasks", view: "aufgaben" }, <HomeRegular />, "Aufgaben", c?.inbox)}
         {item({ page: "tasks", view: "zugewiesen" }, <PersonArrowLeftRegular />, "Mir zugewiesen", c?.assigned)}
         {item({ page: "tasks", view: "delegiert" }, <SendRegular />, "Wartet auf andere", c?.delegated)}
+        {item({ page: "tasks", view: "warteschleife" }, <HourglassHalfRegular />, "Warteschleife", c?.waiting, !!c?.waitingDue)}
         {item({ page: "tasks", view: "wiedervorlagen" }, <ClockAlarmRegular />, "Wiedervorlagen", c?.followUps)}
         {item({ page: "tasks", view: "erledigt" }, <CheckmarkCircleRegular />, "Erledigt")}
         {item({ page: "vorlagen" }, <DocumentBulletListRegular />, "Vorlagen")}

@@ -45,6 +45,7 @@ import { filesFrom, isPreviewable, uploadName, uploadProblem } from "../attachme
 import { initials, useApp } from "../context";
 import { fromLocalInput, RECURRENCE_LABEL, shortDateTime, toLocalInput } from "../dates";
 import type { Attachment, Task, TaskEvent } from "../types";
+import { LaterPanel } from "./LaterPanel";
 import { PersonPicker } from "./PersonPicker";
 
 const useStyles = makeStyles({
@@ -105,6 +106,10 @@ const EVENT_TEXT: Record<string, string> = {
   kommentar: "",
   anhang: "hat angehängt:",
   "anhang-entfernt": "hat den Anhang entfernt:",
+  warten: "wartet",
+  "antwort-da": "hat die Antwort erhalten von",
+  zurueckgestellt: "hat zurückgestellt",
+  zurueckgeholt: "hat die Aufgabe zurückgeholt",
 };
 
 /** Kleine Vorschau für Bildanhänge – mit Anmeldung geladen (in Teams per Token), danach freigegeben. */
@@ -330,6 +335,9 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
       {task.assignee.id === me.id && (
         <Switch label="Zu „Mein Tag“ hinzufügen" checked={task.myDay} onChange={(_, d) => patch({ myDay: d.checked })} />
       )}
+
+      {/* Später / Warte auf …: plant die verantwortliche Person (oder ihre Vertretung mit Freigabe) */}
+      {!done && <LaterPanel task={task} patch={patch} readOnly={!canEdit || (task.assignee.id !== me.id && !viaGrant)} />}
 
       <fieldset className={styles.fieldset} disabled={viaGrant}>
       <Field label="Verantwortlich" hint={task.isDelegated ? `Angelegt von ${task.createdBy.name}` : undefined}>

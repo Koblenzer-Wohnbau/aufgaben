@@ -46,7 +46,11 @@ public sealed record TaskDto(
     bool IsDelegated,
     bool IsOverdue,
     bool CanDelete,
-    List<AttachmentDto> Attachments);
+    List<AttachmentDto> Attachments,
+    string WaitingFor,
+    string? WaitingSince,
+    string? SnoozedUntil,
+    bool IsSnoozed);
 
 public sealed record AttachmentDto(int Id, string FileName, string ContentType, long Size);
 
@@ -84,7 +88,9 @@ public sealed record CountsDto(
     int Overdue,
     Dictionary<int, int> Lists,
     Dictionary<int, int> Projects,
-    int Inbox);
+    int Inbox,
+    int Waiting,
+    int WaitingDue);
 
 public sealed record SuggestionsDto(List<TaskDto> Yesterday, List<TaskDto> DueSoon, List<TaskDto> Important, List<TaskDto> Recent);
 

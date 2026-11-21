@@ -449,6 +449,9 @@ namespace Aufgaben.Api.Data.Migrations
                     b.Property<TimeOnly?>("DueTime")
                         .HasColumnType("time without time zone");
 
+                    b.Property<DateTimeOffset?>("FollowUpNotifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<string>("Kind")
                         .IsRequired()
                         .HasMaxLength(16)
@@ -483,6 +486,9 @@ namespace Aufgaben.Api.Data.Migrations
                     b.Property<DateTimeOffset?>("RemindedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<DateOnly?>("SnoozedUntil")
+                        .HasColumnType("date");
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -505,6 +511,14 @@ namespace Aufgaben.Api.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("integer");
 
+                    b.Property<string>("WaitingFor")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateOnly?>("WaitingSince")
+                        .HasColumnType("date");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CompletedById");
@@ -514,6 +528,8 @@ namespace Aufgaben.Api.Data.Migrations
                     b.HasIndex("ListId");
 
                     b.HasIndex("RemindAt");
+
+                    b.HasIndex("SnoozedUntil");
 
                     b.HasIndex("AssigneeId", "Status");
 
