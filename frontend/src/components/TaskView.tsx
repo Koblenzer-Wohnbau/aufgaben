@@ -15,6 +15,7 @@ import {
   Spinner,
   Text,
   Title2,
+  Tooltip,
   ToggleButton,
   tokens,
 } from "@fluentui/react-components";
@@ -39,6 +40,7 @@ import {
   SearchRegular,
   SendRegular,
   SnoozeRegular,
+  SparkleRegular,
   StarRegular,
   WeatherSunnyRegular,
 } from "@fluentui/react-icons";
@@ -78,6 +80,9 @@ const useStyles = makeStyles({
   sub: { color: tokens.colorNeutralForeground3 },
   tools: { display: "flex", gap: "8px", alignItems: "center" },
   add: { padding: "12px 32px 4px", "@media (max-width: 760px)": { padding: "8px 16px 4px" } },
+  addRow: { display: "flex", alignItems: "flex-start", gap: "8px" },
+  addInput: { flex: 1, minWidth: 0 },
+  aiButton: { flexShrink: 0, color: tokens.colorBrandForeground1 },
   compactAdd: { padding: "8px 16px 4px" },
   list: {
     flex: 1,
@@ -148,7 +153,7 @@ interface ViewInfo {
 
 export function TaskView({ route, compact }: { route: Extract<Route, { page: "tasks" }>; compact: boolean }) {
   const styles = useStyles();
-  const { today, lists, projects, me, selectedTaskId, notify } = useApp();
+  const { today, lists, projects, me, selectedTaskId, notify, openAi } = useApp();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [groupByPerson, setGroupByPerson] = useState(false);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
@@ -525,8 +530,17 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
         route.view !== "suche" &&
         route.view !== "person" &&
         route.view !== "warteschleife" && (
-          <div className={`${styles.add} ${compact ? styles.compactAdd : ""}`}>
-            <QuickAdd defaults={info.defaults} />
+          <div className={`${styles.add} ${styles.addRow} ${compact ? styles.compactAdd : ""}`}>
+            <div className={styles.addInput}>
+              <QuickAdd defaults={info.defaults} />
+            </div>
+            {me.aiAvailable && (
+              <Tooltip content="Mit KI erfassen – oder einfach irgendwo Strg+V drücken" relationship="label">
+                <Button className={styles.aiButton} size="large" icon={<SparkleRegular />} onClick={() => openAi()}>
+                  {compact ? "" : "KI"}
+                </Button>
+              </Tooltip>
+            )}
           </div>
         )
       )}

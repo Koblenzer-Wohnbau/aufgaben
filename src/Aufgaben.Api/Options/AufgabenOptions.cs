@@ -18,6 +18,7 @@ public sealed class AufgabenOptions
     public MailInboxOptions MailInbox { get; set; } = new();
     public WorkerOptions Worker { get; set; } = new();
     public DatabaseOptions Database { get; set; } = new();
+    public MistralOptions Mistral { get; set; } = new();
 
     public string NormalizedBaseUrl => BaseUrl.TrimEnd('/');
     public bool IsHttps => NormalizedBaseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
@@ -150,4 +151,33 @@ public sealed class DatabaseOptions
 {
     public bool AutoMigrate { get; set; } = true;
     public bool SeedExampleTemplates { get; set; } = true;
+}
+
+/// <summary>
+/// KI-Vorschläge über die Mistral-API (Standard: GLM 5.3). Standardmäßig aus – erst mit Enabled=true und
+/// einem Schlüssel gehen Texte an Mistral. Vorher Auftragsverarbeitung mit der/dem Datenschutzbeauftragten klären.
+/// </summary>
+public sealed class MistralOptions
+{
+    public bool Enabled { get; set; }
+
+    /// <summary>API-Schlüssel direkt in der .env. Alternativ <see cref="ApiKeyFile"/>.</summary>
+    public string ApiKey { get; set; } = "";
+
+    /// <summary>Datei mit dem Schlüssel, z. B. /certs/mistral.key (Ordner secrets/ im Container).</summary>
+    public string ApiKeyFile { get; set; } = "";
+
+    public string Model { get; set; } = "zai-glm-latest";
+
+    /// <summary>none, high oder max (max nur bei GLM); auto heißt bei GLM max, sonst high.</summary>
+    public string ReasoningEffort { get; set; } = "high";
+
+    /// <summary>Modell für die Texterkennung eingefügter Bildschirmfotos.</summary>
+    public string OcrModel { get; set; } = "mistral-ocr-4-0";
+
+    /// <summary>Höchstdauer eines Aufrufs. Mit Nachdenken dauern Antworten oft 10 bis 60 Sekunden.</summary>
+    public int TimeoutSeconds { get; set; } = 180;
+
+    /// <summary>Auch „Mail an Aufgabe“ mit KI auswerten (sonst nur die Erkennung im Betreff).</summary>
+    public bool MailInbox { get; set; } = true;
 }

@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { Me, Project, TaskList, UserRef } from "./types";
+import type { AiInput, Me, Project, TaskList, UserRef } from "./types";
 
 export interface AppData {
   me: Me;
@@ -10,6 +10,8 @@ export interface AppData {
   openTask: (id: number | null) => void;
   selectedTaskId: number | null;
   notify: (title: string, intent?: "success" | "error" | "info") => void;
+  /** KI-Dialog öffnen, optional schon mit Text oder Bildschirmfoto */
+  openAi: (input?: AiInput) => void;
 }
 
 export const AppContext = createContext<AppData | null>(null);

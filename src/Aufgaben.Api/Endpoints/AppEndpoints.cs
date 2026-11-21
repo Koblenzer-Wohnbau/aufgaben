@@ -4,6 +4,7 @@ using Aufgaben.Api.Data;
 using Aufgaben.Api.Infrastructure;
 using Aufgaben.Api.Options;
 using Aufgaben.Api.Services;
+using Aufgaben.Api.Services.Ai;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -28,9 +29,10 @@ public static class AppEndpoints
 
     private static void MapMe(RouteGroupBuilder api)
     {
-        api.MapGet("/me", (CurrentUser me, AppClock clock, TeamsNotifier teams, MailNotifier mail, IOptions<AufgabenOptions> opts) => ToMe(me.User, clock, teams, mail, opts.Value));
+        api.MapGet("/me", (CurrentUser me, AppClock clock, TeamsNotifier teams, MailNotifier mail, MistralClient ai, IOptions<AufgabenOptions> opts) =>
+            ToMe(me.User, clock, teams, mail, ai, opts.Value));
 
-        api.MapPatch("/me", async (MeRequest req, CurrentUser me, AppDbContext db, AppClock clock, TeamsNotifier teams, MailNotifier mail, IOptions<AufgabenOptions> opts, CancellationToken ct) =>
+        api.MapPatch("/me", async (MeRequest req, CurrentUser me, AppDbContext db, AppClock clock, TeamsNotifier teams, MailNotifier mail, MistralClient ai, IOptions<AufgabenOptions> opts, CancellationToken ct) =>
         {
             var user = me.User;
             if (req.NotifyChannel is not null)
@@ -44,7 +46,7 @@ public static class AppEndpoints
                 user.DigestEnabled = digest;
             }
             await db.SaveChangesAsync(ct);
-            return ToMe(user, clock, teams, mail, opts.Value);
+            return ToMe(user, clock, teams, mail, ai, opts.Value);
         });
 
         api.MapPost("/me/calendar-feed", async (CurrentUser me, AppDbContext db, IOptions<AufgabenOptions> opts, CancellationToken ct) =>
@@ -63,12 +65,13 @@ public static class AppEndpoints
         });
     }
 
-    private static MeDto ToMe(User u, AppClock clock, TeamsNotifier teams, MailNotifier mail, AufgabenOptions o) => new(
+    private static MeDto ToMe(User u, AppClock clock, TeamsNotifier teams, MailNotifier mail, MistralClient ai, AufgabenOptions o) => new(
         u.Id, u.DisplayName, u.Email, u.IsAdmin, u.NotifyChannel, u.DigestEnabled,
         u.TeamsSeenAt is not null, u.IcsTokenHash is not null, mail.IsAvailable, teams.IsAvailable,
         clock.Today.ToString("yyyy-MM-dd"),
         o.MailInbox.Enabled && !string.IsNullOrWhiteSpace(o.MailInbox.Address) ? o.MailInbox.Address : null,
-        o.Worker.DigestOnWeekends);
+        o.Worker.DigestOnWeekends,
+        ai.IsConfigured);
 
     // ------------------------------------------------------------------ Personen
 

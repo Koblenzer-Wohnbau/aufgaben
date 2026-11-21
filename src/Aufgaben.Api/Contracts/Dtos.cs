@@ -54,6 +54,32 @@ public sealed record TaskDto(
     DateTimeOffset? DeletedAt,
     UserRef? DeletedBy);
 
+// ---------------------------------------------------------------- KI-Vorschläge
+
+/// <summary>Text (E-Mail, Notiz, Protokoll) und/oder ein Bildschirmfoto als Data-URL (PNG, JPEG, WebP).</summary>
+public sealed record AiSuggestRequest(string? Text, string? Image);
+
+public sealed record AiOptionDto(string Value, string Label);
+
+/// <summary>Rückfrage zu einem unsicheren Feld: verantwortlich, faellig oder projekt.</summary>
+public sealed record AiQuestionDto(string Field, string Text, List<AiOptionDto> Options);
+
+/// <summary>Vorgeschlagene Aufgabe – noch nicht angelegt. Assignee null: bei der eingebenden Person.</summary>
+public sealed record AiTaskDraftDto(
+    string Title,
+    string? Notes,
+    string? DueDate,
+    string? DueTime,
+    string Priority,
+    string Kind,
+    UserRef? Assignee,
+    ProjectRef? Project,
+    List<string> Checklist,
+    string? Source,
+    List<AiQuestionDto> Questions);
+
+public sealed record AiSuggestionDto(List<AiTaskDraftDto> Tasks, string? Note, string Model);
+
 /// <summary>Aktion für mehrere Aufgaben: erledigen, loeschen, wiederherstellen, endgueltig-loeschen.</summary>
 public sealed record BulkRequest(string Action, List<int>? Ids);
 
@@ -80,7 +106,8 @@ public sealed record CreateTaskRequest(
     DateTimeOffset? RemindAt,
     bool? MyDay,
     string? Recurrence,
-    List<string>? Checklist);
+    List<string>? Checklist,
+    bool? FromAi = null);
 
 public sealed record ChecklistRequest(string? Title, bool? Done);
 
@@ -153,7 +180,8 @@ public sealed record MeDto(
     bool TeamsNotificationsAvailable,
     string Today,
     string? MailInboxAddress,
-    bool DigestOnWeekends);
+    bool DigestOnWeekends,
+    bool AiAvailable);
 
 public sealed record MeRequest(string? NotifyChannel, bool? DigestEnabled);
 
