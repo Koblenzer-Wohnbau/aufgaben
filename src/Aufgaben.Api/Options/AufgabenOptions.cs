@@ -82,6 +82,12 @@ public sealed class MailOptions
     /// <summary>Optional: PEM-Datei der internen Zertifizierungsstelle für STARTTLS.</summary>
     public string CaCertificatePath { get; set; } = "";
 
+    /// <summary>
+    /// Optional: Fingerabdruck (SHA-256 oder SHA-1) genau des Serverzertifikats, dem vertraut wird – für selbst
+    /// ausgestellte Zertifikate wie das Standardzertifikat von Exchange. Ersetzt dann jede andere Prüfung.
+    /// </summary>
+    public string CertificateThumbprint { get; set; } = "";
+
     public bool Enabled => !string.IsNullOrWhiteSpace(Host) && !string.IsNullOrWhiteSpace(From);
 }
 
@@ -104,6 +110,12 @@ public sealed class MailInboxOptions
 
     /// <summary>Optional: PEM der internen CA, falls der Mailserver ein internes Zertifikat hat.</summary>
     public string CaCertificatePath { get; set; } = "";
+
+    /// <summary>
+    /// Optional: Fingerabdruck (SHA-256 oder SHA-1) genau des Serverzertifikats – für selbst ausgestellte
+    /// Zertifikate wie das Standardzertifikat von Exchange. Ersetzt dann jede andere Prüfung.
+    /// </summary>
+    public string CertificateThumbprint { get; set; } = "";
 
     public string ProcessedFolder { get; set; } = "Verarbeitet";
     public string RejectedFolder { get; set; } = "Abgelehnt";
