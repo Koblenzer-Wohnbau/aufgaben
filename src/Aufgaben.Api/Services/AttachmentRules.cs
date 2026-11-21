@@ -84,6 +84,12 @@ public static class AttachmentRules
             return image;
         }
         var type = (declared ?? "").Split(';')[0].Trim().ToLowerInvariant();
+        // Ein angegebener Bildtyp ohne passende erste Bytes ist kein Bild (z. B. HTML als „bild.png“) –
+        // nicht übernehmen, sonst hielte die Oberfläche die Datei für ein Bild.
+        if (type.StartsWith("image/", StringComparison.Ordinal))
+        {
+            return "application/octet-stream";
+        }
         var valid = type.Length is > 2 and <= 127 && type.Count(c => c == '/') == 1
                     && type.All(c => char.IsAsciiLetterOrDigit(c) || c is '/' or '.' or '+' or '-');
         return valid ? type : "application/octet-stream";

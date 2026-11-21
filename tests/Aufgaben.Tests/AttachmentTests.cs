@@ -34,6 +34,9 @@ public class AttachmentRuleTests
         Assert.Equal("text/html", AttachmentRules.ContentType("text/html; charset=utf-8", "<p>x</p>"u8.ToArray()));
         Assert.Equal("application/octet-stream", AttachmentRules.ContentType("<script>alert(1)</script>", "x"u8.ToArray()));
         Assert.Equal("application/octet-stream", AttachmentRules.ContentType(null, "x"u8.ToArray()));
+        // Angegebener Bildtyp ohne Bildinhalt gilt nicht
+        Assert.Equal("application/octet-stream", AttachmentRules.ContentType("image/png", "<script>alert(1)</script>"u8.ToArray()));
+        Assert.Equal("application/octet-stream", AttachmentRules.ContentType("image/svg+xml", "<svg/>"u8.ToArray()));
     }
 
     [Theory]
@@ -67,12 +70,16 @@ public sealed class AttachmentApiTests(AppFixture app)
         return JsonSerializer.Deserialize<T>(body, JsonSerializerOptions.Web)!;
     }
 
-    private static Task<HttpResponseMessage> Upload(HttpClient client, int taskId, string name, byte[] data, string type = "application/octet-stream")
+    private static async Task<HttpResponseMessage> Upload(HttpClient client, int taskId, string name, byte[] data, string type = "application/octet-stream")
     {
-        var content = new ByteArrayContent(data);
+        using var content = new ByteArrayContent(data);
         content.Headers.ContentType = new MediaTypeHeaderValue(type);
-        return client.PostAsync($"/api/tasks/{taskId}/attachments?name={Uri.EscapeDataString(name)}", content);
+        return await client.PostAsync($"/api/tasks/{taskId}/attachments?name={Uri.EscapeDataString(name)}", content);
     }
+
+    /// <summary>Fehlermeldung aus der JSON-Antwort – im Rohtext stehen Umlaute als Escape-Folgen.</summary>
+    private static async Task<string> Error(HttpResponseMessage res) =>
+        JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement.GetProperty("error").GetString() ?? "";
 
     [Fact]
     public async Task Pasted_screenshot_is_stored_previewed_downloaded_and_removed()
@@ -112,17 +119,17 @@ public sealed class AttachmentApiTests(AppFixture app)
 
         // Ein „Bild“, das in Wahrheit HTML ist, bekommt keine Vorschau
         var fake = await Read<AttachmentDto>(await Upload(thomas, task.Id, "bild.png", Encoding.UTF8.GetBytes("<script>alert(1)</script>"), "image/png"));
-        Assert.NotEqual("image/png", fake.ContentType);
+        Assert.Equal("application/octet-stream", fake.ContentType);
         Assert.Equal(HttpStatusCode.NotFound, (await thomas.GetAsync($"/api/tasks/{task.Id}/attachments/{fake.Id}/vorschau")).StatusCode);
 
         var exe = await Upload(thomas, task.Id, "rechnung.pdf.exe", [0x4D, 0x5A, 0x90, 0x00]);
         Assert.Equal(HttpStatusCode.BadRequest, exe.StatusCode);
-        Assert.Contains(".exe", await exe.Content.ReadAsStringAsync());
+        Assert.Contains("„.exe“", await Error(exe));
 
         Assert.Equal(HttpStatusCode.BadRequest, (await Upload(thomas, task.Id, "leer.txt", [])).StatusCode);
         var tooLarge = await Upload(thomas, task.Id, "gross.bin", new byte[AttachmentRules.MaxFileBytes + 1]);
         Assert.Equal(HttpStatusCode.RequestEntityTooLarge, tooLarge.StatusCode);
-        Assert.Contains("10 MB", await tooLarge.Content.ReadAsStringAsync());
+        Assert.Contains("10 MB", await Error(tooLarge));
     }
 
     [Fact]
@@ -144,6 +151,6 @@ public sealed class AttachmentApiTests(AppFixture app)
         }
         var over = await Upload(thomas, task.Id, "zu-viel.txt", [1]);
         Assert.Equal(HttpStatusCode.BadRequest, over.StatusCode);
-        Assert.Contains($"{AttachmentRules.MaxPerTask} Anhänge", await over.Content.ReadAsStringAsync());
+        Assert.Contains($"{AttachmentRules.MaxPerTask} Anhänge", await Error(over));
     }
 }
