@@ -33,6 +33,9 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
   irgendwo `Strg+V` drücken – auch ein Bildschirmfoto. Die KI (GLM 5.3 über die Mistral-API) schlägt eine oder
   mehrere Aufgaben mit Person, Frist und Projekt vor und fragt bei Unklarem nach; angelegt wird erst nach
   Bestätigung. Standardmäßig aus (`Aufgaben__Mistral__…` in `.env`)
+* **„Als Aufgabe“ in Teams** (optional): an jeder Nachricht im „…“-Menü – öffnet die KI-Erfassung mit dem Text
+  der Nachricht direkt in Teams, der Link zur Nachricht kommt in die Notizen. Braucht eine kostenlose
+  Bot-Registrierung ohne Geheimnis, siehe [docs/teams-nachricht.md](docs/teams-nachricht.md)
 * **Mehrere Aufgaben auf einmal**: „Auswählen“ mit „Alle“ und Umschalt+Klick – erledigen, später oder löschen;
   „Erledigte löschen“ räumt in einem Schritt auf
 * **Papierkorb**: Gelöschtes bleibt 30 Tage wiederherstellbar und wird danach endgültig gelöscht
@@ -50,7 +53,7 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 | Datenbank | PostgreSQL 17 (EF Core, Migrationen beim Start) |
 | Anmeldung | Microsoft Entra ID: OpenID Connect im Browser (Microsoft.Identity.Web), Teams-SSO-Token als Bearer |
 | Microsoft Graph | App-Identität mit Zertifikat oder Clientschlüssel (Azure.Identity): Verzeichnisabgleich, Teams-Aktivitätsfeed |
-| E-Mail | SMTP (MailKit), z. B. über einen internen Exchange-Relay; Abruf des Aufgaben-Postfachs per IMAP |
+| E-Mail | SMTP (MailKit), z. B. Exchange-Clientempfang auf 587 ([docs/e-mail.md](docs/e-mail.md)); Abruf des Aufgaben-Postfachs per IMAP |
 | Frontend | React 19, Fluent UI v9 (Teams-Design, hell/dunkel/Kontrast), TeamsJS v2 |
 | Live-Updates | Server-Sent Events |
 | Betrieb | Docker Compose, Nginx davor, „chiseled“ .NET-Image ohne Shell und ohne Root |
@@ -121,8 +124,12 @@ cd frontend; npm test       # Tests der Schnelleingabe und des Freigabe-Formular
    VPN-Tunnel zum Server-Netz mit **dem VIP-Objekt als Ziel** (ein Adressobjekt mit derselben IP passt nicht).
 9. Entra-App einrichten (Checkliste unten). Teams-Paket: in der App unter **Verwaltung → System →
    „Teams-Paket herunterladen“** (der Server baut es aus seiner `.env`), dann im Teams Admin Center hochladen.
-   Ohne laufenden Server: `teams/build-package.ps1`.
-10. Sicherung einrichten: `deploy/backup/backup.sh`, Wiederherstellung prüfen: `deploy/backup/restore-test.sh`
+   Ohne laufenden Server: `teams/build-package.ps1`. Optional vorher „Als Aufgabe“ für Teams-Nachrichten
+   einrichten ([docs/teams-nachricht.md](docs/teams-nachricht.md)).
+10. E-Mail (optional): Senden über den Exchange-Server direkt auf Port 587 und „Mail an Aufgabe“ per IMAP –
+    [docs/e-mail.md](docs/e-mail.md) und [docs/mail-an-aufgabe.md](docs/mail-an-aufgabe.md). Erst Erreichbarkeit
+    und Zertifikat ohne Passwort prüfen: Fehlversuche können das Konto im AD sperren.
+11. Sicherung einrichten: `deploy/backup/backup.sh`, Wiederherstellung prüfen: `deploy/backup/restore-test.sh`
 
 Die App nimmt Schema und Host im Betrieb immer aus `Aufgaben__BaseUrl` – die Anmeldung funktioniert dadurch
 auch, wenn der Reverse Proxy `Host` oder `X-Forwarded-Proto` nicht richtig weiterreicht.

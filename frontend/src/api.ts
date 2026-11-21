@@ -1,6 +1,6 @@
 import type {
   Absence, AbsenceDecision, AbsenceItem, AbsencePlan, AbsenceStatus, AbsenceSummary,
-  AccessGrant, AccessLogEntry, AdminStatus, AiSuggestion, Attachment, AuthConfig, BulkAction, BulkResult, Counts, MyAccess, CreateTask, Me, Project, Suggestions, Task, TaskDetail, TaskEvent, TaskList, Template, UserRef, ViewKey,
+  AccessGrant, AccessLogEntry, AdminStatus, AiSuggestion, Attachment, AuthConfig, BulkAction, BulkResult, Counts, MyAccess, CreateTask, Me, Project, Suggestions, Task, TaskDetail, TaskEvent, TaskList, TeamsDraft, Template, UserRef, ViewKey,
 } from "./types";
 
 export class ApiError extends Error {
@@ -123,6 +123,8 @@ export const api = {
     return (await res.json()) as AiSuggestion;
   },
   deleteCompleted: () => request<BulkResult>("POST", "/api/tasks/erledigte-loeschen"),
+  /** „Als Aufgabe“ in Teams: den kurz gespeicherten Text der Nachricht holen */
+  teamsDraft: (id: string) => request<TeamsDraft>("GET", `/api/teams/entwurf/${encodeURIComponent(id)}`),
   emptyTrash: () => request<BulkResult>("POST", "/api/papierkorb/leeren"),
   addChecklist: (id: number, title: string) => request<Task>("POST", `/api/tasks/${id}/checklist`, { title }),
   updateChecklist: (id: number, itemId: number, body: { title?: string; done?: boolean }) =>

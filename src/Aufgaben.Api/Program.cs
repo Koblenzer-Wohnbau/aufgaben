@@ -141,6 +141,7 @@ builder.Services.AddHttpClient<MistralClient>(c =>
     c.Timeout = TimeSpan.FromSeconds(Math.Clamp(opts.Mistral.TimeoutSeconds, 10, 900));
 });
 builder.Services.AddScoped<TaskAssistant>();
+builder.Services.AddSingleton<TeamsDraftStore>();
 if (opts.Worker.Enabled)
 {
     builder.Services.AddHostedService<BackgroundWorker>();
@@ -226,6 +227,8 @@ api.MapAiEndpoints();
 api.MapAccessEndpoints();
 api.MapAbsenceEndpoints();
 api.MapEventStream();
+api.MapTeamsDrafts();
+app.MapTeamsBot(opts);
 
 app.MapFallback("/api/{**rest}", () => Results.NotFound(new { error = "Unbekannter Endpunkt." }));
 app.MapFallbackToFile("index.html", new StaticFileOptions

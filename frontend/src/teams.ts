@@ -89,6 +89,22 @@ export function registerChannelTabSave(save: () => Promise<{ projectId: number; 
   });
 }
 
+/**
+ * Fenster in Teams schließen, z. B. nach „Als Aufgabe“. Teams meldet das dem Bot (submitAction), der nichts
+ * weiter tut. Außerhalb von Teams geht es zurück in die App.
+ */
+export function closeTeamsDialog() {
+  try {
+    if (teamsJs) {
+      teamsJs.dialog.url.submit();
+      return;
+    }
+  } catch {
+    /* nicht als Fenster geöffnet */
+  }
+  window.location.hash = "#/";
+}
+
 export function setChannelTabValid(valid: boolean) {
   teams().pages.config.setValidityState(valid);
 }

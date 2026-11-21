@@ -1,5 +1,5 @@
 import { filesFrom } from "./attachments";
-import type { AiInput, AiOption, AiQuestion, AiTaskDraft, UserRef } from "./types";
+import type { AiInput, AiOption, AiQuestion, AiTaskDraft, TeamsDraft, UserRef } from "./types";
 
 /** KI-Eingabe: reine Hilfsfunktionen für den Dialog „Mit KI erfassen“ – testbar ohne Browser. */
 
@@ -115,7 +115,31 @@ export function currentOption(draft: AiTaskDraft, question: AiQuestion, meId: nu
 }
 
 /** Notizen der neuen Aufgabe: Zusammenfassung plus das Zitat, aus dem sie stammt. */
-export function draftNotes(draft: AiTaskDraft): string | undefined {
-  const parts = [draft.notes?.trim(), draft.source ? `Aus: „${draft.source}“` : null].filter(Boolean);
+export function draftNotes(draft: AiTaskDraft, link?: string): string | undefined {
+  const parts = [draft.notes?.trim(), draft.source ? `Aus: „${draft.source}“` : null, link ? `Teams-Nachricht: ${link}` : null].filter(Boolean);
   return parts.length ? parts.join("\n\n") : undefined;
+}
+
+/**
+ * Text für den KI-Dialog aus „Als Aufgabe“: Wer die Nachricht geschrieben hat, hilft der KI bei
+ * „kannst du …“ – gemeint ist dann die Person, die die Nachricht als Aufgabe übernimmt.
+ */
+export function teamsDraftText(draft: TeamsDraft, formatDate: (iso: string) => string = defaultDate): string {
+  const text = draft.text.trim();
+  if (!draft.from && !draft.sentAt) return text;
+  const head = ["Teams-Nachricht", draft.from ? `von ${draft.from}` : null, draft.sentAt ? `(${formatDate(draft.sentAt)})` : null].filter(Boolean).join(" ");
+  return text ? `${head}:\n${text}` : "";
+}
+
+/** Titel ohne KI: erste Zeile, die keine Anrede ist („Hallo Anna,“), höchstens 120 Zeichen. */
+export function plainTitle(text: string): string {
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  const greeting = /^(hallo|hi|hey|moin|servus|guten (morgen|tag|abend)|liebe[rs]?|sehr geehrte[rs]?)\b[^.!?]{0,40}[,!]?$/i;
+  const line = lines.find((l) => !greeting.test(l)) ?? lines[0] ?? "";
+  return line.length > 120 ? `${line.slice(0, 117)}…` : line;
+}
+
+function defaultDate(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleString("de-DE", { dateStyle: "medium", timeStyle: "short" });
 }

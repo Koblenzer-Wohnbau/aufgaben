@@ -33,6 +33,7 @@ const ChannelConfig = lazy(() => import("./components/ChannelConfig").then((m) =
 const AbsenceDialog = lazy(() => import("./components/AbsenceDialog").then((m) => ({ default: m.AbsenceDialog })));
 const AdminView = lazy(() => import("./components/AdminView").then((m) => ({ default: m.AdminView })));
 const AiCaptureDialog = lazy(() => import("./components/AiCaptureDialog").then((m) => ({ default: m.AiCaptureDialog })));
+const TeamsAiPage = lazy(() => import("./components/TeamsAiPage").then((m) => ({ default: m.TeamsAiPage })));
 
 function isTyping(target: EventTarget | null) {
   const el = target as HTMLElement | null;
@@ -268,6 +269,18 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
           <ChannelConfig teams={teams} />
         </Suspense>
         {confirmDialog}
+      </AppContext.Provider>
+    );
+  }
+
+  if (route.page === "teams-ki") {
+    return (
+      <AppContext.Provider value={data}>
+        <Suspense fallback={<Spinner style={{ marginTop: 48 }} />}>
+          <TeamsAiPage draftId={route.draft} />
+        </Suspense>
+        {confirmDialog}
+        <Toaster toasterId={toasterId} position="bottom-end" />
       </AppContext.Provider>
     );
   }

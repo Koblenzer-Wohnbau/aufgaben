@@ -63,9 +63,10 @@ Die Befehle in der Exchange-Verwaltungsshell ausführen. Namen und Adressen anpa
    IMAP muss nicht für alle Postfächer freigegeben sein – wer IMAP sonst nicht nutzt, kann es pro Postfach
    abschalten (`Set-CASMailbox <name> -ImapEnabled $false`). Vorher prüfen, ob Geräte oder Programme IMAP brauchen.
 
-4. **Firewall**: Port 993 des Exchange-Servers nur für die IP des Aufgaben-Servers öffnen.
-   Läuft die App außerhalb des Firmennetzes (z. B. gemieteter Server), gilt das für die öffentliche Adresse
-   bzw. den veröffentlichten IMAP-Endpunkt.
+4. **Firewall**: Steht der Aufgaben-Server im selben Netz wie Exchange, ist nichts zu tun – die App verbindet
+   sich ausgehend zum Exchange-Server. Liegt eine Firewall dazwischen, Port 993 (und 587 zum Senden) nur für die
+   IP des Aufgaben-Servers freigeben. Läuft die App außerhalb des Firmennetzes (z. B. gemieteter Server), gilt
+   das für die öffentliche Adresse bzw. den veröffentlichten IMAP-Endpunkt.
 
 5. **Aufbewahrung**: Für die Ordner `Verarbeitet` und `Abgelehnt` eine Aufbewahrungsrichtlinie setzen
    (z. B. Löschen nach 90 Tagen) – der Inhalt steckt ja schon in den Aufgaben.
@@ -75,32 +76,26 @@ Die Befehle in der Exchange-Verwaltungsshell ausführen. Namen und Adressen anpa
 ```bash
 Aufgaben__MailInbox__Enabled=true
 Aufgaben__MailInbox__Address=aufgaben@example.de
-Aufgaben__MailInbox__Host=mail.example.de
+Aufgaben__MailInbox__Host=exchange.example.de      # der Exchange-Server selbst, nicht ein Gateway
 Aufgaben__MailInbox__Port=993
 Aufgaben__MailInbox__Security=SslOnConnect
-Aufgaben__MailInbox__Username=aufgaben@example.de
+Aufgaben__MailInbox__Username=FIRMA\aufgaben       # oder aufgaben@example.de
 Aufgaben__MailInbox__Password=<Passwort des Postfachs>
-# Bei internem Zertifikat des Mailservers: PEM der Firmen-CA (im Container z. B. unter /certs)
+# Bei internem Zertifikat des Mailservers: PEM der Firmen-CA (im Container z. B. unter /certs) …
 Aufgaben__MailInbox__CaCertificatePath=
+# … oder der Fingerabdruck genau des Serverzertifikats (siehe unten)
+Aufgaben__MailInbox__CertificateThumbprint=
 Aufgaben__MailInbox__SenderCheck=exchange-intern
 Aufgaben__MailInbox__SendConfirmation=true
 ```
 
-Die Bestätigungsmails laufen über die SMTP-Einstellungen unter `Aufgaben__Mail__*`.
+> **Wichtig:** `Username` und `Password` müssen zum **Aufgaben-Postfach** gehören. Die App behandelt jede Mail im
+> Posteingang des angemeldeten Kontos als Auftrag und verschiebt sie danach nach `Verarbeitet` bzw. `Abgelehnt`.
+> Mit dem Konto einer Person oder eines anderen Dienstes würde sie dessen Posteingang leeren.
 
-**Senden mit Anmeldung an Exchange:** Port **587** des Exchange-Servers direkt verwenden (Empfangsconnector
-„Client Frontend“), nicht Port 25 und nicht ein vorgeschaltetes Mail-Gateway – dort scheitert die Anmeldung
-normaler Konten meist mit `535`. Auf 587 zeigt Exchange oft ebenfalls sein Standardzertifikat; dann denselben
-Fingerabdruck wie beim Abholen eintragen. Die App meldet sich mit Benutzername und Passwort an (LOGIN),
-auch wenn Exchange zusätzlich NTLM oder Kerberos anbietet.
-
-```ini
-Aufgaben__Mail__Host=mail.example.de
-Aufgaben__Mail__Port=587
-Aufgaben__Mail__Security=StartTls
-Aufgaben__Mail__Username=FIRMA\konto
-Aufgaben__Mail__CertificateThumbprint=AB:CD:…
-```
+Die Bestätigungsmails laufen über die SMTP-Einstellungen unter `Aufgaben__Mail__*` – Einrichtung, Ports und
+Fehlerbilder stehen in [e-mail.md](e-mail.md). Kurz: bei Exchange **Port 587 des Exchange-Servers direkt**,
+nicht Port 25 und nicht ein vorgeschaltetes Mail-Gateway.
 
 **Selbst ausgestelltes Exchange-Zertifikat:** Zeigt Exchange für IMAP nur sein Standardzertifikat
 (ausgestellt auf den Servernamen, z. B. `server.firma.local`), lehnt die App die Verbindung zunächst ab.
@@ -116,7 +111,9 @@ Aufgaben__MailInbox__CertificateThumbprint=AB:CD:…   # Ausgabe von oben, Doppe
 ```
 
 Wird das Exchange-Zertifikat erneuert, ändert sich der Fingerabdruck – dann den neuen eintragen.
-Sauberer ist ein Zertifikat einer öffentlichen oder der eigenen Zertifizierungsstelle am Exchange.
+Sauberer ist ein Zertifikat einer öffentlichen oder der eigenen Zertifizierungsstelle am Exchange. Zeigt
+Exchange auf 587 dasselbe Standardzertifikat, gehört derselbe Fingerabdruck auch in
+`Aufgaben__Mail__CertificateThumbprint` – aber nur dann (siehe [e-mail.md](e-mail.md)).
 
 ## Testen
 
@@ -125,6 +122,15 @@ Sauberer ist ein Zertifikat einer öffentlichen oder der eigenen Zertifizierungs
 3. Die Aufgabe erscheint in *Mein Tag* bzw. *Geplant*; die Mail liegt im Ordner `Verarbeitet`.
 4. Landet die Mail in `Abgelehnt`, steht der Grund im Log (`docker compose logs app`). Verwaltung → System zeigt
    nur die Zahl der abgelehnten Mails der letzten 7 Tage und das Ergebnis des letzten Abrufs.
+5. Kommt die Aufgabe an, aber keine Bestätigung, liegt es am Senden: Im Log steht dann
+   „Bestätigung für Aufgabe … konnte nicht gesendet werden“ mit dem Grund – Fehlerbilder in [e-mail.md](e-mail.md).
+
+| Im Log | Ursache |
+|---|---|
+| „Aufgaben-Postfach: 1 angelegt, 0 abgelehnt“ | alles in Ordnung |
+| Anmeldung scheitert (`AUTHENTICATE failed`) | Benutzername oder Passwort des Aufgaben-Postfachs falsch, oder IMAP für das Postfach aus (`Get-CASMailbox aufgaben`) |
+| Zeitüberschreitung | IMAP-Dienst gestoppt (`Get-Service MSExchangeIMAP4*`) oder Firewall verwirft Port 993 |
+| Zertifikat abgelehnt | Fingerabdruck fehlt oder passt nicht (siehe oben) |
 
 **Hinweis zur Absenderprüfung:** Die Kopfzeile `X-MS-Exchange-Organization-AuthAs` wird von Exchange
 gesetzt. Sollte sie in eurer Umgebung beim Abruf per IMAP fehlen (alle Mails landen mit „Nicht als interne
