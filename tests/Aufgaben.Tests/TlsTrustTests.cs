@@ -44,6 +44,18 @@ public class TlsTrustTests
         Assert.True(Check(callback, exchange, SslPolicyErrors.RemoteCertificateChainErrors));
     }
 
+    [Fact]
+    public void Smtp_login_uses_username_and_password_when_offered()
+    {
+        var exchange = new HashSet<string> { "GSSAPI", "NTLM", "LOGIN" };
+        SmtpLogin.PreferPassword(exchange);
+        Assert.Equal(["LOGIN"], exchange);
+
+        var onlyNtlm = new HashSet<string> { "NTLM" };
+        SmtpLogin.PreferPassword(onlyNtlm);
+        Assert.Equal(["NTLM"], onlyNtlm); // nichts anderes da – dann bleibt es dabei
+    }
+
     [Theory]
     [InlineData("12:34")]
     [InlineData("zz11223344556677889900aabbccddeeff00112233")]

@@ -167,7 +167,7 @@ function NewAbsence({ onClose }: { onClose: () => void }) {
 
 function Plan({ absence, onClose }: { absence: Absence; onClose: () => void }) {
   const styles = useStyles();
-  const { notify, openTask } = useApp();
+  const { notify, openTask, confirm } = useApp();
   const queryClient = useQueryClient();
   const plan = useQuery({ queryKey: ["absences", "plan", absence.id], queryFn: () => api.absencePlan(absence.id) });
   const [busy, setBusy] = useState(false);
@@ -205,16 +205,21 @@ function Plan({ absence, onClose }: { absence: Absence; onClose: () => void }) {
     });
 
   const end = async () => {
-    if (!window.confirm("Urlaub jetzt beenden? Behaltene Aufgaben sind sofort wieder da. Was bei der Vertretung liegt, holst du in „Mein Tag“ zurück.")) return;
+    const ok = await confirm({
+      title: "Urlaub jetzt beenden?",
+      text: "Behaltene Aufgaben sind sofort wieder da. Was bei der Vertretung liegt, holst du in „Mein Tag“ zurück.",
+      confirmLabel: "Urlaub beenden",
+    });
+    if (!ok) return;
     if (await run(async () => (await api.endAbsence(absence.id), "Willkommen zurück!"))) onClose();
   };
 
   const remove = async () => {
     const text =
       absence.handedOver > 0
-        ? `Urlaub löschen? Was noch bei ${absence.deputy.name} liegt, kommt zu dir zurück, und Zurückgestelltes ist wieder wie vorher.`
-        : "Urlaub löschen? Zurückgestelltes ist wieder wie vorher.";
-    if (!window.confirm(text)) return;
+        ? `Was noch bei ${absence.deputy.name} liegt, kommt zu dir zurück, und Zurückgestelltes ist wieder wie vorher.`
+        : "Zurückgestelltes ist wieder wie vorher.";
+    if (!(await confirm({ title: "Urlaub löschen?", text, confirmLabel: "Urlaub löschen" }))) return;
     if (await run(async () => (await api.deleteAbsence(absence.id), "Urlaub gelöscht"))) onClose();
   };
 

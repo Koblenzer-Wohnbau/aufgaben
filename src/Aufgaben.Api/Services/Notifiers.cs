@@ -170,6 +170,7 @@ public sealed class MailNotifier(IOptions<AufgabenOptions> options, ILogger<Mail
         await client.ConnectAsync(o.Mail.Host, o.Mail.Port, security, ct);
         if (!string.IsNullOrWhiteSpace(o.Mail.Username))
         {
+            SmtpLogin.PreferPassword(client.AuthenticationMechanisms);
             await client.AuthenticateAsync(o.Mail.Username, o.Mail.Password, ct);
         }
         await client.SendAsync(new SmtpSendRequest(message), ct);
@@ -213,6 +214,24 @@ public sealed class MailNotifier(IOptions<AufgabenOptions> options, ILogger<Mail
               </table>
             </body></html>
             """;
+    }
+}
+
+public static class SmtpLogin
+{
+    /// <summary>
+    /// Bietet der Server LOGIN oder PLAIN an, nur damit anmelden – wie OpenCloud und Outlook mit Benutzername und
+    /// Passwort. Exchange bietet zusätzlich GSSAPI und NTLM an: GSSAPI braucht Kerberos, das im Container fehlt,
+    /// und NTLM hängt von weiteren Exchange-Einstellungen ab. Die Verbindung ist zu dem Zeitpunkt schon verschlüsselt.
+    /// </summary>
+    public static void PreferPassword(HashSet<string> mechanisms)
+    {
+        static bool IsPassword(string m) =>
+            m.Equals("LOGIN", StringComparison.OrdinalIgnoreCase) || m.Equals("PLAIN", StringComparison.OrdinalIgnoreCase);
+        if (mechanisms.Any(IsPassword))
+        {
+            mechanisms.RemoveWhere(m => !IsPassword(m));
+        }
     }
 }
 

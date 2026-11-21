@@ -215,7 +215,7 @@ interface EditorProps {
 
 function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps) {
   const styles = useStyles();
-  const { projects, lists, users, me, notify } = useApp();
+  const { projects, lists, users, me, notify, confirm } = useApp();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState(task.title);
   const [notes, setNotes] = useState(task.notes);
@@ -509,11 +509,11 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
                     appearance="subtle"
                     icon={<DeleteRegular />}
                     aria-label={`${a.fileName} entfernen`}
-                    onClick={() => {
-                      if (window.confirm(`Anhang „${a.fileName}“ entfernen?`)) {
-                        void run(() => api.deleteAttachment(task.id, a.id), "Anhang entfernt");
-                      }
-                    }}
+                    onClick={() =>
+                      void confirm({ title: "Anhang entfernen?", text: a.fileName, confirmLabel: "Entfernen" }).then(
+                        (ok) => ok && run(() => api.deleteAttachment(task.id, a.id), "Anhang entfernt"),
+                      )
+                    }
                   />
                 )}
               </div>
