@@ -173,11 +173,13 @@ public sealed class TeamsDraftApiTests(AppFixture app)
         Assert.Equal("Thomas Becker", draft.GetProperty("from").GetString());
 
         var thomas = await app.LoginAsync("dev-thomas");
-        var res = await thomas.GetAsync($"/api/teams/entwurf/{id}");
+        using var res = await thomas.GetAsync($"/api/teams/entwurf/{id}");
         Assert.Equal(HttpStatusCode.NotFound, res.StatusCode);
         Assert.Contains("abgelaufen", await res.Content.ReadAsStringAsync());
 
         // Ohne Bot-ID gibt es den Endpunkt für Teams nicht
-        Assert.Equal(HttpStatusCode.NotFound, (await anna.PostAsync("/api/teams/bot", new StringContent("{}"))).StatusCode);
+        using var empty = new StringContent("{}");
+        using var bot = await anna.PostAsync("/api/teams/bot", empty);
+        Assert.Equal(HttpStatusCode.NotFound, bot.StatusCode);
     }
 }
