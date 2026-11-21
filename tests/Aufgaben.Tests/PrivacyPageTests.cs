@@ -175,7 +175,7 @@ public sealed class PrivacyPageApiTests(AppFixture app)
     [Fact]
     public async Task Privacy_page_shows_values_from_the_environment_as_text_with_security_headers()
     {
-        // Werte setzt AppFixture als Umgebungsvariablen – wie die .env in Docker Compose. Speicherdauer fehlt bewusst.
+        // Werte setzt AppFixture als Umgebungsvariablen, wie die .env in Docker Compose. Speicherdauer fehlt bewusst.
         var client = app.Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var res = await client.GetAsync("/datenschutz.html");
         var html = await res.Content.ReadAsStringAsync();

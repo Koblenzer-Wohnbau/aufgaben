@@ -100,7 +100,7 @@ public sealed class UserProvisioning(AppDbContext db, AppClock clock)
             }
         }
 
-        // Die Rolle steht in jedem Token. Fehlt sie, ist die Person keine Verwaltung (mehr) –
+        // Die Rolle steht in jedem Token. Fehlt sie, ist die Person keine Verwaltung (mehr):
         // auch wenn das Token gar keinen "roles"-Eintrag hat, weil ihr keine App-Rolle mehr zugewiesen ist.
         var admin = principal.HasAppRole(adminRole);
         if (admin != user.IsAdmin)

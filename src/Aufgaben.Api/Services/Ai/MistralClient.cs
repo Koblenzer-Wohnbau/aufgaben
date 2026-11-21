@@ -8,7 +8,7 @@ using Microsoft.Extensions.Options;
 
 namespace Aufgaben.Api.Services.Ai;
 
-/// <summary>Fehler beim KI-Dienst – die Meldung enthält nie Inhalte aus der Antwort (die können Mailtext enthalten).</summary>
+/// <summary>Fehler beim KI-Dienst, die Meldung enthält nie Inhalte aus der Antwort (die können Mailtext enthalten).</summary>
 public sealed class AiException(string message) : Exception(message);
 
 /// <summary>
@@ -20,7 +20,7 @@ public sealed class MistralClient(HttpClient http, IOptions<AufgabenOptions> opt
 {
     private MistralOptions O => options.Value.Mistral;
 
-    /// <summary>Warten vor einem neuen Versuch – in Tests austauschbar.</summary>
+    /// <summary>Warten vor einem neuen Versuch, in Tests austauschbar.</summary>
     internal Func<TimeSpan, CancellationToken, Task> Wait { get; set; } = Task.Delay;
 
     /// <summary>Eingeschaltet und ein Schlüssel vorhanden.</summary>
@@ -97,7 +97,7 @@ public sealed class MistralClient(HttpClient http, IOptions<AufgabenOptions> opt
         return ResponseText(content);
     }
 
-    /// <summary>Texterkennung für ein Bild (PNG, JPEG, WebP) – Ergebnis als Markdown je Seite.</summary>
+    /// <summary>Texterkennung für ein Bild (PNG, JPEG, WebP): Ergebnis als Markdown je Seite.</summary>
     public async Task<string> OcrImageAsync(byte[] image, string mediaType, CancellationToken ct)
     {
         var payload = new Dictionary<string, object?>
@@ -196,13 +196,13 @@ public sealed class MistralClient(HttpClient http, IOptions<AufgabenOptions> opt
                 {
                     var host = http.BaseAddress?.Host ?? "Mistral";
                     log.LogWarning("Mistral-Modell {Model} wird an {Host} nicht angeboten", model, host);
-                    throw new AiException($"Das KI-Modell „{model}“ wird an {host} nicht angeboten – bitte Aufgaben__Mistral__Model bzw. Aufgaben__Mistral__Region prüfen.");
+                    throw new AiException($"Das KI-Modell „{model}“ wird an {host} nicht angeboten, bitte Aufgaben__Mistral__Model bzw. Aufgaben__Mistral__Region prüfen.");
                 }
-                // Der Antworttext kann Teile des gesendeten Inhalts enthalten – nicht protokollieren.
+                // Der Antworttext kann Teile des gesendeten Inhalts enthalten, nicht protokollieren.
                 log.LogWarning("Mistral-Aufruf {Path} fehlgeschlagen: HTTP {Status}", path, status);
                 throw new AiException(status switch
                 {
-                    401 or 403 => "Der KI-Schlüssel wird nicht angenommen – bitte die Einrichtung prüfen.",
+                    401 or 403 => "Der KI-Schlüssel wird nicht angenommen, bitte die Einrichtung prüfen.",
                     429 => "Die KI ist gerade ausgelastet. Bitte gleich noch einmal versuchen.",
                     _ => $"Der KI-Dienst hat einen Fehler gemeldet (HTTP {status}).",
                 });
@@ -211,7 +211,7 @@ public sealed class MistralClient(HttpClient http, IOptions<AufgabenOptions> opt
     }
 
     /// <summary>
-    /// Fehlerart „unbekanntes Modell“ erkennen. Gelesen wird nur das Feld „type“ bzw. der Anfang der Meldung –
+    /// Fehlerart „unbekanntes Modell“ erkennen. Gelesen wird nur das Feld „type“ bzw. der Anfang der Meldung:
     /// der übrige Antworttext kann Inhalte der Anfrage enthalten und wird nicht weitergegeben.
     /// </summary>
     internal static async Task<bool> IsUnknownModelAsync(HttpResponseMessage response, CancellationToken ct)

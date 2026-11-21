@@ -13,7 +13,7 @@ export interface AppData {
   notify: (title: string, intent?: "success" | "error" | "info") => void;
   /** KI-Dialog öffnen, optional schon mit Text oder Bildschirmfoto */
   openAi: (input?: AiInput) => void;
-  /** Rückfrage als Dialog – statt window.confirm, das Teams in Tabs blockiert. true = bestätigt. */
+  /** Rückfrage als Dialog, statt window.confirm, das Teams in Tabs blockiert. true = bestätigt. */
   confirm: (request: ConfirmRequest) => Promise<boolean>;
 }
 
@@ -48,7 +48,7 @@ export function matchUser(users: UserRef[], query: string): UserRef | undefined 
 
 /**
  * Kürzel für die Schnelleingabe, das genau diese Person trifft: Nachname, Vorname oder der
- * Anfang der E-Mail-Adresse – je nachdem, was eindeutig ist (z. B. bei gleichen Nachnamen).
+ * Anfang der E-Mail-Adresse, je nachdem, was eindeutig ist (z. B. bei gleichen Nachnamen).
  */
 export function mentionFor(user: UserRef, users: UserRef[]): string {
   const parts = user.name.split(/\s+/).filter(Boolean);

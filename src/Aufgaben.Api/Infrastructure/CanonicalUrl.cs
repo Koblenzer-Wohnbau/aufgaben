@@ -6,7 +6,7 @@ namespace Aufgaben.Api.Infrastructure;
 /// Die App ist nur über den Reverse Proxy erreichbar, ihre Adresse steht fest. Damit hängen die
 /// Rückleitung nach der Anmeldung (redirect_uri), sichere Cookies und erzeugte Links nicht mehr davon
 /// ab, dass der Proxy <c>Host</c> und <c>X-Forwarded-Proto</c> richtig weiterreicht. Fehlte das, schickte
-/// die App Entra z. B. <c>http://127.0.0.1:8090/signin-oidc</c> – Entra lehnt das ab (AADSTS50011).
+/// die App Entra z. B. <c>http://127.0.0.1:8090/signin-oidc</c>, Entra lehnt das ab (AADSTS50011).
 /// Die Adresse der Clients (X-Forwarded-For) wertet weiterhin die Forwarded-Headers-Middleware aus.
 /// </summary>
 public static class CanonicalUrl

@@ -147,7 +147,7 @@ function NewAbsence({ onClose }: { onClose: () => void }) {
             {rangeLabel(from, until)} · wieder da am {weekdayDate(returnDay(until))}
           </Caption1>
         )}
-        <Field label="Vertretung" required hint="Bekommt die Aufgaben, die du übergibst – wie eine normale Zuweisung mit Benachrichtigung.">
+        <Field label="Vertretung" required hint="Bekommt die Aufgaben, die du übergibst, wie eine normale Zuweisung mit Benachrichtigung.">
           <PersonPicker users={users.filter((u) => u.id !== me.id)} value={deputy} onChange={setDeputy} placeholder="Name, E-Mail oder Funktion" />
         </Field>
         <Text className={styles.muted}>
@@ -260,7 +260,7 @@ function Plan({ absence, onClose }: { absence: Absence; onClose: () => void }) {
           <Text className={styles.muted}>
             {undecided > 0
               ? `Noch ${taskCount(undecided)} zu entscheiden. Übergeben heißt: ${deputyFirst} wird verantwortlich und bekommt eine Benachrichtigung. Nach dem Urlaub holst du sie mit einem Klick zurück.`
-              : "Alles entschieden. Du kannst den Dialog schließen – nach dem Urlaub zeigt „Mein Tag“, was passiert ist."}
+              : "Alles entschieden. Du kannst den Dialog schließen, nach dem Urlaub zeigt „Mein Tag“, was passiert ist."}
           </Text>
         )}
         <div className={styles.list}>
@@ -272,7 +272,7 @@ function Plan({ absence, onClose }: { absence: Absence; onClose: () => void }) {
               disabled={busy}
               onDone={refresh}
               onOpen={() => {
-                // Der Dialog liegt über allem – zum Ansehen schließen, er lässt sich jederzeit wieder öffnen.
+                // Der Dialog liegt über allem, zum Ansehen schließen, er lässt sich jederzeit wieder öffnen.
                 openTask(i.taskId);
                 onClose();
               }}

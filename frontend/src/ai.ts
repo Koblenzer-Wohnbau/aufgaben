@@ -1,7 +1,7 @@
 import { filesFrom } from "./attachments";
 import type { AiInput, AiOption, AiQuestion, AiTaskDraft, TeamsDraft, UserRef } from "./types";
 
-/** KI-Eingabe: reine Hilfsfunktionen für den Dialog „Mit KI erfassen“ – testbar ohne Browser. */
+/** KI-Eingabe: reine Hilfsfunktionen für den Dialog „Mit KI erfassen“: testbar ohne Browser. */
 
 /** Muss zu AiEndpoints.MaxImageBytes passen: Bild nach dem Verkleinern, damit Text und Bild unter 1 MB bleiben. */
 export const MAX_AI_IMAGE_BYTES = 600 * 1024;
@@ -21,7 +21,7 @@ export function dataUrlBytes(url: string): number {
 
 /**
  * Bildschirmfoto verkleinern und als JPEG-Data-URL liefern. Erst groß und scharf (für die Texterkennung),
- * nur wenn nötig kleiner – bis es unter die Grenze passt.
+ * nur wenn nötig kleiner, bis es unter die Grenze passt.
  */
 export async function imageToDataUrl(blob: Blob): Promise<string> {
   const bitmap = await createImageBitmap(blob);
@@ -47,7 +47,7 @@ export async function imageToDataUrl(blob: Blob): Promise<string> {
   } finally {
     bitmap.close();
   }
-  throw new Error("Das Bild ist zu groß – bitte einen kleineren Ausschnitt einfügen.");
+  throw new Error("Das Bild ist zu groß, bitte einen kleineren Ausschnitt einfügen.");
 }
 
 /** Inhalt der Zwischenablage für den KI-Dialog: erstes Bild und/oder Text; null, wenn nichts Brauchbares dabei ist. */
@@ -66,7 +66,7 @@ export function modelLabel(model: string): string {
   return model || "KI";
 }
 
-/** Was während des Wartens dasteht – Nachdenken braucht oft 10 bis 60 Sekunden. */
+/** Was während des Wartens dasteht, Nachdenken braucht oft 10 bis 60 Sekunden. */
 export function thinkingText(seconds: number): string {
   if (seconds < 4) return "Die KI liest den Text …";
   if (seconds < 20) return `Die KI denkt nach … ${seconds} s`;
@@ -84,7 +84,7 @@ export function joinNames(names: string[]): string {
 export function createdMessage(count: number, notified: string[]): string {
   const head = count === 1 ? "Aufgabe angelegt" : `${count} Aufgaben angelegt`;
   if (notified.length === 0) return head;
-  return `${head} – ${joinNames(notified)} ${notified.length === 1 ? "wurde" : "wurden"} benachrichtigt`;
+  return `${head}, ${joinNames(notified)} ${notified.length === 1 ? "wurde" : "wurden"} benachrichtigt`;
 }
 
 /** Antwort auf eine Rückfrage übernehmen: Feld setzen, die Frage gilt als beantwortet. */
@@ -102,7 +102,7 @@ export function applyAnswer<T extends AiTaskDraft>(draft: T, question: AiQuestio
   }
 }
 
-/** Welche Option gerade gewählt ist (passt zum Feldwert) – für die Hervorhebung der Antwortknöpfe. */
+/** Welche Option gerade gewählt ist (passt zum Feldwert), für die Hervorhebung der Antwortknöpfe. */
 export function currentOption(draft: AiTaskDraft, question: AiQuestion, meId: number): string | null {
   switch (question.field) {
     case "verantwortlich":
@@ -122,7 +122,7 @@ export function draftNotes(draft: AiTaskDraft, link?: string): string | undefine
 
 /**
  * Text für den KI-Dialog aus „Als Aufgabe“: Wer die Nachricht geschrieben hat, hilft der KI bei
- * „kannst du …“ – gemeint ist dann die Person, die die Nachricht als Aufgabe übernimmt.
+ * „kannst du …“: gemeint ist dann die Person, die die Nachricht als Aufgabe übernimmt.
  */
 export function teamsDraftText(draft: TeamsDraft, formatDate: (iso: string) => string = defaultDate): string {
   const text = draft.text.trim();

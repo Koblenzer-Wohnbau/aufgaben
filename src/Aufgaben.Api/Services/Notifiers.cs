@@ -13,7 +13,7 @@ using MimeKit;
 
 namespace Aufgaben.Api.Services;
 
-/// <summary>Texte für Benachrichtigungen – einmal definiert, für Teams und E-Mail genutzt.</summary>
+/// <summary>Texte für Benachrichtigungen, einmal definiert, für Teams und E-Mail genutzt.</summary>
 public static class NotificationTexts
 {
     public static (string ActivityType, string Subject, string Preview) For(Notification n) => n.Kind switch
@@ -22,8 +22,8 @@ public static class NotificationTexts
         NotificationOutbox.Completed => ("taskCompleted", $"Erledigt: {n.Title}", $"{n.ActorName} hat „{n.Title}“ erledigt"),
         NotificationOutbox.Commented => ("taskCommented", $"Neuer Kommentar: {n.Title}", $"{n.ActorName}: {Shorten(n.Body, 120)}"),
         NotificationOutbox.Reminder => ("taskReminder", $"Erinnerung: {n.Title}", $"Erinnerung: {n.Title}"),
-        // Nutzt die vorhandene Aktivität "taskReminder" – so braucht es kein neues Teams-Paket.
-        NotificationOutbox.FollowUp => ("taskReminder", $"Nachhaken: {n.Title}", $"Noch keine Antwort von {n.ActorName} – nachhaken?"),
+        // Nutzt die vorhandene Aktivität "taskReminder", so braucht es kein neues Teams-Paket.
+        NotificationOutbox.FollowUp => ("taskReminder", $"Nachhaken: {n.Title}", $"Noch keine Antwort von {n.ActorName}, nachhaken?"),
         // Nutzt die vorhandene Aktivität "taskAssigned": „{person} hat dir „12 Aufgaben für die Urlaubsvertretung“ zugewiesen“.
         NotificationOutbox.Handover => ("taskAssigned", $"{n.ActorName} hat dir {n.Title} übergeben", $"{n.ActorName} hat dir {n.Title} übergeben"),
         NotificationOutbox.Digest => ("dailyDigest", n.Title, n.Title),
@@ -179,7 +179,7 @@ public sealed class MailNotifier(IOptions<AufgabenOptions> options, ILogger<Mail
 
     /// <summary>
     /// HTML der Benachrichtigungen. Bewusst mit Tabellen, festen Breiten und echten Zeilenumbrüchen:
-    /// Outlook am PC stellt Mails mit Word dar und kennt weder max-width noch white-space:pre-wrap –
+    /// Outlook am PC stellt Mails mit Word dar und kennt weder max-width noch white-space:pre-wrap:
     /// mit div und pre-wrap schrumpfte der Text dort auf eine schmale Spalte bzw. eine einzige Zeile.
     /// </summary>
     internal static string Html(string headline, string? body, string link)
@@ -220,7 +220,7 @@ public sealed class MailNotifier(IOptions<AufgabenOptions> options, ILogger<Mail
 public static class SmtpLogin
 {
     /// <summary>
-    /// Bietet der Server LOGIN oder PLAIN an, nur damit anmelden – wie OpenCloud und Outlook mit Benutzername und
+    /// Bietet der Server LOGIN oder PLAIN an, nur damit anmelden, wie OpenCloud und Outlook mit Benutzername und
     /// Passwort. Exchange bietet zusätzlich GSSAPI und NTLM an: GSSAPI braucht Kerberos, das im Container fehlt,
     /// und NTLM hängt von weiteren Exchange-Einstellungen ab. Die Verbindung ist zu dem Zeitpunkt schon verschlüsselt.
     /// </summary>
@@ -240,7 +240,7 @@ public static class TlsTrust
 {
     /// <summary>
     /// Prüfregel für TLS zum Mailserver. Ohne Angaben: Standardprüfung (öffentlich vertrauenswürdig, Name passt).
-    /// Mit Fingerabdruck: genau dieses eine Serverzertifikat wird akzeptiert – auch selbst ausgestellt und
+    /// Mit Fingerabdruck: genau dieses eine Serverzertifikat wird akzeptiert, auch selbst ausgestellt und
     /// unter anderem Namen (z. B. das Standardzertifikat von Exchange); jedes andere wird abgelehnt.
     /// Mit CA-Datei: Zertifikate dieser Zertifizierungsstelle, der Name muss passen.
     /// </summary>

@@ -75,7 +75,7 @@ function Root() {
   );
 }
 
-// Installierbare App (PWA) – nicht in Teams, dort lädt Teams die Seite selbst.
+// Installierbare App (PWA), nicht in Teams, dort lädt Teams die Seite selbst.
 if (!inTeams && "serviceWorker" in navigator && window.isSecureContext && import.meta.env.PROD) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(() => {

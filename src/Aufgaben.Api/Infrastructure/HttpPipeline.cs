@@ -41,7 +41,7 @@ public sealed class ErrorMiddleware(RequestDelegate next, ILogger<ErrorMiddlewar
         }
         catch (OperationCanceledException) when (ctx.RequestAborted.IsCancellationRequested)
         {
-            // Browser hat die Verbindung geschlossen – kein Fehler.
+            // Browser hat die Verbindung geschlossen, kein Fehler.
         }
         catch (Exception ex) when (!ctx.Response.HasStarted)
         {

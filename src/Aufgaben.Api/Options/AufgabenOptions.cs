@@ -44,7 +44,7 @@ public sealed class AuthOptions
 
     /// <summary>
     /// Höchstdauer einer Browser-Sitzung ab der Anmeldung in Stunden, auch bei ständiger Nutzung.
-    /// Danach ist eine neue Anmeldung nötig – so kommen in Entra geänderte Rollen spätestens dann an.
+    /// Danach ist eine neue Anmeldung nötig, so kommen in Entra geänderte Rollen spätestens dann an.
     /// </summary>
     public int MaxSessionHours { get; set; } = 24;
 
@@ -91,7 +91,7 @@ public sealed class MailOptions
     public string CaCertificatePath { get; set; } = "";
 
     /// <summary>
-    /// Optional: Fingerabdruck (SHA-256 oder SHA-1) genau des Serverzertifikats, dem vertraut wird – für selbst
+    /// Optional: Fingerabdruck (SHA-256 oder SHA-1) genau des Serverzertifikats, dem vertraut wird, für selbst
     /// ausgestellte Zertifikate wie das Standardzertifikat von Exchange. Ersetzt dann jede andere Prüfung.
     /// </summary>
     public string CertificateThumbprint { get; set; } = "";
@@ -120,7 +120,7 @@ public sealed class MailInboxOptions
     public string CaCertificatePath { get; set; } = "";
 
     /// <summary>
-    /// Optional: Fingerabdruck (SHA-256 oder SHA-1) genau des Serverzertifikats – für selbst ausgestellte
+    /// Optional: Fingerabdruck (SHA-256 oder SHA-1) genau des Serverzertifikats, für selbst ausgestellte
     /// Zertifikate wie das Standardzertifikat von Exchange. Ersetzt dann jede andere Prüfung.
     /// </summary>
     public string CertificateThumbprint { get; set; } = "";
@@ -131,7 +131,7 @@ public sealed class MailInboxOptions
 
     /// <summary>
     /// "exchange-intern": nur Mails, die Exchange als intern authentifiziert gestempelt hat
-    /// (Kopfzeile X-MS-Exchange-Organization-AuthAs: Internal) – schützt vor gefälschten Absendern.
+    /// (Kopfzeile X-MS-Exchange-Organization-AuthAs: Internal): schützt vor gefälschten Absendern.
     /// "bekannte-absender": nur prüfen, ob der Absender eine bekannte Person ist (für andere Mailserver;
     /// dann unbedingt serverseitig externe Absender für das Postfach sperren).
     /// </summary>
@@ -200,7 +200,7 @@ public sealed class PrivacyOptions
 }
 
 /// <summary>
-/// KI-Vorschläge über die Mistral-API (Standard: GLM 5.3). Standardmäßig aus – erst mit Enabled=true und
+/// KI-Vorschläge über die Mistral-API (Standard: GLM 5.3). Standardmäßig aus, erst mit Enabled=true und
 /// einem Schlüssel gehen Texte an Mistral. Vorher Auftragsverarbeitung mit der/dem Datenschutzbeauftragten klären.
 /// </summary>
 public sealed class MistralOptions

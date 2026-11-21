@@ -22,7 +22,7 @@ public sealed class RoleAndMyDayTests(AppFixture app)
     [Fact]
     public async Task Admin_flag_is_removed_when_the_token_no_longer_carries_the_role()
     {
-        // Sitzung ohne Rolle, in der Datenbank aber noch als Verwaltung markiert –
+        // Sitzung ohne Rolle, in der Datenbank aber noch als Verwaltung markiert:
         // so sieht es aus, nachdem die App-Rolle in Entra entzogen wurde.
         var maria = await app.LoginAsync("dev-maria");
         await app.WithDbAsync(db => db.Users.Where(u => u.EntraOid == "dev-maria")

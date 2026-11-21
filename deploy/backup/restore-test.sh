@@ -32,4 +32,4 @@ for table in users projects tasks task_events templates; do
   count=$(docker exec "$container" psql -U aufgaben -d aufgaben -tAc "select count(*) from $table")
   printf '  %-12s %s\n' "$table" "$count"
 done
-echo "Wiederherstellungstest erfolgreich – Datum und Zahlen im Betriebsprotokoll festhalten."
+echo "Wiederherstellungstest erfolgreich, Datum und Zahlen im Betriebsprotokoll festhalten."

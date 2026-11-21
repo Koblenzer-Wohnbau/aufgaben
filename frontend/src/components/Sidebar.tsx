@@ -131,7 +131,7 @@ interface NavItemProps {
   onNavigate: () => void;
 }
 
-/** Eintrag der Seitenleiste – zugleich Ablageziel für gezogene Aufgaben. */
+/** Eintrag der Seitenleiste, zugleich Ablageziel für gezogene Aufgaben. */
 function NavItem({ to, active, icon, label, count, accent, extra, onNavigate }: NavItemProps) {
   const styles = useStyles();
   const { today, notify } = useApp();

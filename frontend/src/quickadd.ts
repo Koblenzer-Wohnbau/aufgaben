@@ -5,7 +5,7 @@
  *   "Montag 10 Uhr Angebot Dachdecker prüfen #1001 @Becker !hoch"
  *   → Titel "Angebot Dachdecker prüfen", Mo, 10:00, Projekt "1001", Person "Becker", hoch
  *
- * Läuft komplett im Browser – keine KI, keine Daten nach außen.
+ * Läuft komplett im Browser, keine KI, keine Daten nach außen.
  */
 
 export type Recurrence = "taeglich" | "werktags" | "woechentlich" | "monatlich" | "jaehrlich";

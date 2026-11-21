@@ -65,12 +65,12 @@ export interface Task {
   isOverdue: boolean;
   canDelete: boolean;
   attachments: Attachment[];
-  /** „Warte auf …“ – leer, wenn auf niemanden gewartet wird */
+  /** „Warte auf …“: leer, wenn auf niemanden gewartet wird */
   waitingFor: string;
   waitingSince: string | null;
   /** Zurückgestellt bis (bei „Warte auf …“: Tag zum Nachhaken) */
   snoozedUntil: string | null;
-  /** Gerade ausgeblendet – eine Fälligkeit holt die Aufgabe früher zurück */
+  /** Gerade ausgeblendet, eine Fälligkeit holt die Aufgabe früher zurück */
   isSnoozed: boolean;
   /** Im Papierkorb seit … (nur in der Ansicht „Papierkorb“ gesetzt) */
   deletedAt: string | null;
@@ -89,7 +89,7 @@ export interface AiQuestion {
   options: AiOption[];
 }
 
-/** Vorgeschlagene Aufgabe – noch nicht angelegt. assignee null: bei der eingebenden Person. */
+/** Vorgeschlagene Aufgabe, noch nicht angelegt. assignee null: bei der eingebenden Person. */
 export interface AiTaskDraft {
   title: string;
   notes: string | null;
@@ -114,7 +114,7 @@ export interface AiSuggestion {
 export interface AiInput {
   text?: string;
   image?: Blob;
-  /** Link zur Quelle, z. B. der Teams-Nachricht – kommt in die Notizen jeder angelegten Aufgabe */
+  /** Link zur Quelle, z. B. der Teams-Nachricht, kommt in die Notizen jeder angelegten Aufgabe */
   link?: string;
 }
 
@@ -230,7 +230,7 @@ export interface AdminStatus {
   lastMailInboxResult: string | null;
   rejectedMailsLast7Days: number;
   version: string;
-  /** Pflichtangaben der Datenschutzhinweise, die in der .env fehlen – leer = vollständig. */
+  /** Pflichtangaben der Datenschutzhinweise, die in der .env fehlen, leer = vollständig. */
   privacyMissing: string[];
 }
 
@@ -288,7 +288,7 @@ export interface DeputyInfo {
 export interface AbsenceStatus {
   /** eingetragener oder laufender eigener Urlaub */
   current: Absence | null;
-  /** zurück – „Was ist passiert?“ ist noch nicht geschlossen */
+  /** zurück, „Was ist passiert?“ ist noch nicht geschlossen */
   returned: Absence | null;
   deputy: DeputyInfo[];
 }

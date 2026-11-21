@@ -37,7 +37,7 @@ export function LoginScreen() {
       <Card className={styles.card}>
         <CheckmarkCircleRegular className={styles.logo} />
         <Title2>Aufgaben</Title2>
-        <Text>Deine Aufgaben, Delegationen und Projektaufgaben an einem Ort – im Browser und in Teams.</Text>
+        <Text>Deine Aufgaben, Delegationen und Projektaufgaben an einem Ort, im Browser und in Teams.</Text>
         {config.isLoading && <Spinner size="tiny" />}
         {config.data?.mode === "entra" && (
           <Button appearance="primary" size="large" as="a" href={`/auth/login?returnUrl=${returnUrl}`}>

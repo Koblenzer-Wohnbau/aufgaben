@@ -2,7 +2,7 @@ import type { BulkResult } from "./types";
 
 /** Auswahl mehrerer Aufgaben und Papierkorb: reine Hilfsfunktionen, damit sie testbar bleiben. */
 
-/** Tage, die gelöschte Aufgaben im Papierkorb bleiben – muss zu TaskService.TrashDays passen. */
+/** Tage, die gelöschte Aufgaben im Papierkorb bleiben, muss zu TaskService.TrashDays passen. */
 export const TRASH_DAYS = 30;
 
 /**
@@ -53,5 +53,5 @@ export function bulkMessage(action: "erledigen" | "loeschen" | "wiederherstellen
   const head = `${tasksLabel(r.done)} ${what}`;
   if (r.skipped === 0) return head;
   const why = action === "loeschen" ? "nicht von dir angelegt" : "nicht erlaubt oder nicht mehr vorhanden";
-  return `${head} – ${r.skipped} übersprungen (${why})`;
+  return `${head}, ${r.skipped} übersprungen (${why})`;
 }

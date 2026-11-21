@@ -9,7 +9,7 @@ namespace Aufgaben.Api.Services;
 
 /// <summary>
 /// Baut das Teams-App-Paket (ZIP mit manifest.json und den beiden Symbolen) aus der laufenden
-/// Konfiguration. So passt das Paket immer zur Adresse, zur Entra-App und zur Version des Servers –
+/// Konfiguration. So passt das Paket immer zur Adresse, zur Entra-App und zur Version des Servers:
 /// ohne lokales Skript und ohne dass Werte der Organisation in einem öffentlichen Build landen.
 /// Vorlage und Symbole stammen aus teams/ und sind in die Anwendung eingebettet.
 /// </summary>
@@ -39,11 +39,11 @@ public static partial class TeamsPackage
     {
         if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps)
         {
-            return "Aufgaben__BaseUrl muss mit https:// beginnen – Teams lädt nur Seiten über HTTPS.";
+            return "Aufgaben__BaseUrl muss mit https:// beginnen. Teams lädt nur Seiten über HTTPS.";
         }
         if (IpAddress().IsMatch(uri.Host))
         {
-            return "Aufgaben__BaseUrl braucht einen DNS-Namen, keine IP-Adresse – Teams akzeptiert keine IP-Adressen.";
+            return "Aufgaben__BaseUrl braucht einen DNS-Namen, keine IP-Adresse. Teams akzeptiert keine IP-Adressen.";
         }
         if (!Guid.TryParse(clientId, out _))
         {
@@ -52,7 +52,7 @@ public static partial class TeamsPackage
         if (!Guid.TryParse(appId, out _))
         {
             return "Aufgaben__Teams__AppId fehlt in der .env. Einmalig eine neue GUID eintragen (PowerShell: [guid]::NewGuid()) " +
-                   "und danach nie mehr ändern – sonst hält Teams das Paket für eine andere App.";
+                   "und danach nie mehr ändern, sonst hält Teams das Paket für eine andere App.";
         }
         return null;
     }
@@ -86,7 +86,7 @@ public static partial class TeamsPackage
                     ["id"] = TeamsBot.CommandId,
                     ["type"] = "action",
                     ["title"] = "Als Aufgabe",
-                    ["description"] = "Aus dieser Nachricht eine Aufgabe machen – mit KI-Vorschlag",
+                    ["description"] = "Aus dieser Nachricht eine Aufgabe machen, mit KI-Vorschlag",
                     ["context"] = new JsonArray("message"),
                     ["fetchTask"] = true,
                 }),

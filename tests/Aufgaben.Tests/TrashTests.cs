@@ -117,7 +117,7 @@ public sealed class TrashTests(AppFixture app)
 
         var result = await Read<BulkResultDto>(await maria.PostAsync("/api/tasks/erledigte-loeschen", null));
         Assert.True(result.Done >= 2);
-        Assert.True(result.Skipped >= 1); // von Anna angelegt – bleibt
+        Assert.True(result.Skipped >= 1); // von Anna angelegt, bleibt
         var trash = await View(maria, "papierkorb");
         Assert.Contains(trash, t => t.Id == a.Id);
         Assert.Contains(trash, t => t.Id == b.Id);

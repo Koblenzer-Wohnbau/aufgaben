@@ -37,7 +37,7 @@ describe("Urlaubsübergabe", () => {
   it("schlägt ab dem nächsten Werktag eine Arbeitswoche vor", () => {
     expect(suggestedAbsence("2026-11-20")).toEqual({ from: "2026-11-23", until: "2026-11-27" });
     expect(suggestedAbsence("2026-11-24")).toEqual({ from: "2026-11-25", until: "2026-11-27" });
-    expect(rangeLabel("2026-11-23", "2026-12-04")).toBe("Mo 23.11. – Fr 4.12.");
+    expect(rangeLabel("2026-11-23", "2026-12-04")).toBe("Mo 23.11. bis Fr 4.12.");
     expect(rangeLabel("2026-11-23", "2026-11-23")).toBe("Mo 23.11.");
   });
 
@@ -61,7 +61,7 @@ describe("Urlaubsübergabe", () => {
     const today = "2026-11-24";
     const from = "2026-11-26";
     expect(reasonLabel(item({ dueDate: "2026-11-20" }), from, today)).toEqual({ text: "überfällig seit Fr 20.11.", danger: true });
-    expect(reasonLabel(item({ dueDate: "2026-11-25" }), from, today).text).toBe("fällig morgen – noch vor dem Urlaub");
+    expect(reasonLabel(item({ dueDate: "2026-11-25" }), from, today).text).toBe("fällig morgen, noch vor dem Urlaub");
     expect(reasonLabel(item({ dueDate: "2026-11-30", kind: "wiedervorlage" }), from, today).text).toBe("Wiedervorlage Mo 30.11.");
     expect(reasonLabel(item({ waitingFor: "Fa. Müller", followUp: "2026-11-23" }), from, today)).toEqual({
       text: "Warte auf Fa. Müller · nachhaken seit Mo 23.11.",
@@ -75,14 +75,14 @@ describe("Urlaubsübergabe", () => {
     const back = "2026-12-07";
     expect(decisionLabel(item({ decision: "uebergeben", assignee: jonas }), jonas.id, back, today)).toBe("An Jonas Wagner übergeben");
     expect(decisionLabel(item({ decision: "uebergeben", assignee: anna }), jonas.id, back, today)).toBe("Liegt jetzt bei Anna Schneider");
-    expect(decisionLabel(item({ decision: "behalten" }), jonas.id, back, today)).toBe("Bleibt bei dir – wieder da am Mo 7.12.");
-    expect(decisionLabel(item({ decision: "behalten", dueDate: "2026-11-20" }), jonas.id, back, today)).toBe("Bleibt bei dir – die Frist ist schon da");
+    expect(decisionLabel(item({ decision: "behalten" }), jonas.id, back, today)).toBe("Bleibt bei dir, wieder da am Mo 7.12.");
+    expect(decisionLabel(item({ decision: "behalten", dueDate: "2026-11-20" }), jonas.id, back, today)).toBe("Bleibt bei dir, die Frist ist schon da");
     expect(decisionLabel(item({ decision: "behalten", dueDate: "2026-12-02" }), jonas.id, back, today)).toBe(
-      "Bleibt bei dir – ausgeblendet bis zur Fälligkeit Mi 2.12.",
+      "Bleibt bei dir, ausgeblendet bis zur Fälligkeit Mi 2.12.",
     );
     // Wiedervorlage und Nachhaken wandern mit
     expect(decisionLabel(item({ decision: "behalten", kind: "wiedervorlage", dueDate: "2026-12-02" }), jonas.id, back, today)).toBe(
-      "Bleibt bei dir – wieder da am Mo 7.12.",
+      "Bleibt bei dir, wieder da am Mo 7.12.",
     );
     expect(decisionLabel(item({}), jonas.id, back, today)).toBe("");
   });

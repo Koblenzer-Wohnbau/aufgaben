@@ -22,7 +22,7 @@ export function draggedTaskId(e: DragEvent): number | null {
 }
 
 /**
- * Was passiert, wenn eine Aufgabe auf diesem Ziel abgelegt wird – oder null, wenn das Ziel nichts annimmt.
+ * Was passiert, wenn eine Aufgabe auf diesem Ziel abgelegt wird, oder null, wenn das Ziel nichts annimmt.
  * remove: in den Papierkorb legen statt Felder zu ändern.
  */
 export function dropPatch(to: Route, today: string): { patch?: Record<string, unknown>; remove?: true; label: string } | null {

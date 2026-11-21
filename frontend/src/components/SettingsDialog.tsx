@@ -69,7 +69,7 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
         <DialogBody>
           <DialogTitle>Einstellungen</DialogTitle>
           <DialogContent className={styles.content}>
-            <Field label="Benachrichtigungen" hint="„Automatisch“ nutzt Teams, sobald du die App einmal in Teams geöffnet hast – sonst E-Mail.">
+            <Field label="Benachrichtigungen" hint="„Automatisch“ nutzt Teams, sobald du die App einmal in Teams geöffnet hast, sonst E-Mail.">
               <RadioGroup value={me.notifyChannel} onChange={(_, d) => update({ notifyChannel: d.value as typeof me.notifyChannel })}>
                 <Radio value="auto" label="Automatisch" />
                 <Radio value="teams" label="Teams-Aktivitätsfeed" disabled={!me.teamsNotificationsAvailable} />
@@ -87,7 +87,7 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
             {me.mailInboxAddress && (
               <Field label="Mail an Aufgabe">
                 <Text className={styles.muted}>
-                  Leite eine E-Mail an diese Adresse weiter – daraus wird eine Aufgabe mit Text und Anhängen. Im Betreff funktioniert dasselbe wie in der
+                  Leite eine E-Mail an diese Adresse weiter, daraus wird eine Aufgabe mit Text und Anhängen. Im Betreff funktioniert dasselbe wie in der
                   Schnelleingabe: #Projekt, @Person, !hoch, „wv“, heute, morgen oder ein Datum wie 30.11.
                 </Text>
                 <div className={styles.row}>
@@ -104,7 +104,7 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
 
             <Field label="Wer darf meine Aufgaben sehen?">
               {aboutMe.data && aboutMe.data.grants.length === 0 && (
-                <Text className={styles.muted}>Niemand – deine persönlichen Aufgaben siehst nur du.</Text>
+                <Text className={styles.muted}>Niemand. Deine persönlichen Aufgaben siehst nur du.</Text>
               )}
               {aboutMe.data?.grants.map((g) => (
                 <Text key={g.id} block>
@@ -131,7 +131,7 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
 
             <Field label="Aufgaben im Outlook-Kalender">
               <Text className={styles.muted}>
-                Ein persönlicher Link, den Outlook als zusätzlichen Kalender abonniert. Aufgaben mit Termin erscheinen dort – getrennt von deinen echten Terminen. Der Link ist geheim; wer ihn hat, sieht deine Aufgaben mit Termin.
+                Ein persönlicher Link, den Outlook als zusätzlichen Kalender abonniert. Aufgaben mit Termin erscheinen dort, getrennt von deinen echten Terminen. Der Link ist geheim; wer ihn hat, sieht deine Aufgaben mit Termin.
               </Text>
               {feedUrl ? (
                 <>

@@ -1,4 +1,4 @@
-/** Texte für den Verlauf einer Aufgabe – im Detailbereich und in „Was ist passiert?“. */
+/** Texte für den Verlauf einer Aufgabe, im Detailbereich und in „Was ist passiert?“. */
 export const EVENT_TEXT: Record<string, string> = {
   angelegt: "hat die Aufgabe angelegt",
   zugewiesen: "hat zugewiesen",
@@ -19,7 +19,7 @@ export const EVENT_TEXT: Record<string, string> = {
   "vertretung-zurueck": "hat die Aufgabe von der Urlaubsvertretung zurückgenommen,",
 };
 
-/** Was passiert ist, ohne die Person davor – Kommentare stehen im Verlauf für sich, hier bleibt die Zeile leer. */
+/** Was passiert ist, ohne die Person davor, Kommentare stehen im Verlauf für sich, hier bleibt die Zeile leer. */
 export function eventLine(e: { kind: string; text: string }): string {
   if (e.kind === "angelegt" && e.text) return `hat die Aufgabe ${e.text} angelegt`;
   if (e.kind === "kommentar") return "";

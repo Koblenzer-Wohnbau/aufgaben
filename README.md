@@ -1,6 +1,6 @@
 # Aufgaben
 
-**Aufgabenverwaltung für Microsoft Teams und den Browser – ohne Exchange Online.**
+**Aufgabenverwaltung für Microsoft Teams und den Browser, ohne Exchange Online.**
 
 <img width="458" height="916" alt="image" src="https://github.com/user-attachments/assets/c5a4915d-929d-4c1b-9d29-ff1c3a5f86ea" />
 
@@ -15,29 +15,29 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 * **Ziehen und Ablegen**: Aufgabe auf „Mein Tag“, „Wichtig“, eine Liste oder ein Projekt ziehen; Sortierung nach
   Fälligkeit, Wichtigkeit, Alphabet oder Datum; Tastenkürzel `n` (neue Aufgabe), `/` (Suche), `Esc`
 * **Delegieren mit Rückmeldung**: Benachrichtigung im Teams-Aktivitätsfeed oder per E-Mail, Status live
-* **Projektaufgaben** als Tab im Teams-Kanal – für alle sichtbar
+* **Projektaufgaben** als Tab im Teams-Kanal, für alle sichtbar
 * **Schnelleingabe** auf Deutsch: `Montag 10 Uhr Angebot prüfen #1001 @Becker !hoch`
 * **Vorlagen** für wiederkehrende Abläufe (Beispiele: Mieterwechsel, Wohnungsabnahme, Mängelmeldung)
-* **Mail an Aufgabe**: Mail an ein eigenes Postfach weiterleiten – fertig ist die Aufgabe mit Text und Anhängen
+* **Mail an Aufgabe**: Mail an ein eigenes Postfach weiterleiten, fertig ist die Aufgabe mit Text und Anhängen
   (IMAP, sicher auch mit Exchange Server on-premises, siehe [docs/mail-an-aufgabe.md](docs/mail-an-aufgabe.md))
-* **Anhänge direkt an der Aufgabe**: Screenshot mit `Strg+V` einfügen, Dateien hineinziehen oder auswählen –
+* **Anhänge direkt an der Aufgabe**: Screenshot mit `Strg+V` einfügen, Dateien hineinziehen oder auswählen,
   bis 10 MB pro Datei, Vorschau für Bilder, Programme und Skripte gesperrt, Download statt Anzeige im Browser
-* **Warte auf …** und **Später**: Aufgabe auf „Warte auf Fa. Müller“ setzen oder bis Montag zurückstellen – sie
+* **Warte auf …** und **Später**: Aufgabe auf „Warte auf Fa. Müller“ setzen oder bis Montag zurückstellen, sie
   verschwindet aus den Listen in die **Warteschleife** und steht am Tag zum Nachhaken wieder in „Mein Tag“,
   mit Erinnerung per Teams oder E-Mail. Eine Fälligkeit holt sie immer früher zurück
-* **Urlaubsübergabe**: Urlaub mit Vertretung eintragen, dann für jede Aufgabe, die im Urlaub fällig wird, entscheiden –
+* **Urlaubsübergabe**: Urlaub mit Vertretung eintragen, dann für jede Aufgabe, die im Urlaub fällig wird, entscheiden:
   an die Vertretung übergeben (mit Hinweis) oder bis nach dem Urlaub zurückstellen, auf Wunsch alles mit einem Klick.
   Die Vertretung sieht ein Banner mit den übergebenen Aufgaben; nach der Rückkehr zeigt „Mein Tag“, was passiert ist,
   und holt Offenes mit „Zurück an mich“ zurück. Im Urlaub kommt keine Tagesübersicht
 * **Mit KI erfassen** (optional): eine Teams-Nachricht, Mail oder ein Protokoll kopieren und in Aufgaben
-  irgendwo `Strg+V` drücken – auch ein Bildschirmfoto. Die KI (GLM 5.3 über die Mistral-API) schlägt eine oder
+  irgendwo `Strg+V` drücken, auch ein Bildschirmfoto. Die KI (GLM 5.3 über die Mistral-API) schlägt eine oder
   mehrere Aufgaben mit Person, Frist und Projekt vor und fragt bei Unklarem nach; angelegt wird erst nach
   Bestätigung. Standardmäßig aus (`Aufgaben__Mistral__…` in `.env`). Mit `Aufgaben__Mistral__Region=eu` rechnet
   Mistral nur in Rechenzentren in der EU/EFTA (EU-Endpunkt, 10 % Aufpreis); die Datenschutzseite nennt den Standort
-* **„Als Aufgabe“ in Teams** (optional): an jeder Nachricht im „…“-Menü – öffnet die KI-Erfassung mit dem Text
+* **„Als Aufgabe“ in Teams** (optional): an jeder Nachricht im „…“-Menü, öffnet die KI-Erfassung mit dem Text
   der Nachricht direkt in Teams, der Link zur Nachricht kommt in die Notizen. Braucht eine kostenlose
   Bot-Registrierung ohne Geheimnis, siehe [docs/teams-nachricht.md](docs/teams-nachricht.md)
-* **Mehrere Aufgaben auf einmal**: „Auswählen“ mit „Alle“ und Umschalt+Klick – erledigen, später oder löschen;
+* **Mehrere Aufgaben auf einmal**: „Auswählen“ mit „Alle“ und Umschalt+Klick, erledigen, später oder löschen;
   „Erledigte löschen“ räumt in einem Schritt auf
 * **Papierkorb**: Gelöschtes bleibt 30 Tage wiederherstellbar und wird danach endgültig gelöscht
 * **Kalender-Feed** für Outlook, **Tagesübersicht** am Morgen, **Wiedervorlagen**
@@ -79,7 +79,7 @@ cd frontend; npm ci; npm run build; cd ..          # Oberfläche nach wwwroot ba
 dotnet run --project src/Aufgaben.Api              # http://localhost:5080
 ```
 
-Im Entwicklungsmodus meldest du dich mit erfundenen Testpersonen an – ohne Entra. Dieser Login startet nur
+Im Entwicklungsmodus meldest du dich mit erfundenen Testpersonen an, ohne Entra. Dieser Login startet nur
 mit einer `localhost`-Adresse und `Aufgaben:Auth:AllowDevLogin=true` und verweigert sonst den Start.
 
 Oberfläche mit Hot Reload: zusätzlich `cd frontend; npm run dev` (Port 5173, leitet API-Aufrufe an 5080 weiter).
@@ -93,7 +93,7 @@ cd frontend; npm test       # Tests der Schnelleingabe und des Freigabe-Formular
 
 ### Installation
 
-1. SSH-Zugang einrichten – Windows: `deploy/server/ssh-zugang-einrichten.ps1 -Server <IP> -User <name>`,
+1. SSH-Zugang einrichten. Windows: `deploy/server/ssh-zugang-einrichten.ps1 -Server <IP> -User <name>`,
    Linux/macOS (z. B. Fedora): `bash deploy/server/ssh-zugang-einrichten.sh -s <IP> -u <name>`
    (erzeugt den Schlüssel, trägt ihn ein, testet den Login, legt Kurznamen wie `ssh <hostname>` an).
    Aktuelle Fassung mit Import aus der Zwischenablage: <https://github.com/zerox80/ssh-hardening>
@@ -102,7 +102,7 @@ cd frontend; npm test       # Tests der Schnelleingabe und des Freigabe-Formular
 3. Repository auf den Server holen, `.env.example` nach `.env` kopieren und ausfüllen (`chmod 600 .env`),
    dabei auch die Angaben für die Datenschutzhinweise (siehe unten)
 4. Anmeldung der App bei Entra: App-Zertifikat als `secrets/app.pfx` (lesbar für UID 1654, den Benutzer im
-   Container) – oder übergangsweise ein Clientschlüssel (`AzureAd__ClientCredentials__0__SourceType=ClientSecret`,
+   Container), oder übergangsweise ein Clientschlüssel (`AzureAd__ClientCredentials__0__SourceType=ClientSecret`,
    `…__ClientSecret=` mit dem **Wert**, nicht der „Geheimen ID“)
 5. Starten: `docker compose pull && docker compose up -d` (selbst bauen statt herunterladen: `compose.build.yaml`)
 6. TLS-Zertifikat, z. B. per DNS-Challenge über Cloudflare:
@@ -119,7 +119,7 @@ cd frontend; npm test       # Tests der Schnelleingabe und des Freigabe-Formular
    ```
 
    Der dritte `-e`-Ausdruck schaltet die Sperre für fremde Adressen aus (öffentlich erreichbar, Schutz durch den
-   Entra-Login). Nicht `sed -i` auf der fertigen Datei wiederholen – das verdoppelt Einträge.
+   Entra-Login). Nicht `sed -i` auf der fertigen Datei wiederholen, das verdoppelt Einträge.
 8. Netz: Im eigenen Netz die Domain per Split-DNS auf die interne Adresse des Servers zeigen lassen. Steht der
    Server hinter einer Firewall mit Portweiterleitung (VIP), brauchen VPN-Clients eine eigene Regel vom
    VPN-Tunnel zum Server-Netz mit **dem VIP-Objekt als Ziel** (ein Adressobjekt mit derselben IP passt nicht).
@@ -127,18 +127,18 @@ cd frontend; npm test       # Tests der Schnelleingabe und des Freigabe-Formular
    „Teams-Paket herunterladen“** (der Server baut es aus seiner `.env`), dann im Teams Admin Center hochladen.
    Ohne laufenden Server: `teams/build-package.ps1`. Optional vorher „Als Aufgabe“ für Teams-Nachrichten
    einrichten ([docs/teams-nachricht.md](docs/teams-nachricht.md)).
-10. E-Mail (optional): Senden über den Exchange-Server direkt auf Port 587 und „Mail an Aufgabe“ per IMAP –
+10. E-Mail (optional): Senden über den Exchange-Server direkt auf Port 587 und „Mail an Aufgabe“ per IMAP:
     [docs/e-mail.md](docs/e-mail.md) und [docs/mail-an-aufgabe.md](docs/mail-an-aufgabe.md). Erst Erreichbarkeit
     und Zertifikat ohne Passwort prüfen: Fehlversuche können das Konto im AD sperren.
 11. Sicherung einrichten: `deploy/backup/backup.sh`, Wiederherstellung prüfen: `deploy/backup/restore-test.sh`
 
-Die App nimmt Schema und Host im Betrieb immer aus `Aufgaben__BaseUrl` – die Anmeldung funktioniert dadurch
+Die App nimmt Schema und Host im Betrieb immer aus `Aufgaben__BaseUrl`. Die Anmeldung funktioniert dadurch
 auch, wenn der Reverse Proxy `Host` oder `X-Forwarded-Proto` nicht richtig weiterreicht.
 
 ### Datenschutzhinweise
 
 Die Seite `/datenschutz.html` (im Teams-Paket als Datenschutz-URL hinterlegt) baut der Server aus einer
-eingebetteten Vorlage und den Angaben in der `.env` – am Image ändert sich nichts:
+eingebetteten Vorlage und den Angaben in der `.env`. Am Image ändert sich nichts:
 
 | Variable | Inhalt |
 |---|---|
@@ -154,13 +154,13 @@ Aufgaben__Privacy__Controller=Beispiel GmbH | Musterstraße 1 | 12345 Musterstad
 
 * `|` (oder `\n`) trennt Zeilen; die Werte erscheinen als reiner Text, HTML aus der `.env` wird nie ausgeführt.
 * Fehlt eine Pflichtangabe, steht an der Stelle weiter der Platzhalter, und oben bleibt der gelbe Hinweis „Vorlage“.
-  Er verschwindet erst, wenn alle Pflichtangaben gesetzt sind – mit KI-Vorschlägen auch `Aufgaben__Privacy__Ai`.
+  Er verschwindet erst, wenn alle Pflichtangaben gesetzt sind, mit KI-Vorschlägen auch `Aufgaben__Privacy__Ai`.
 * Mit eingeschalteter KI beschreibt die Seite selbst, was an die Mistral-API geht (Text bzw. Bildschirmfoto, eingebende
   Person, Namen und Funktionen der aktiven Personen, Projektbezeichnungen) und was nicht. Mit `Aufgaben__Teams__BotId`
   kommt ein Absatz zu „Als Aufgabe“ an Teams-Nachrichten dazu.
 * Ob alles vollständig ist, zeigt **Verwaltung → System → Datenschutzhinweise** (mit Link auf die Seite).
 * Nach einer Änderung der `.env`: `sudo docker compose up -d` (legt den Container mit den neuen Werten neu an).
-* Die Texte sind eine Vorlage – vor dem Betrieb von der bzw. dem Datenschutzbeauftragten prüfen lassen.
+* Die Texte sind eine Vorlage, vor dem Betrieb von der bzw. dem Datenschutzbeauftragten prüfen lassen.
 
 ### Updates
 
@@ -179,19 +179,19 @@ Zurück auf die vorherige Version: alte Nummer in `.env` eintragen und denselben
 
 Ab der Version mit hochladbaren Anhängen braucht Nginx eine eigene `location` für
 `/api/tasks/<id>/attachments` mit `client_max_body_size 11m` (in beiden Vorlagen unter `deploy/nginx/`
-enthalten). Die Nginx-Seite deshalb einmal aus der aktuellen Vorlage neu schreiben – sonst lehnt Nginx
+enthalten). Die Nginx-Seite deshalb einmal aus der aktuellen Vorlage neu schreiben, sonst lehnt Nginx
 Dateien über 1 MB mit „413“ ab.
 Vor Updates mit Datenbankänderungen vorher `deploy/backup/backup.sh` laufen lassen.
 
 Organisationsspezifisches (Domain, Mandant, Mailserver, Zertifikate) steht **nur** in `.env` und `secrets/`
-auf dem Server – nie im Repository.
+auf dem Server, nie im Repository.
 
-## Entra-App – Checkliste
+## Entra-App: Checkliste
 
 1. App-Registrierung „Aufgaben“, nur eigener Mandant
 2. Authentifizierung → Plattform **Web**, Umleitungs-URI `https://<domain>/signin-oidc`
 3. Zertifikate & Geheimnisse → **öffentliches** Zertifikat hochladen (der private Schlüssel bleibt auf dem Server);
-   übergangsweise ein geheimer Clientschlüssel – in die `.env` gehört dessen **Wert**
+   übergangsweise ein geheimer Clientschlüssel, in die `.env` gehört dessen **Wert**
 4. API verfügbar machen → Application ID URI `api://<domain>/<client-id>`, Bereich `access_as_user`,
    autorisierte Client-Apps: `1fec8e78-bce4-4aaf-ab1b-5451cc387264` (Teams Desktop/Mobil) und
    `5e3ce6c0-2b1f-4285-8d4b-75ee78787346` (Teams Web)
@@ -205,7 +205,7 @@ auf dem Server – nie im Repository.
 ## Sicherheit
 
 * Alles hinter Entra-Login; der Kalender-Feed nur mit geheimem, widerrufbarem Link (in der Datenbank nur als Hash)
-* Private Aufgaben sehen nur Ersteller und Verantwortliche – auch Administratoren nicht
+* Private Aufgaben sehen nur Ersteller und Verantwortliche, auch Administratoren nicht
 * CSRF-Schutz für Cookie-Sitzungen, Rate-Limiting in App und Nginx (NAT-tauglich), strikte CSP, HSTS
 * Optional: Server nur für Firmen-IPs erreichbar (Firewall und Nginx), passend zu Conditional Access
 * Container schreibgeschützt, ohne Root und ohne Linux-Capabilities; Datenbank ohne Internetzugang

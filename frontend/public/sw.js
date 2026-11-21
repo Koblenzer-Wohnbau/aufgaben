@@ -1,5 +1,5 @@
 // Service Worker: macht die App installierbar und startet sie blitzschnell.
-// Gecacht werden nur die Oberfläche und gebaute Dateien – NIE Daten aus /api, Anmeldung oder Kalender.
+// Gecacht werden nur die Oberfläche und gebaute Dateien, NIE Daten aus /api, Anmeldung oder Kalender.
 const CACHE = "aufgaben-v2";
 const SHELL = ["/", "/favicon.svg", "/manifest.webmanifest", "/icon-192.png"];
 const NEVER = ["/api/", "/auth/", "/signin-oidc", "/signout-callback-oidc", "/kalender/", "/healthz", "/readyz"];

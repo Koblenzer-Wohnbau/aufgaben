@@ -49,7 +49,7 @@ public sealed class GraphClient
                 var path = cred["CertificateDiskPath"]!;
                 if (!File.Exists(path))
                 {
-                    log.LogWarning("App-Zertifikat {Path} nicht gefunden – Graph-Funktionen sind deaktiviert.", path);
+                    log.LogWarning("App-Zertifikat {Path} nicht gefunden, Graph-Funktionen sind deaktiviert.", path);
                     return null;
                 }
                 try
@@ -60,7 +60,7 @@ public sealed class GraphClient
                 catch (Exception ex) when (ex is System.Security.Cryptography.CryptographicException or IOException or UnauthorizedAccessException)
                 {
                     // Falsches Kennwort oder fehlende Leserechte dürfen nicht die ganze App lahmlegen.
-                    log.LogError("App-Zertifikat {Path} lässt sich nicht laden ({Reason}) – Graph-Funktionen sind deaktiviert.", path, ex.GetType().Name);
+                    log.LogError("App-Zertifikat {Path} lässt sich nicht laden ({Reason}): Graph-Funktionen sind deaktiviert.", path, ex.GetType().Name);
                     return null;
                 }
             }
@@ -103,7 +103,7 @@ public sealed class GraphClient
 
     /// <summary>
     /// Liest alle Seiten einer Graph-Liste. Folgeseiten nur auf graph.microsoft.com/v1.0,
-    /// jede Seite höchstens einmal, höchstens 200 Seiten – sonst Abbruch statt halber Daten.
+    /// jede Seite höchstens einmal, höchstens 200 Seiten, sonst Abbruch statt halber Daten.
     /// </summary>
     public async IAsyncEnumerable<JsonElement> ListAsync(string url, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct)
     {
@@ -139,7 +139,7 @@ public sealed class GraphClient
     }
 
     /// <summary>
-    /// Drosselung (429) und kurze Ausfälle (502–504): Wartezeit aus Retry-After respektieren
+    /// Drosselung (429) und kurze Ausfälle (502-504): Wartezeit aus Retry-After respektieren
     /// (höchstens 30 s), maximal drei Versuche.
     /// </summary>
     private async Task<HttpResponseMessage> SendWithRetryAsync(HttpMethod method, string url, object? body, CancellationToken ct)
@@ -166,7 +166,7 @@ public sealed class GraphClient
         && uri.AbsolutePath.StartsWith("/v1.0/", StringComparison.Ordinal)
         && string.IsNullOrEmpty(uri.Fragment);
 
-    /// <summary>Nur Status, Fehlercode und Request-ID – nie den Antworttext (kann personenbezogene Daten enthalten).</summary>
+    /// <summary>Nur Status, Fehlercode und Request-ID, nie den Antworttext (kann personenbezogene Daten enthalten).</summary>
     private static async Task<string> DescribeErrorAsync(HttpResponseMessage res, CancellationToken ct)
     {
         string? code = null;
@@ -180,7 +180,7 @@ public sealed class GraphClient
         }
         catch (JsonException)
         {
-            // Kein JSON – nur der Status zählt.
+            // Kein JSON, nur der Status zählt.
         }
         var requestId = res.Headers.TryGetValues("request-id", out var ids) ? ids.FirstOrDefault() : null;
         return $"HTTP {(int)res.StatusCode}{(code is null ? "" : " " + code)}{(requestId is null ? "" : " (request-id " + requestId + ")")}";

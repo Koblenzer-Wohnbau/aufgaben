@@ -224,7 +224,7 @@ public class MistralClientTests
         Assert.Contains("api.mistral.ai", ex.Message);
         Assert.Contains("Aufgaben__Mistral__Region", ex.Message);
 
-        // Andere Fehler bleiben allgemein – auch wenn im Text zufällig „model“ vorkommt
+        // Andere Fehler bleiben allgemein, auch wenn im Text zufällig „model“ vorkommt
         var other = new FakeMistral((HttpStatusCode.BadRequest, """{"message":"Mieterin Schmidt fragt nach dem model","type":"invalid_request"}"""));
         var otherEx = await Assert.ThrowsAsync<AiException>(() => Client(other).ChatJsonAsync("System", "Text", 1, CancellationToken.None));
         Assert.Contains("HTTP 400", otherEx.Message);

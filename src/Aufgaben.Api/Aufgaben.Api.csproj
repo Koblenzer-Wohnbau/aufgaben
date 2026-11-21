@@ -24,7 +24,7 @@
     <InternalsVisibleTo Include="Aufgaben.Tests" />
   </ItemGroup>
 
-  <!-- Teams-Paket: Vorlage und Symbole aus teams/ – der Server baut das Paket damit selbst
+  <!-- Teams-Paket: Vorlage und Symbole aus teams/, der Server baut das Paket damit selbst
        (Verwaltung → System → "Teams-Paket herunterladen"). -->
   <ItemGroup>
     <EmbeddedResource Include="..\..\teams\manifest.template.json" LogicalName="Teams.manifest.template.json" />

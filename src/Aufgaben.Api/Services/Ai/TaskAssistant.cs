@@ -48,7 +48,7 @@ public sealed partial class TaskAssistant(MistralClient mistral, AppDbContext db
         - notizen: 1 bis 3 Sätze mit den wichtigen Details (Ansprechpartner, Telefonnummern, Wohnung, Beträge,
           Fristen im Wortlaut). null, wenn es nichts Wichtiges gibt.
         - verantwortlich: id aus „personen“, nur wenn der Text die Person eindeutig nennt oder ihr die Aufgabe
-          zuweist („Thomas kümmert sich“, „@Becker“, „Frau Klein bitte …“). Sonst null – dann ist die
+          zuweist („Thomas kümmert sich“, „@Becker“, „Frau Klein bitte …“). Sonst null, dann ist die
           eingebende Person verantwortlich. Nie raten.
         - projekt: id aus „projekte“, nur bei eindeutiger Nennung von Nummer, Name oder Adresse. Sonst null.
         - faellig: YYYY-MM-DD. Relative Angaben („bis Freitag“, „nächste Woche“, „Ende des Monats“,
@@ -62,9 +62,9 @@ public sealed partial class TaskAssistant(MistralClient mistral, AppDbContext db
         - quelle: kurzes wörtliches Zitat aus dem Text (höchstens 120 Zeichen), aus dem die Aufgabe stammt.
         - fragen: höchstens 2 je Aufgabe, nur wenn ein Feld wirklich unklar ist und es eine sinnvolle Auswahl
           gibt. Erlaubte Felder:
-            "verantwortlich" – optionen sind ids aus „personen“ (z. B. zwei Personen gleichen Vornamens),
-            "faellig" – optionen sind Daten YYYY-MM-DD (z. B. „Freitag“ ohne klare Woche),
-            "projekt" – optionen sind ids aus „projekte“.
+            "verantwortlich": optionen sind ids aus „personen“ (z. B. zwei Personen gleichen Vornamens),
+            "faellig": optionen sind Daten YYYY-MM-DD (z. B. „Freitag“ ohne klare Woche),
+            "projekt": optionen sind ids aus „projekte“.
           Mindestens 2, höchstens 4 optionen. Setze das Feld trotzdem auf die wahrscheinlichste Option.
           frage: kurz, freundlich, auf Deutsch in der Du-Form.
         - hinweis: ein kurzer Satz, wenn der Text keine Aufgabe enthält oder etwas Wichtiges fehlt, sonst null.
@@ -118,13 +118,13 @@ public sealed partial class TaskAssistant(MistralClient mistral, AppDbContext db
 
     /// <summary>
     /// Prüft die Antwort der KI und macht daraus Vorschläge, die nur echte Personen, Projekte und gültige Daten
-    /// enthalten. Was nicht passt, fällt weg – lieber ein leeres Feld als ein falsches.
+    /// enthalten. Was nicht passt, fällt weg, lieber ein leeres Feld als ein falsches.
     /// </summary>
     internal static AiSuggestionDto Validate(string raw, DateOnly today, int meId, IReadOnlyList<AiPerson> people, IReadOnlyList<AiProject> projects)
     {
         if (raw.Length > 60_000)
         {
-            throw new AiException("Die KI-Antwort ist zu umfangreich – bitte den Text aufteilen.");
+            throw new AiException("Die KI-Antwort ist zu umfangreich, bitte den Text aufteilen.");
         }
         JsonElement root;
         try

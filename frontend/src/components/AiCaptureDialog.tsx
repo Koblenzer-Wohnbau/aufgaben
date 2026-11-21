@@ -39,7 +39,7 @@ const useStyles = makeStyles({
     display: "flex",
     flexDirection: "column",
     gap: "12px",
-    // Fluent-Felder haben eine Mindestbreite – in den Karten sollen sie sich der Spalte anpassen.
+    // Fluent-Felder haben eine Mindestbreite, in den Karten sollen sie sich der Spalte anpassen.
     "& .fui-Dropdown, & .fui-Input, & .fui-Combobox": { minWidth: 0, width: "100%", boxSizing: "border-box" },
   },
   muted: { color: tokens.colorNeutralForeground3 },
@@ -104,7 +104,7 @@ interface Draft extends AiTaskDraft {
 }
 
 /**
- * „Mit KI erfassen“: Text aus einer Teams-Nachricht, Mail oder einem Protokoll – oder ein Bildschirmfoto –
+ * „Mit KI erfassen“: Text aus einer Teams-Nachricht, Mail oder einem Protokoll, oder ein Bildschirmfoto:
  * wird zu Vorschlägen. Angelegt wird erst, wenn die Person bestätigt; Unklares fragt die KI direkt nach.
  */
 export function AiCaptureDialog({
@@ -264,7 +264,7 @@ export function AiCaptureDialog({
             {phase !== "review" && (
               <>
                 <Text className={styles.muted}>
-                  Text aus einer Teams-Nachricht, Mail oder einem Protokoll einfügen – oder ein Bildschirmfoto mit Strg+V. Die KI schlägt Aufgaben vor,
+                  Text aus einer Teams-Nachricht, Mail oder einem Protokoll einfügen, oder ein Bildschirmfoto mit Strg+V. Die KI schlägt Aufgaben vor,
                   angelegt wird erst nach deiner Bestätigung.
                 </Text>
                 <Textarea
@@ -283,7 +283,7 @@ export function AiCaptureDialog({
                 {(image || preparing) && (
                   <div className={styles.imageRow}>
                     {image ? <img src={image} alt="Eingefügtes Bildschirmfoto" className={styles.thumb} /> : <Spinner size="tiny" />}
-                    <Text style={{ flex: 1 }}>{preparing ? "Bild wird vorbereitet …" : "Bildschirmfoto – der Text darauf wird erkannt"}</Text>
+                    <Text style={{ flex: 1 }}>{preparing ? "Bild wird vorbereitet …" : "Bildschirmfoto: Der Text darauf wird erkannt"}</Text>
                     {image && phase !== "thinking" && <Button appearance="subtle" icon={<DismissRegular />} aria-label="Bild entfernen" onClick={() => setImage(null)} />}
                   </div>
                 )}
@@ -387,7 +387,7 @@ export function AiCaptureDialog({
                 })}
                 {drafts.length > 0 && (
                   <Caption1 className={styles.muted}>
-                    Vorschläge von {modelLabel(model)} – bitte kurz prüfen. Gelb markierte Felder waren unklar.
+                    Vorschläge von {modelLabel(model)}. Bitte kurz prüfen. Gelb markierte Felder waren unklar.
                   </Caption1>
                 )}
               </>
@@ -419,7 +419,7 @@ export function AiCaptureDialog({
     </>
   );
 
-  // Als ganze Seite – im Fenster, das Teams für „Als Aufgabe“ öffnet
+  // Als ganze Seite, im Fenster, das Teams für „Als Aufgabe“ öffnet
   if (inline) {
     return (
       <main className={styles.page}>

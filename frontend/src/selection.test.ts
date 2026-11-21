@@ -10,7 +10,7 @@ describe("Auswahl und Papierkorb", () => {
     expect([...toggleSelection(one, order, 12, 12, false)]).toEqual([]);
   });
 
-  it("wählt mit Umschalt den Bereich seit dem letzten Klick aus – in beide Richtungen", () => {
+  it("wählt mit Umschalt den Bereich seit dem letzten Klick aus, in beide Richtungen", () => {
     expect([...toggleSelection(new Set([11]), order, 13, 11, true)].sort()).toEqual([11, 12, 13]);
     expect([...toggleSelection(new Set(), order, 10, 12, true)].sort()).toEqual([10, 11, 12]);
     // Ohne vorherigen Klick wirkt Umschalt wie ein normaler Klick
@@ -33,7 +33,7 @@ describe("Auswahl und Papierkorb", () => {
 
   it("meldet Ergebnis und Übersprungenes verständlich", () => {
     expect(bulkMessage("loeschen", { done: 1, skipped: 0 })).toBe("1 Aufgabe in den Papierkorb gelegt");
-    expect(bulkMessage("loeschen", { done: 3, skipped: 2 })).toBe("3 Aufgaben in den Papierkorb gelegt – 2 übersprungen (nicht von dir angelegt)");
+    expect(bulkMessage("loeschen", { done: 3, skipped: 2 })).toBe("3 Aufgaben in den Papierkorb gelegt, 2 übersprungen (nicht von dir angelegt)");
     expect(bulkMessage("erledigen", { done: 4, skipped: 0 })).toBe("4 Aufgaben erledigt");
   });
 });

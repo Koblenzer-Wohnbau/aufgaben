@@ -77,7 +77,7 @@ public sealed class AttachmentApiTests(AppFixture app)
         return await client.PostAsync($"/api/tasks/{taskId}/attachments?name={Uri.EscapeDataString(name)}", content);
     }
 
-    /// <summary>Fehlermeldung aus der JSON-Antwort – im Rohtext stehen Umlaute als Escape-Folgen.</summary>
+    /// <summary>Fehlermeldung aus der JSON-Antwort, im Rohtext stehen Umlaute als Escape-Folgen.</summary>
     private static async Task<string> Error(HttpResponseMessage res) =>
         JsonDocument.Parse(await res.Content.ReadAsStringAsync()).RootElement.GetProperty("error").GetString() ?? "";
 

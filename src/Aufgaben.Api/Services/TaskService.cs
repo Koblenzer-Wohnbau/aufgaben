@@ -39,7 +39,7 @@ public sealed class TaskService(
         ["mein-tag", "aufgaben", "person", "wichtig", "geplant", "zugewiesen", "delegiert", "wiedervorlagen", "warteschleife", "liste", "projekt", "erledigt", "suche", "papierkorb", "vertretung"];
 
     /// <summary>
-    /// Nicht zurückgestellt (oder der Tag ist da) – oder schon fällig: Eine Fälligkeit geht immer vor,
+    /// Nicht zurückgestellt (oder der Tag ist da), oder schon fällig: Eine Fälligkeit geht immer vor,
     /// damit keine Frist in der Warteschleife verschwindet.
     /// </summary>
     private static Expression<Func<TaskItem, bool>> Present(DateOnly today) =>
@@ -140,7 +140,7 @@ public sealed class TaskService(
         var done = Values.Done;
 
         var q = Base();
-        // Zurückgestellte Aufgaben fehlen nur in den eigenen Ansichten der verantwortlichen Person –
+        // Zurückgestellte Aufgaben fehlen nur in den eigenen Ansichten der verantwortlichen Person:
         // wer delegiert hat, im Projekt mitliest oder sucht, sieht sie weiterhin.
         var present = Present(today);
         switch (view)
@@ -207,7 +207,7 @@ public sealed class TaskService(
                 q = Trash();
                 break;
             case "vertretung":
-                // Was mir jemand für seinen Urlaub übergeben hat – nur, was mir (noch) zugewiesen ist.
+                // Was mir jemand für seinen Urlaub übergeben hat, nur, was mir (noch) zugewiesen ist.
                 var absenceId = id ?? throw ApiException.Invalid("Abwesenheit fehlt.");
                 var handedOver = AbsenceTask.HandedOver;
                 q = q.Where(t => t.AssigneeId == u && (t.Status == open || t.CompletedAt >= recent)
@@ -262,7 +262,7 @@ public sealed class TaskService(
         var today = clock.Today;
         var open = Values.Open;
 
-        // Zwei Abfragen mit bedingten Zählungen statt einer Abfrage pro Zähler – die Seitenleiste wird
+        // Zwei Abfragen mit bedingten Zählungen statt einer Abfrage pro Zähler, die Seitenleiste wird
         // bei jeder Live-Änderung neu geladen. Die Bedingungen müssen Ausdrücke bleiben (keine Lambdas
         // mit Anweisungsblock), sonst kann EF Core sie nicht in SQL übersetzen.
         var mine = db.Tasks.Where(t => t.Status == open && (t.AssigneeId == u || t.CreatedById == u));
@@ -318,7 +318,7 @@ public sealed class TaskService(
 
     /// <summary>
     /// Vorschläge für "Mein Tag" (wie in To Do): Liegengebliebenes, bald Fälliges, Wichtiges
-    /// und frisch Angelegtes – nur eigene, offene Aufgaben, die noch nicht im Tag stehen.
+    /// und frisch Angelegtes, nur eigene, offene Aufgaben, die noch nicht im Tag stehen.
     /// </summary>
     public async Task<SuggestionsDto> SuggestionsAsync(CancellationToken ct)
     {
@@ -387,7 +387,7 @@ public sealed class TaskService(
             DueDate = ParseDate(req.DueDate),
             DueTime = ParseTime(req.DueTime),
             RemindAt = req.RemindAt?.ToUniversalTime(),
-            // "Mein Tag" plant die verantwortliche Person selbst – beim Delegieren nicht übernehmen.
+            // "Mein Tag" plant die verantwortliche Person selbst, beim Delegieren nicht übernehmen.
             MyDayOn = req.MyDay == true && assignee.Id == me.Id ? clock.Today : null,
             Source = source,
             CreatedAt = now,
@@ -451,7 +451,7 @@ public sealed class TaskService(
             throw ApiException.Conflict("Die Aufgabe wurde inzwischen geändert. Bitte neu laden.");
         }
 
-        // Wer nur über ein Einsichtsrecht bearbeitet, ändert Inhalte – nicht, wem die Aufgabe gehört
+        // Wer nur über ein Einsichtsrecht bearbeitet, ändert Inhalte, nicht, wem die Aufgabe gehört
         // oder wer sie sieht.
         var viaGrant = !await VisibleOwn(db.Tasks).AnyAsync(t => t.Id == id, ct);
         const string grantLimit = "Mit einer Freigabe lassen sich Verantwortliche, Projekt und Liste nicht ändern.";
@@ -544,7 +544,7 @@ public sealed class TaskService(
         // "Mein Tag" gehört der verantwortlichen Person: Sie plant ihren Tag selbst.
         if (myDay == true && task.AssigneeId != me.Id)
         {
-            throw ApiException.Invalid("„Mein Tag“ plant jede Person selbst – diese Aufgabe liegt bei jemand anderem.");
+            throw ApiException.Invalid("„Mein Tag“ plant jede Person selbst, diese Aufgabe liegt bei jemand anderem.");
         }
         if (myDay is bool md)
         {
@@ -712,7 +712,7 @@ public sealed class TaskService(
         await PublishGoneAsync(task.Id, task.CreatedById, task.AssigneeId, task.ListId, task.ProjectId, ct);
     }
 
-    /// <summary>Aus dem Papierkorb zurückholen – wer gelöscht oder angelegt hat.</summary>
+    /// <summary>Aus dem Papierkorb zurückholen, wer gelöscht oder angelegt hat.</summary>
     public async Task<TaskDto> RestoreAsync(int id, CancellationToken ct)
     {
         var task = await Trash().FirstOrDefaultAsync(t => t.Id == id, ct) ?? throw ApiException.NotFound("Aufgabe im Papierkorb");
@@ -727,7 +727,7 @@ public sealed class TaskService(
         return ToDto(task);
     }
 
-    /// <summary>Endgültig löschen – nur aus dem Papierkorb, mit Checkliste, Anhängen und Verlauf.</summary>
+    /// <summary>Endgültig löschen, nur aus dem Papierkorb, mit Checkliste, Anhängen und Verlauf.</summary>
     public async Task PurgeAsync(int id, CancellationToken ct)
     {
         var task = await Trash().FirstOrDefaultAsync(t => t.Id == id, ct) ?? throw ApiException.NotFound("Aufgabe im Papierkorb");
@@ -747,7 +747,7 @@ public sealed class TaskService(
 
     /// <summary>
     /// Alle erledigten Aufgaben, die die Person angelegt hat, in den Papierkorb legen. Erledigte Aufgaben,
-    /// die andere angelegt haben, bleiben – die zählt <c>Skipped</c>.
+    /// die andere angelegt haben, bleiben, die zählt <c>Skipped</c>.
     /// </summary>
     public async Task<BulkResultDto> DeleteCompletedAsync(CancellationToken ct)
     {
@@ -802,7 +802,7 @@ public sealed class TaskService(
             "loeschen" => id => DeleteAsync(id, ct),
             "wiederherstellen" => id => RestoreAsync(id, ct),
             "endgueltig-loeschen" => id => PurgeAsync(id, ct),
-            _ => throw ApiException.Invalid("Unbekannte Aktion – erlaubt sind erledigen, loeschen, wiederherstellen und endgueltig-loeschen."),
+            _ => throw ApiException.Invalid("Unbekannte Aktion, erlaubt sind erledigen, loeschen, wiederherstellen und endgueltig-loeschen."),
         };
         var doneCount = 0;
         var skipped = 0;
@@ -815,7 +815,7 @@ public sealed class TaskService(
             }
             catch (ApiException)
             {
-                // Die Prüfungen schlagen fehl, bevor etwas geändert wird – es bleibt nichts halb gespeichert.
+                // Die Prüfungen schlagen fehl, bevor etwas geändert wird, es bleibt nichts halb gespeichert.
                 skipped++;
             }
         }
@@ -886,7 +886,7 @@ public sealed class TaskService(
         return ToDto(task);
     }
 
-    /// <summary>Anhang laden – nur wenn die Aufgabe für die Person sichtbar ist.</summary>
+    /// <summary>Anhang laden, nur wenn die Aufgabe für die Person sichtbar ist.</summary>
     public async Task<(TaskAttachment Meta, byte[] Data)> GetAttachmentAsync(int id, int attachmentId, CancellationToken ct)
     {
         var task = await LoadVisibleAsync(id, ct);
@@ -896,18 +896,18 @@ public sealed class TaskService(
         return (meta, blob.Data);
     }
 
-    /// <summary>Anhang hochladen (Strg+V, Ziehen und Ablegen, Dateiauswahl) – wer die Aufgabe bearbeiten darf.</summary>
+    /// <summary>Anhang hochladen (Strg+V, Ziehen und Ablegen, Dateiauswahl): wer die Aufgabe bearbeiten darf.</summary>
     public async Task<AttachmentDto> AddAttachmentAsync(int id, string? fileName, string? contentType, byte[] data, CancellationToken ct)
     {
         var task = await LoadEditableAsync(id, ct);
         var name = AttachmentRules.CheckFile(fileName, data);
         if (task.Attachments.Count >= AttachmentRules.MaxPerTask)
         {
-            throw ApiException.Invalid($"Höchstens {AttachmentRules.MaxPerTask} Anhänge pro Aufgabe – erst nicht mehr gebrauchte entfernen.");
+            throw ApiException.Invalid($"Höchstens {AttachmentRules.MaxPerTask} Anhänge pro Aufgabe, erst nicht mehr gebrauchte entfernen.");
         }
         if (task.Attachments.Sum(a => a.Size) + data.Length > AttachmentRules.MaxTotalBytes)
         {
-            throw ApiException.Invalid($"Die Anhänge dieser Aufgabe wären zusammen größer als {AttachmentRules.MaxTotalBytes / 1024 / 1024} MB – erst nicht mehr gebrauchte entfernen.");
+            throw ApiException.Invalid($"Die Anhänge dieser Aufgabe wären zusammen größer als {AttachmentRules.MaxTotalBytes / 1024 / 1024} MB, erst nicht mehr gebrauchte entfernen.");
         }
 
         var attachment = new TaskAttachment
@@ -931,7 +931,7 @@ public sealed class TaskService(
         return new AttachmentDto(attachment.Id, attachment.FileName, attachment.ContentType, attachment.Size);
     }
 
-    /// <summary>Anhang entfernen – wer die Aufgabe bearbeiten darf; der Verlauf hält es fest.</summary>
+    /// <summary>Anhang entfernen, wer die Aufgabe bearbeiten darf; der Verlauf hält es fest.</summary>
     public async Task<TaskDto> DeleteAttachmentAsync(int id, int attachmentId, CancellationToken ct)
     {
         var task = await LoadEditableAsync(id, ct);
@@ -968,13 +968,13 @@ public sealed class TaskService(
 
     /// <summary>
     /// „Warte auf …“ und Zurückstellen. Beides plant die verantwortliche Person (oder ihre Vertretung
-    /// mit Freigabe zum Bearbeiten) – wer nur delegiert hat, blendet anderen nichts aus.
+    /// mit Freigabe zum Bearbeiten): wer nur delegiert hat, blendet anderen nichts aus.
     /// </summary>
     internal void ApplyWaitingAndSnooze(TaskItem task, string? waitingFor, bool snoozeSet, DateOnly? snooze, bool viaGrant)
     {
         if (task.AssigneeId != me.Id && !viaGrant)
         {
-            throw ApiException.Invalid("Zurückstellen und „Warte auf …“ plant die verantwortliche Person selbst – diese Aufgabe liegt bei jemand anderem.");
+            throw ApiException.Invalid("Zurückstellen und „Warte auf …“ plant die verantwortliche Person selbst, diese Aufgabe liegt bei jemand anderem.");
         }
         if (task.IsDone)
         {
@@ -1032,12 +1032,12 @@ public sealed class TaskService(
             {
                 throw ApiException.Invalid("Höchstens zwei Jahre im Voraus.");
             }
-            // Eine normale Aufgabe, die schon fällig ist, käme sofort zurück – die Fälligkeit geht vor.
+            // Eine normale Aufgabe, die schon fällig ist, käme sofort zurück, die Fälligkeit geht vor.
             if (task.WaitingFor == "" && task.Kind != "wiedervorlage" && task.DueDate is { } due && due <= today)
             {
-                throw ApiException.Invalid("Die Aufgabe ist schon fällig – verschieb stattdessen die Fälligkeit.");
+                throw ApiException.Invalid("Die Aufgabe ist schon fällig, verschieb stattdessen die Fälligkeit.");
             }
-            // Bei einer Wiedervorlage ist das Fälligkeitsdatum der Tag der Wiedervorlage – es wandert mit.
+            // Bei einer Wiedervorlage ist das Fälligkeitsdatum der Tag der Wiedervorlage, es wandert mit.
             if (task.Kind == "wiedervorlage" && task.DueDate is { } resubmission && resubmission < until)
             {
                 task.DueDate = until;
@@ -1070,7 +1070,7 @@ public sealed class TaskService(
 
         if (resumeNow)
         {
-            // Wieder da – heute gibt es etwas zu tun.
+            // Wieder da, heute gibt es etwas zu tun.
             task.MyDayOn = today;
         }
     }
@@ -1220,7 +1220,7 @@ public sealed class TaskService(
             t.WaitingFor,
             t.WaitingSince?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             t.SnoozedUntil?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            // Gerade ausgeblendet – eine Fälligkeit holt die Aufgabe früher zurück.
+            // Gerade ausgeblendet, eine Fälligkeit holt die Aufgabe früher zurück.
             !t.IsDone && t.SnoozedUntil > today && !(t.DueDate <= today),
             t.DeletedAt,
             t.DeletedBy is null ? null : UserRef.From(t.DeletedBy));

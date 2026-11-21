@@ -9,7 +9,7 @@ namespace Aufgaben.Api.Services;
 /// <summary>
 /// Datenschutzhinweise unter /datenschutz.html: eingebettete Vorlage, in die der Server die Angaben aus der
 /// .env (Aufgaben__Privacy__…) einsetzt. So füllt jeder Betreiber die Seite aus, ohne Dateien im Image zu ändern.
-/// Alle Werte werden HTML-kodiert – HTML oder Skripte aus der .env kommen nie als Code auf die Seite.
+/// Alle Werte werden HTML-kodiert, HTML oder Skripte aus der .env kommen nie als Code auf die Seite.
 /// </summary>
 public static partial class PrivacyPage
 {
@@ -35,14 +35,14 @@ public static partial class PrivacyPage
           <li>Name und interne Kennung der eingebenden Person sowie das heutige Datum,</li>
           <li>damit Personen und Projekte zugeordnet werden können: Name, Funktion und interne Kennung aller aktiven Nutzerinnen und Nutzer sowie die Bezeichnungen der Projekte.</li>
         </ul>
-        <p>E-Mail-Adressen, gespeicherte Aufgaben und Notizen werden nicht übermittelt. Als Aufgabe gespeichert wird ein Vorschlag erst, wenn die Person ihn bestätigt; vorher speichert die App weder Text noch Vorschlag. Die Funktion ist freiwillig – Aufgaben lassen sich jederzeit ohne KI anlegen.</p>
+        <p>E-Mail-Adressen, gespeicherte Aufgaben und Notizen werden nicht übermittelt. Als Aufgabe gespeichert wird ein Vorschlag erst, wenn die Person ihn bestätigt; vorher speichert die App weder Text noch Vorschlag. Die Funktion ist freiwillig, Aufgaben lassen sich jederzeit ohne KI anlegen.</p>
         <p>{{KISTANDORT}}</p>
         <p>{{KIANBIETER}}</p>
 
         """;
 
     private const string TeamsMessageItem =
-        "<li>Bei „Als Aufgabe“ an einer Teams-Nachricht: Text, Absender, Zeitpunkt und Link der gewählten Nachricht – " +
+        "<li>Bei „Als Aufgabe“ an einer Teams-Nachricht: Text, Absender, Zeitpunkt und Link der gewählten Nachricht, " +
         "höchstens 30 Minuten im Arbeitsspeicher und nur für die Person, die die Nachricht gewählt hat, bis sie die Aufgabe anlegt.</li>";
 
     internal const string TemplateNotice =
@@ -96,7 +96,7 @@ public static partial class PrivacyPage
             : throw new InvalidOperationException($"Unbekannter Platzhalter {m.Value} in der Datenschutz-Vorlage."));
     }
 
-    /// <summary>Wo Mistral rechnet – passend zu Aufgaben__Mistral__Region (siehe MistralClient.BaseAddress).</summary>
+    /// <summary>Wo Mistral rechnet, passend zu Aufgaben__Mistral__Region (siehe MistralClient.BaseAddress).</summary>
     internal static string AiLocation(string? region) => (region ?? "").Trim().ToLowerInvariant() switch
     {
         "eu" => "Die Verarbeitung erfolgt über den EU-Endpunkt von Mistral in Rechenzentren in der EU bzw. im EWR.",

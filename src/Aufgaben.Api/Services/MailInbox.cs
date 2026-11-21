@@ -101,7 +101,7 @@ public sealed partial class MailInboxProcessor(
         if (parsed.PersonQuery is { } uq)
         {
             assigneeId = await FindUserAsync(uq, ct);
-            if (assigneeId is null) hints.Add($"Person „@{uq}“ wurde nicht gefunden – die Aufgabe liegt bei dir.");
+            if (assigneeId is null) hints.Add($"Person „@{uq}“ wurde nicht gefunden, die Aufgabe liegt bei dir.");
         }
 
         var notes = BuildNotes(message, user, hints);

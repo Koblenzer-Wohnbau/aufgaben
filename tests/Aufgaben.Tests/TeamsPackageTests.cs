@@ -114,7 +114,7 @@ public sealed class TeamsPackageApiTests(AppFixture app)
         var thomas = await app.LoginAsync("dev-thomas");
         Assert.Equal(HttpStatusCode.Forbidden, (await thomas.GetAsync("/api/admin/teams-package")).StatusCode);
 
-        // Die Testumgebung läuft auf http://localhost – das Paket verweigert das mit klarer Meldung
+        // Die Testumgebung läuft auf http://localhost, das Paket verweigert das mit klarer Meldung
         var anna = await app.LoginAsync("dev-anna");
         var res = await anna.GetAsync("/api/admin/teams-package");
         Assert.Equal(HttpStatusCode.BadRequest, res.StatusCode);

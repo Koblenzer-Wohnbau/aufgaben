@@ -1,7 +1,7 @@
 # Mail an Aufgabe
 
 Mitarbeitende leiten eine E-Mail an ein eigenes Postfach weiter, z. B. `aufgaben@example.de`.
-Die App holt das Postfach per IMAP ab und macht aus jeder Mail eine Aufgabe – mit Text und Anhängen.
+Die App holt das Postfach per IMAP ab und macht aus jeder Mail eine Aufgabe, mit Text und Anhängen.
 
 ## So funktioniert es für Mitarbeitende
 
@@ -44,7 +44,7 @@ Die Befehle in der Exchange-Verwaltungsshell ausführen. Namen und Adressen anpa
      -PrimarySmtpAddress aufgaben@example.de -Password (Read-Host -AsSecureString "Passwort")
    ```
 
-2. **Nur interne Absender zulassen** – externe Mails werden schon beim Empfang abgewiesen:
+2. **Nur interne Absender zulassen**: externe Mails werden schon beim Empfang abgewiesen:
 
    ```powershell
    Set-Mailbox aufgaben -RequireSenderAuthenticationEnabled $true
@@ -60,16 +60,16 @@ Die Befehle in der Exchange-Verwaltungsshell ausführen. Namen und Adressen anpa
    Set-CASMailbox aufgaben -ImapEnabled $true
    ```
 
-   IMAP muss nicht für alle Postfächer freigegeben sein – wer IMAP sonst nicht nutzt, kann es pro Postfach
+   IMAP muss nicht für alle Postfächer freigegeben sein. Wer IMAP sonst nicht nutzt, kann es pro Postfach
    abschalten (`Set-CASMailbox <name> -ImapEnabled $false`). Vorher prüfen, ob Geräte oder Programme IMAP brauchen.
 
-4. **Firewall**: Steht der Aufgaben-Server im selben Netz wie Exchange, ist nichts zu tun – die App verbindet
+4. **Firewall**: Steht der Aufgaben-Server im selben Netz wie Exchange, ist nichts zu tun, denn die App verbindet
    sich ausgehend zum Exchange-Server. Liegt eine Firewall dazwischen, Port 993 (und 587 zum Senden) nur für die
    IP des Aufgaben-Servers freigeben. Läuft die App außerhalb des Firmennetzes (z. B. gemieteter Server), gilt
    das für die öffentliche Adresse bzw. den veröffentlichten IMAP-Endpunkt.
 
 5. **Aufbewahrung**: Für die Ordner `Verarbeitet` und `Abgelehnt` eine Aufbewahrungsrichtlinie setzen
-   (z. B. Löschen nach 90 Tagen) – der Inhalt steckt ja schon in den Aufgaben.
+   (z. B. Löschen nach 90 Tagen), der Inhalt steckt ja schon in den Aufgaben.
 
 ## Konfiguration der App (`.env`)
 
@@ -93,13 +93,13 @@ Aufgaben__MailInbox__SendConfirmation=true
 > Posteingang des angemeldeten Kontos als Auftrag und verschiebt sie danach nach `Verarbeitet` bzw. `Abgelehnt`.
 > Mit dem Konto einer Person oder eines anderen Dienstes würde sie dessen Posteingang leeren.
 
-Die Bestätigungsmails laufen über die SMTP-Einstellungen unter `Aufgaben__Mail__*` – Einrichtung, Ports und
+Die Bestätigungsmails laufen über die SMTP-Einstellungen unter `Aufgaben__Mail__*`. Einrichtung, Ports und
 Fehlerbilder stehen in [e-mail.md](e-mail.md). Kurz: bei Exchange **Port 587 des Exchange-Servers direkt**,
 nicht Port 25 und nicht ein vorgeschaltetes Mail-Gateway.
 
 **Selbst ausgestelltes Exchange-Zertifikat:** Zeigt Exchange für IMAP nur sein Standardzertifikat
 (ausgestellt auf den Servernamen, z. B. `server.firma.local`), lehnt die App die Verbindung zunächst ab.
-Statt einer CA-Datei genügt dann der Fingerabdruck genau dieses Zertifikats – die App akzeptiert nur
+Statt einer CA-Datei genügt dann der Fingerabdruck genau dieses Zertifikats. Die App akzeptiert nur
 dieses eine Zertifikat, auch unter einem anderen Namen:
 
 ```bash
@@ -110,20 +110,20 @@ echo | openssl s_client -connect mail.example.de:993 2>/dev/null | openssl x509 
 Aufgaben__MailInbox__CertificateThumbprint=AB:CD:…   # Ausgabe von oben, Doppelpunkte erlaubt
 ```
 
-Wird das Exchange-Zertifikat erneuert, ändert sich der Fingerabdruck – dann den neuen eintragen.
+Wird das Exchange-Zertifikat erneuert, ändert sich der Fingerabdruck, dann den neuen eintragen.
 Sauberer ist ein Zertifikat einer öffentlichen oder der eigenen Zertifizierungsstelle am Exchange. Zeigt
 Exchange auf 587 dasselbe Standardzertifikat, gehört derselbe Fingerabdruck auch in
-`Aufgaben__Mail__CertificateThumbprint` – aber nur dann (siehe [e-mail.md](e-mail.md)).
+`Aufgaben__Mail__CertificateThumbprint`, aber nur dann (siehe [e-mail.md](e-mail.md)).
 
 ## Testen
 
 1. Als bekannte Person eine Mail mit Betreff `Test Mail an Aufgabe morgen` an die Adresse schicken.
-2. Bis zu einer Minute warten – oder als Verwaltung sofort abrufen: `POST /api/admin/mail-inbox/poll`.
+2. Bis zu einer Minute warten, oder als Verwaltung sofort abrufen: `POST /api/admin/mail-inbox/poll`.
 3. Die Aufgabe erscheint in *Mein Tag* bzw. *Geplant*; die Mail liegt im Ordner `Verarbeitet`.
 4. Landet die Mail in `Abgelehnt`, steht der Grund im Log (`docker compose logs app`). Verwaltung → System zeigt
    nur die Zahl der abgelehnten Mails der letzten 7 Tage und das Ergebnis des letzten Abrufs.
 5. Kommt die Aufgabe an, aber keine Bestätigung, liegt es am Senden: Im Log steht dann
-   „Bestätigung für Aufgabe … konnte nicht gesendet werden“ mit dem Grund – Fehlerbilder in [e-mail.md](e-mail.md).
+   „Bestätigung für Aufgabe … konnte nicht gesendet werden“ mit dem Grund. Fehlerbilder stehen in [e-mail.md](e-mail.md).
 
 | Im Log | Ursache |
 |---|---|
@@ -141,4 +141,4 @@ Mail authentifiziert“ in `Abgelehnt`), `SenderCheck=bekannte-absender` setzen.
 
 Jeder IMAP-Server funktioniert. Ohne Exchange `SenderCheck=bekannte-absender` verwenden und am Mailserver
 sicherstellen, dass das Postfach nur Mails von authentifizierten internen Absendern annimmt.
-Exchange Online verlangt für IMAP OAuth – das wird derzeit nicht unterstützt.
+Exchange Online verlangt für IMAP OAuth. Das wird derzeit nicht unterstützt.

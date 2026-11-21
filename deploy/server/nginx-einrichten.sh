@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # =====================================================================
-# Nginx für Aufgaben einrichten – vollständig, geprüft, wiederholbar.
+# Nginx für Aufgaben einrichten: vollständig, geprüft, wiederholbar.
 #
 # Nimmt die Vorlage deploy/nginx/aufgaben-oeffentlich.conf, setzt Domain, Port und die internen Netze
 # ein, legt die Seite unter /etc/nginx/sites-available/aufgaben.conf ab, schaltet sie ein, prüft mit
 # "nginx -t" und lädt Nginx neu. Schlägt die Prüfung fehl, kommt die vorherige Fassung zurück.
 #
-#   sudo bash deploy/server/nginx-einrichten.sh           – fragt nach, Vorschläge aus .env und Netz
-#   sudo bash deploy/server/nginx-einrichten.sh --yes     – Vorschläge ohne Rückfrage übernehmen
+#   sudo bash deploy/server/nginx-einrichten.sh           - fragt nach, Vorschläge aus .env und Netz
+#   sudo bash deploy/server/nginx-einrichten.sh --yes     - Vorschläge ohne Rückfrage übernehmen
 #
 # Optionen (überschreiben die Vorschläge):
 #   --domain NAME        Standard: Name aus Aufgaben__BaseUrl in .env
@@ -18,7 +18,7 @@
 #                        ohne Antwort geschlossen (444)
 #   --yes                ohne Rückfrage
 #
-# Voraussetzung: TLS-Zertifikat unter /etc/letsencrypt/live/<domain>/ – z. B. mit
+# Voraussetzung: TLS-Zertifikat unter /etc/letsencrypt/live/<domain>/: z. B. mit
 #   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/zerox80/certbot-sexy/main/zertifikat-cloudflare.sh)"
 # =====================================================================
 # Meldungen nutzen deutsche Anführungszeichen („…“) mit Absicht.
@@ -77,7 +77,7 @@ port="$(env_value APP_PORT)"; port="${port:-8090}"
 [[ "$port" =~ ^[0-9]+$ ]] || fail "APP_PORT in .env ist keine Zahl."
 
 cert="$le_dir/$domain/fullchain.pem"
-[[ -f "$cert" && -f "$le_dir/$domain/privkey.pem" ]] || fail "Kein Zertifikat unter $le_dir/$domain/ – zuerst das Zertifikat holen:
+[[ -f "$cert" && -f "$le_dir/$domain/privkey.pem" ]] || fail "Kein Zertifikat unter $le_dir/$domain/, zuerst das Zertifikat holen:
        sudo bash -c \"\$(curl -fsSL https://raw.githubusercontent.com/zerox80/certbot-sexy/main/zertifikat-cloudflare.sh)\""
 ok "Zertifikat für $domain gefunden"
 
@@ -98,11 +98,11 @@ for net in $networks; do
 done
 
 if [[ -z "$mode" ]]; then
-  answer="$(ask "Von außen erreichbar (öffentlich, Anmeldung schützt Entra) – oder nur Firmennetz? (o/f)" "o")"
+  answer="$(ask "Von außen erreichbar (öffentlich, Anmeldung schützt Entra), oder nur Firmennetz? (o/f)" "o")"
   case "$answer" in f|F|firma|nur*) mode="company" ;; *) mode="public" ;; esac
 fi
 if [[ "$mode" == company && -z "$networks" ]]; then
-  fail "„Nur Firmennetz“ ohne interne Netze würde alle aussperren – Netze angeben oder --public."
+  fail "„Nur Firmennetz“ ohne interne Netze würde alle aussperren. Netze angeben oder --public."
 fi
 
 echo ""
@@ -113,7 +113,7 @@ if [[ "$mode" == company ]]; then echo "    Erreichbar:     nur aus den internen
 else echo "    Erreichbar:     von überall (Anmeldung über Entra ID)"; fi
 if (( interactive && ! assume_yes )); then
   read -r -p "    So einrichten? (j/n) [j]: " answer || true
-  [[ "${answer:-j}" =~ ^(j|ja|y|yes)$ ]] || { echo "    Abgebrochen – nichts geändert."; exit 0; }
+  [[ "${answer:-j}" =~ ^(j|ja|y|yes)$ ]] || { echo "    Abgebrochen, nichts geändert."; exit 0; }
 fi
 
 # ---------------------------------------------------------------- Konfiguration schreiben
@@ -152,7 +152,7 @@ if ! nginx -t 2>"$tmp"; then
   cat "$tmp" >&2
   if [[ -n "$backup" ]]; then mv -f "$backup" "$target"; warn "Vorherige Fassung wiederhergestellt."
   else rm -f "$target" "$enabled_dir/aufgaben.conf"; fi
-  fail "nginx -t meldet einen Fehler – nichts übernommen."
+  fail "nginx -t meldet einen Fehler, nichts übernommen."
 fi
 ok "nginx -t: Konfiguration gültig"
 if [[ -n "$backup" ]]; then ok "vorherige Fassung gesichert: $backup"; fi
@@ -168,8 +168,8 @@ say "Prüfen"
 code="$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 --resolve "$domain:443:127.0.0.1" "https://$domain/" || true)"
 case "$code" in
   200|302|401) ok "https://$domain/ antwortet auf dem Server ($code)" ;;
-  502|504) warn "Nginx läuft, aber die App antwortet nicht ($code) – läuft sie? sudo docker compose ps" ;;
-  *) warn "Unerwartete Antwort ($code) – sudo tail /var/log/nginx/error.log" ;;
+  502|504) warn "Nginx läuft, aber die App antwortet nicht ($code): läuft sie? sudo docker compose ps" ;;
+  *) warn "Unerwartete Antwort ($code): sudo tail /var/log/nginx/error.log" ;;
 esac
 echo ""
 echo "    Im Firmennetz muss $domain auf die interne Adresse dieses Servers zeigen (Split-DNS auf dem"

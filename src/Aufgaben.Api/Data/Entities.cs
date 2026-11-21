@@ -99,11 +99,11 @@ public sealed class TaskItem
     /// </summary>
     public DateOnly? SnoozedUntil { get; set; }
 
-    /// <summary>„Warte auf …“: Person oder Firma, von der eine Antwort fehlt – frei eingegeben, auch Externe.</summary>
+    /// <summary>„Warte auf …“: Person oder Firma, von der eine Antwort fehlt, frei eingegeben, auch Externe.</summary>
     public string WaitingFor { get; set; } = "";
     public DateOnly? WaitingSince { get; set; }
 
-    /// <summary>Wann ans Nachhaken erinnert wurde – einmal je Termin.</summary>
+    /// <summary>Wann ans Nachhaken erinnert wurde, einmal je Termin.</summary>
     public DateTimeOffset? FollowUpNotifiedAt { get; set; }
 
     /// <summary>
@@ -125,7 +125,7 @@ public sealed class TaskItem
 
     public List<ChecklistItem> Checklist { get; set; } = [];
 
-    /// <summary>Nur die Metadaten – der Inhalt liegt in <see cref="AttachmentBlob"/>.</summary>
+    /// <summary>Nur die Metadaten, der Inhalt liegt in <see cref="AttachmentBlob"/>.</summary>
     public List<TaskAttachment> Attachments { get; set; } = [];
 
     public bool IsDone => Status == Values.Done;
@@ -143,7 +143,7 @@ public sealed class TaskAttachment
     public DateTimeOffset CreatedAt { get; set; }
 }
 
-/// <summary>Inhalt eines Anhangs – getrennt, damit Listenabfragen nie Dateidaten laden.</summary>
+/// <summary>Inhalt eines Anhangs, getrennt, damit Listenabfragen nie Dateidaten laden.</summary>
 public sealed class AttachmentBlob
 {
     public int AttachmentId { get; set; }
@@ -151,7 +151,7 @@ public sealed class AttachmentBlob
 }
 
 /// <summary>
-/// Einsichtsrecht: Person B (Viewer) darf die Aufgaben von Person A (Owner) sehen – nur nach
+/// Einsichtsrecht: Person B (Viewer) darf die Aufgaben von Person A (Owner) sehen, nur nach
 /// dokumentierter, unterschriebener Freigabe. Entwurf → aktiv (nach Bestätigung) → widerrufen.
 /// </summary>
 public sealed class AccessGrant
@@ -190,7 +190,7 @@ public sealed class AccessGrant
 
 /// <summary>
 /// Urlaub (oder andere Abwesenheit) mit Vertretung. From und Until sind der erste und der letzte freie Tag.
-/// Die Übergabe arbeitet nur mit Zuweisungen – Einsichtsrechte entstehen dadurch nicht.
+/// Die Übergabe arbeitet nur mit Zuweisungen, Einsichtsrechte entstehen dadurch nicht.
 /// </summary>
 public sealed class Absence
 {
@@ -203,7 +203,7 @@ public sealed class Absence
     public User Deputy { get; set; } = null!;
     public DateTimeOffset CreatedAt { get; set; }
 
-    /// <summary>Vorzeitig beendet – ab dann gilt die Person als zurück.</summary>
+    /// <summary>Vorzeitig beendet, ab dann gilt die Person als zurück.</summary>
     public DateTimeOffset? ClosedAt { get; set; }
 
     /// <summary>Die Übersicht „Was ist passiert?“ nach der Rückkehr wurde geschlossen.</summary>
@@ -229,7 +229,7 @@ public sealed class AbsenceTask
     /// <summary>Übergeben: zurück bei der abwesenden Person. Behalten: vorzeitig wieder hervorgeholt.</summary>
     public DateTimeOffset? ReturnedAt { get; set; }
 
-    /// <summary>Behalten: Stand vor dem Zurückstellen – damit ein abgesagter Urlaub ihn wiederherstellen kann.</summary>
+    /// <summary>Behalten: Stand vor dem Zurückstellen, damit ein abgesagter Urlaub ihn wiederherstellen kann.</summary>
     public DateOnly? PreviousSnoozedUntil { get; set; }
     public DateOnly? PreviousDueDate { get; set; }
 }

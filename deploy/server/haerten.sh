@@ -5,7 +5,7 @@
 # Voraussetzung: Der Admin-Benutzer (nicht root) kann sich schon per SSH-Schlüssel anmelden
 # (z. B. eingerichtet mit https://github.com/zerox80/ssh-hardening).
 #
-# Einfach starten – das Skript fragt alles Nötige ab und zeigt vor jeder Änderung eine Zusammenfassung:
+# Einfach starten, das Skript fragt alles Nötige ab und zeigt vor jeder Änderung eine Zusammenfassung:
 #
 #   sudo bash deploy/server/haerten.sh
 #
@@ -35,7 +35,7 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-# Rückfragen nur mit Terminal – ohne Terminal (Automatisierung) gelten die Variablen.
+# Rückfragen nur mit Terminal, ohne Terminal (Automatisierung) gelten die Variablen.
 interactive=0
 [[ -t 0 && -t 1 ]] && interactive=1
 ask() { # Frage, Vorschlag
@@ -62,10 +62,10 @@ ip_in_net() {
 user_ok() { # gibt den Grund aus, wenn der Benutzer nicht passt
   local home
   if ! getent passwd "$1" >/dev/null; then echo "Benutzer '$1' gibt es auf diesem Server nicht."; return 1; fi
-  [[ "$1" != root ]] || { echo "Bitte einen eigenen Benutzer statt root nehmen – root wird für SSH gesperrt."; return 1; }
+  [[ "$1" != root ]] || { echo "Bitte einen eigenen Benutzer statt root nehmen, root wird für SSH gesperrt."; return 1; }
   home="$(getent passwd "$1" | cut -d: -f6 || true)"
   if [[ -z "$home" || ! -s "$home/.ssh/authorized_keys" ]]; then
-    echo "'$1' hat keinen SSH-Schlüssel in ~/.ssh/authorized_keys – danach wäre kein Login mehr möglich."
+    echo "'$1' hat keinen SSH-Schlüssel in ~/.ssh/authorized_keys, danach wäre kein Login mehr möglich."
     return 1
   fi
 }
@@ -73,7 +73,7 @@ user_ok() { # gibt den Grund aus, wenn der Benutzer nicht passt
 # Adresse, von der du gerade per SSH verbunden bist (auch unter sudo)
 client_ip="$(who -m 2>/dev/null | sed -n 's/.*(\([^)]*\)).*/\1/p' | head -n 1 || true)"
 if [[ -z "$client_ip" ]]; then
-  # unter sudo fehlt SSH_CLIENT meist – dann bleibt es leer (kein Abbruch durch "set -u")
+  # unter sudo fehlt SSH_CLIENT meist, dann bleibt es leer (kein Abbruch durch "set -u")
   client_ip="${SSH_CLIENT:-}"
   client_ip="${client_ip%% *}"
 fi
@@ -82,7 +82,7 @@ suggested_net=""
 
 SSH_PORT="${SSH_PORT:-22}"
 if (( interactive )); then
-  echo "Härtung für Aufgaben – ein paar Fragen, geändert wird erst nach deiner Bestätigung."
+  echo "Härtung für Aufgaben: ein paar Fragen, geändert wird erst nach deiner Bestätigung."
   echo ""
   # 1. Admin-Benutzer: Vorschlag ist der Benutzer, der sudo aufgerufen hat
   ADMIN_USER="${ADMIN_USER:-${SUDO_USER:-}}"
@@ -104,7 +104,7 @@ if (( interactive )); then
       if ip_in_net "$client_ip" "$net"; then inside=1; elif [[ $? -eq 2 ]]; then inside=1; fi
     done
     (( inside )) && break
-    echo "  -> Achtung: $client_ip liegt NICHT in '$SSH_ALLOW_FROM' – du würdest dich aussperren."
+    echo "  -> Achtung: $client_ip liegt NICHT in '$SSH_ALLOW_FROM', du würdest dich aussperren."
     ask_yes "  Trotzdem so übernehmen?" "n" && break
   done
   # 3. HTTPS öffentlich oder eingeschränkt?
@@ -131,7 +131,7 @@ echo "  Außerdem:          Updates, automatische Sicherheitsupdates (Neustart 0
 echo "                     (alle anderen Regeln werden gelöscht), fail2ban, Kernel-Härtung, Docker, Nginx"
 echo "========================================================="
 if (( interactive && ! ASSUME_YES )); then
-  ask_yes "So ausführen?" "j" || { echo "Abgebrochen – nichts geändert."; exit 0; }
+  ask_yes "So ausführen?" "j" || { echo "Abgebrochen, nichts geändert."; exit 0; }
 fi
 echo ""
 
@@ -174,7 +174,7 @@ EOF
 sshd -t
 # Ubuntu 24.04 startet SSH über Socket-Aktivierung: Den Port legt dann ssh.socket fest,
 # nicht die sshd-Konfiguration. Ohne Neustart des Sockets lauscht SSH weiter auf dem alten
-# Port – und die Firewall unten sperrt ihn. Deshalb den Socket neu laden.
+# Port, und die Firewall unten sperrt ihn. Deshalb den Socket neu laden.
 if systemctl is-active --quiet ssh.socket; then
   systemctl daemon-reload
   systemctl restart ssh.socket
@@ -185,7 +185,7 @@ echo "==> Firewall: alles zu außer SSH, 80 (nur Zertifikat/Weiterleitung) und 4
 ufw --force reset >/dev/null
 ufw default deny incoming
 ufw default allow outgoing
-# Kommentare ohne Apostroph und Klammern – ufw meldet sonst "Invalid syntax".
+# Kommentare ohne Apostroph und Klammern: ufw meldet sonst "Invalid syntax".
 if [[ -n "$SSH_ALLOW_FROM" ]]; then
   for src in $SSH_ALLOW_FROM; do
     ufw allow from "$src" to any port "$SSH_PORT" proto tcp comment "SSH Firma"
@@ -194,7 +194,7 @@ else
   ufw limit "$SSH_PORT"/tcp comment "SSH mit Rate-Limit"
 fi
 # Port 80 bleibt offen: Let's Encrypt prüft von wechselnden Adressen aus.
-# Nginx liefert dort nur die Prüfdatei und eine Weiterleitung – keine App.
+# Nginx liefert dort nur die Prüfdatei und eine Weiterleitung, keine App.
 ufw allow 80/tcp comment "HTTP Zertifikat und Weiterleitung"
 if [[ -n "$HTTPS_ALLOW_FROM" ]]; then
   for src in $HTTPS_ALLOW_FROM; do
@@ -244,7 +244,7 @@ fs.protected_symlinks = 1
 EOF
 sysctl --system >/dev/null
 
-echo "==> Docker (offizielles Repository) – falls noch nicht vorhanden"
+echo "==> Docker (offizielles Repository), falls noch nicht vorhanden"
 if ! command -v docker >/dev/null; then
   install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
@@ -279,7 +279,7 @@ nginx -t && systemctl reload nginx
 echo
 echo "Fertig. Nächste Schritte:"
 echo "  * In einer NEUEN Sitzung prüfen, dass der SSH-Login noch klappt (alte Sitzung offen lassen!)"
-echo "  * Docker-Ports nie auf 0.0.0.0 veröffentlichen – Docker umgeht ufw. compose.yaml nutzt 127.0.0.1."
+echo "  * Docker-Ports nie auf 0.0.0.0 veröffentlichen, Docker umgeht ufw. compose.yaml nutzt 127.0.0.1."
 echo "  * Zertifikat holen, z. B. per DNS-Challenge (Cloudflare) oder per Webroot:"
 echo "      certbot certonly --webroot -w /var/www/certbot -d <eure-domain> --deploy-hook 'systemctl reload nginx'"
 echo "  * deploy/nginx/aufgaben-oeffentlich.conf einspielen, Backups einrichten (deploy/backup)"

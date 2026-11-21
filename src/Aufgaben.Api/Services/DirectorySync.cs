@@ -27,7 +27,7 @@ public sealed class DirectorySync(AppDbContext db, GraphClient graph, AppClock c
         }
         // Bewusst ohne $filter, $count und OData-Cast: Diese "Advanced Queries" laufen über einen
         // nachgelagerten Index (ConsistencyLevel: eventual), in dem neue oder geänderte Konten
-        // verzögert erscheinen. Gefiltert wird hier im Code – bei einigen hundert Personen trivial.
+        // verzögert erscheinen. Gefiltert wird hier im Code, bei einigen hundert Personen trivial.
         var groupId = options.Value.Directory.GroupId;
         string url;
         if (string.IsNullOrWhiteSpace(groupId))
@@ -64,7 +64,7 @@ public sealed class DirectorySync(AppDbContext db, GraphClient graph, AppClock c
         {
             // Sicherheitsnetz: eine leere Antwort deaktiviert nicht alle Personen.
             LastRun = clock.UtcNow;
-            LastResult = "Keine Personen geliefert – nichts geändert.";
+            LastResult = "Keine Personen geliefert, nichts geändert.";
             return (0, 0, 0);
         }
 

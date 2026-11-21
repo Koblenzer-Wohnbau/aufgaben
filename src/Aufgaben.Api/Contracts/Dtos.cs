@@ -64,7 +64,7 @@ public sealed record AiOptionDto(string Value, string Label);
 /// <summary>Rückfrage zu einem unsicheren Feld: verantwortlich, faellig oder projekt.</summary>
 public sealed record AiQuestionDto(string Field, string Text, List<AiOptionDto> Options);
 
-/// <summary>Vorgeschlagene Aufgabe – noch nicht angelegt. Assignee null: bei der eingebenden Person.</summary>
+/// <summary>Vorgeschlagene Aufgabe, noch nicht angelegt. Assignee null: bei der eingebenden Person.</summary>
 public sealed record AiTaskDraftDto(
     string Title,
     string? Notes,

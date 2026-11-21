@@ -14,7 +14,7 @@ namespace Aufgaben.Api.Services;
 ///
 /// Übergeben ist eine normale Zuweisung an die Vertretung (mit Benachrichtigung). Es entstehen keine
 /// Einsichtsrechte, und die Sichtbarkeitsregeln aus <see cref="TaskService"/> bleiben, wie sie sind: Was die
-/// Person nach der Übergabe nicht mehr sehen darf, erscheint nur in ihrer eigenen Übersicht – mit Titel und Stand.
+/// Person nach der Übergabe nicht mehr sehen darf, erscheint nur in ihrer eigenen Übersicht, mit Titel und Stand.
 /// </summary>
 public sealed class AbsenceService(
     AppDbContext db,
@@ -38,7 +38,7 @@ public sealed class AbsenceService(
 
     /// <summary>
     /// Kommt die Aufgabe in die Übergabe? Offen, der Person zugewiesen und bis zum letzten Urlaubstag fällig
-    /// (auch schon überfällig) – oder „Warte auf …“ mit einem Tag zum Nachhaken bis dahin.
+    /// (auch schon überfällig), oder „Warte auf …“ mit einem Tag zum Nachhaken bis dahin.
     /// </summary>
     internal static Expression<Func<TaskItem, bool>> CandidateRule(int userId, DateOnly until) =>
         t => t.Status == Values.Open && t.AssigneeId == userId
@@ -81,7 +81,7 @@ public sealed class AbsenceService(
             deputy.Select(a => new DeputyDto(a.Id, UserRef.From(a.User), Iso(a.From), Iso(a.Until), openCounts.GetValueOrDefault(a.Id))).ToList());
     }
 
-    /// <summary>Was für den Urlaub zu entscheiden ist – und was schon entschieden wurde.</summary>
+    /// <summary>Was für den Urlaub zu entscheiden ist, und was schon entschieden wurde.</summary>
     public async Task<AbsencePlanDto> PlanAsync(int id, CancellationToken ct)
     {
         var absence = await OwnAsync(id, ct);
@@ -106,7 +106,7 @@ public sealed class AbsenceService(
             items.Select(t => ToItem(t, decisions.GetValueOrDefault(t.Id), visible.Contains(t.Id))).ToList());
     }
 
-    /// <summary>„Was ist passiert?“ – übergebene Aufgaben mit Stand und Neues an den eigenen Aufgaben im Urlaub.</summary>
+    /// <summary>„Was ist passiert?“: übergebene Aufgaben mit Stand und Neues an den eigenen Aufgaben im Urlaub.</summary>
     public async Task<AbsenceSummaryDto> SummaryAsync(int id, CancellationToken ct)
     {
         var absence = await OwnAsync(id, ct);
@@ -132,7 +132,7 @@ public sealed class AbsenceService(
             t.Status == open && t.AssigneeId == absence.DeputyId && handed[t.Id].ReturnedAt == null,
             visible.Contains(t.Id))).ToList();
 
-        // Neues an den eigenen Aufgaben – und an übergebenen, solange sie bei der Vertretung liegen.
+        // Neues an den eigenen Aufgaben, und an übergebenen, solange sie bei der Vertretung liegen.
         // Was die Vertretung weitergegeben hat, gehört nicht mehr dazu (Sichtbarkeit wie sonst auch).
         var start = clock.StartOfDayUtc(absence.From);
         var end = absence.ClosedAt ?? clock.StartOfDayUtc(ReturnDay(absence.Until));
@@ -185,11 +185,11 @@ public sealed class AbsenceService(
         var existing = await db.Absences.FirstOrDefaultAsync(a => a.UserId == u && a.ClosedAt == null && a.Until >= today, ct);
         if (existing is not null)
         {
-            throw ApiException.Invalid($"Es ist schon ein Urlaub eingetragen ({existing.From:dd.MM.}–{existing.Until:dd.MM.yyyy}). Bitte erst diesen beenden oder löschen.");
+            throw ApiException.Invalid($"Es ist schon ein Urlaub eingetragen ({existing.From:dd.MM.} bis {existing.Until:dd.MM.yyyy}). Bitte erst diesen beenden oder löschen.");
         }
         if (await db.Absences.AnyAsync(a => a.UserId == deputyId && a.ClosedAt == null && a.From <= until && a.Until >= from, ct))
         {
-            throw ApiException.Invalid($"{deputy.DisplayName} ist in dieser Zeit selbst abwesend – bitte eine andere Vertretung wählen.");
+            throw ApiException.Invalid($"{deputy.DisplayName} ist in dieser Zeit selbst abwesend, bitte eine andere Vertretung wählen.");
         }
 
         var absence = new Absence { UserId = u, From = from, Until = until, DeputyId = deputy.Id, Deputy = deputy, CreatedAt = clock.UtcNow };
@@ -208,7 +208,7 @@ public sealed class AbsenceService(
         var absence = await OwnCurrentAsync(id, ct);
         if (absence.From > clock.Today)
         {
-            throw ApiException.Invalid("Der Urlaub hat noch nicht angefangen – zum Absagen bitte löschen.");
+            throw ApiException.Invalid("Der Urlaub hat noch nicht angefangen, zum Absagen bitte löschen.");
         }
         var changed = await UndoKeptAsync(absence, toMyDay: true, ct);
         absence.ClosedAt = clock.UtcNow;
@@ -307,7 +307,7 @@ public sealed class AbsenceService(
         return ToItem(task, row?.Decision, canOpen);
     }
 
-    /// <summary>„Alle übergeben“: alles, was noch nicht entschieden ist – mit einer einzigen Benachrichtigung.</summary>
+    /// <summary>„Alle übergeben“: alles, was noch nicht entschieden ist, mit einer einzigen Benachrichtigung.</summary>
     public async Task<AbsenceCountDto> HandOverAllAsync(int id, CancellationToken ct)
     {
         var absence = await OwnCurrentAsync(id, ct);
@@ -334,7 +334,7 @@ public sealed class AbsenceService(
         }
         else
         {
-            var list = string.Join("\n", open.Take(25).Select(t => "– " + t.Title)) + (open.Count > 25 ? $"\n… und {open.Count - 25} weitere" : "");
+            var list = string.Join("\n", open.Take(25).Select(t => "- " + t.Title)) + (open.Count > 25 ? $"\n… und {open.Count - 25} weitere" : "");
             outbox.Enqueue(deputy.Id, NotificationOutbox.Handover, null, $"{open.Count} Aufgaben für die Urlaubsvertretung",
                 HandoverText(absence, "") + "\n\n" + list, me.User.DisplayName);
         }
@@ -372,7 +372,7 @@ public sealed class AbsenceService(
         var today = clock.Today;
         task.AssigneeId = deputy.Id;
         task.Assignee = deputy;
-        // „Warte auf …“ übernimmt die Vertretung samt Tag zum Nachhaken – sie bekommt dann die Erinnerung.
+        // „Warte auf …“ übernimmt die Vertretung samt Tag zum Nachhaken, sie bekommt dann die Erinnerung.
         // Sonst war Zurückstellen die Planung der abwesenden Person.
         if (task.WaitingFor == "")
         {
@@ -399,7 +399,7 @@ public sealed class AbsenceService(
         row.PreviousSnoozedUntil = previousSnooze;
         row.PreviousDueDate = previousDue;
 
-        // Schon später zurückgestellt – oder die Frist ist schon da: Zurückstellen ginge nicht, die Frist geht vor.
+        // Schon später zurückgestellt, oder die Frist ist schon da: Zurückstellen ginge nicht, die Frist geht vor.
         var later = task.SnoozedUntil >= returnDay;
         var dueNow = task.WaitingFor == "" && task.Kind != "wiedervorlage" && task.DueDate <= clock.Today;
         if (!later && !dueNow)
@@ -414,7 +414,7 @@ public sealed class AbsenceService(
         return row;
     }
 
-    /// <summary>Behalten rückgängig machen – nur, solange noch der Tag gilt, den die Übergabe gesetzt hat.</summary>
+    /// <summary>Behalten rückgängig machen, nur, solange noch der Tag gilt, den die Übergabe gesetzt hat.</summary>
     private bool UndoKeep(Absence absence, TaskItem task, AbsenceTask row, bool toMyDay)
     {
         var returnDay = ReturnDay(absence.Until);
@@ -424,7 +424,7 @@ public sealed class AbsenceService(
             return false;
         }
         var today = clock.Today;
-        // Bei „Warte auf …“ bleibt ein schon erreichter Tag zum Nachhaken stehen – dann ist Nachhaken dran.
+        // Bei „Warte auf …“ bleibt ein schon erreichter Tag zum Nachhaken stehen, dann ist Nachhaken dran.
         task.SnoozedUntil = row.PreviousSnoozedUntil is { } previous && (previous > today || task.WaitingFor != "") ? previous : null;
         if (task.Kind == "wiedervorlage" && task.DueDate == returnDay && row.PreviousDueDate is { } due && due != returnDay)
         {
@@ -461,7 +461,7 @@ public sealed class AbsenceService(
         return changed;
     }
 
-    /// <summary>Zurück an die abwesende Person. Wer auf etwas wartet, wartet weiter – sonst steht sie heute in „Mein Tag“.</summary>
+    /// <summary>Zurück an die abwesende Person. Wer auf etwas wartet, wartet weiter, sonst steht sie heute in „Mein Tag“.</summary>
     private void TakeBack(Absence absence, TaskItem task, AbsenceTask row)
     {
         var today = clock.Today;
@@ -492,7 +492,7 @@ public sealed class AbsenceService(
         return list.Select(t => (t, rows[t.Id])).ToList();
     }
 
-    /// <summary>Eigene offene Aufgabe – oder eine, die in diesem Urlaub übergeben wurde und noch bei der Vertretung liegt.</summary>
+    /// <summary>Eigene offene Aufgabe, oder eine, die in diesem Urlaub übergeben wurde und noch bei der Vertretung liegt.</summary>
     private async Task<TaskItem> LoadTaskAsync(Absence absence, int taskId, CancellationToken ct)
     {
         var u = me.Id;
@@ -528,7 +528,7 @@ public sealed class AbsenceService(
 
     private async Task<User> ActiveDeputyAsync(Absence absence, CancellationToken ct) =>
         await db.Users.FirstOrDefaultAsync(x => x.Id == absence.DeputyId && x.IsActive, ct)
-        ?? throw ApiException.Invalid("Die Vertretung ist nicht mehr aktiv – bitte den Urlaub löschen und mit einer anderen Vertretung neu eintragen.");
+        ?? throw ApiException.Invalid("Die Vertretung ist nicht mehr aktiv, bitte den Urlaub löschen und mit einer anderen Vertretung neu eintragen.");
 
     private string HandoverText(Absence absence, string note) =>
         $"Urlaubsvertretung für {me.User.DisplayName} vom {absence.From:dd.MM.} bis {absence.Until:dd.MM.yyyy}." + (note == "" ? "" : "\n\n" + note);
@@ -540,7 +540,7 @@ public sealed class AbsenceService(
                ?? throw ApiException.NotFound("Urlaub");
     }
 
-    /// <summary>Eingetragen oder laufend – nicht vorbei.</summary>
+    /// <summary>Eingetragen oder laufend, nicht vorbei.</summary>
     private async Task<Absence> OwnCurrentAsync(int id, CancellationToken ct)
     {
         var absence = await OwnAsync(id, ct);
@@ -551,7 +551,7 @@ public sealed class AbsenceService(
 
     private static bool IsBack(Absence a, DateOnly today) => a.ClosedAt is not null || today > a.Until;
 
-    /// <summary>Erster Tag zurück: nach dem letzten Urlaubstag oder – vorzeitig beendet – der Tag des Endes.</summary>
+    /// <summary>Erster Tag zurück: nach dem letzten Urlaubstag oder, vorzeitig beendet, der Tag des Endes.</summary>
     private DateOnly BackOn(Absence a) =>
         a.ClosedAt is { } closed ? DateOnly.FromDateTime(clock.ToLocal(closed)) : a.Until.AddDays(1);
 

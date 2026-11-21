@@ -85,7 +85,7 @@ public sealed class AbsenceApiTests(AppFixture app)
     private static Task<HttpResponseMessage> Decide(HttpClient client, int absenceId, int taskId, string decision, string? note = null) =>
         client.PostAsJsonAsync($"/api/absences/{absenceId}/tasks/{taskId}", new { decision, note });
 
-    /// <summary>Eigene Personen je Test – „Alle übergeben“ berührt so weder Testdaten noch andere Tests.</summary>
+    /// <summary>Eigene Personen je Test, „Alle übergeben“ berührt so weder Testdaten noch andere Tests.</summary>
     private async Task<(HttpClient Client, int Id)> PersonAsync(string name)
     {
         var oid = "urlaub-" + Guid.NewGuid().ToString("N")[..12];
@@ -121,7 +121,7 @@ public sealed class AbsenceApiTests(AppFixture app)
         Assert.True(absence.Started);
         Assert.False(absence.Ended);
 
-        // Im Urlaub fällig, überfällig oder Nachhaken – Späteres und Terminloses nicht
+        // Im Urlaub fällig, überfällig oder Nachhaken, Späteres und Terminloses nicht
         var plan = await Read<AbsencePlanDto>(await max.GetAsync($"/api/absences/{absence.Id}/plan"));
         var planned = plan.Items.Select(i => i.TaskId).ToList();
         Assert.Equal(new[] { overdue.Id, fromAnna.Id, waiting.Id, dueSoon.Id, keepMe.Id }.Order(), planned.Order());
@@ -151,7 +151,7 @@ public sealed class AbsenceApiTests(AppFixture app)
         await Read<AbsenceItemDto>(await Decide(max, absence.Id, overdue.Id, "behalten"));
         Assert.Null((await Get(max, overdue.Id)).SnoozedUntil);
 
-        // Alle übrigen übergeben – eine einzige Benachrichtigung
+        // Alle übrigen übergeben, eine einzige Benachrichtigung
         Assert.Equal(2, (await Read<AbsenceCountDto>(await max.PostAsync($"/api/absences/{absence.Id}/handover-all", null))).Count);
         var bundle = await app.WithDbAsync(db => db.Notifications.SingleAsync(n => n.UserId == evaId && n.Kind == NotificationOutbox.Handover));
         Assert.Equal("2 Aufgaben für die Urlaubsvertretung", bundle.Title);
@@ -163,7 +163,7 @@ public sealed class AbsenceApiTests(AppFixture app)
         Assert.Equal("Fa. Müller", waitingForEva.WaitingFor);
         Assert.Equal(Iso(today.AddDays(2)), waitingForEva.SnoozedUntil);
 
-        // Sichtbarkeit wie sonst: Annas Aufgabe liegt jetzt bei Eva – Max ist weder Ersteller noch verantwortlich
+        // Sichtbarkeit wie sonst: Annas Aufgabe liegt jetzt bei Eva, Max ist weder Ersteller noch verantwortlich
         Assert.Equal(HttpStatusCode.NotFound, (await max.GetAsync($"/api/tasks/{fromAnna.Id}")).StatusCode);
         Assert.False(await app.WithDbAsync(db => db.AccessGrants.AnyAsync(g => g.OwnerId == maxId || g.ViewerId == evaId)));
 

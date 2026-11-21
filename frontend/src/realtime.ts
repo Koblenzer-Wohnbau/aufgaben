@@ -46,7 +46,7 @@ export function connectLive(onMessage: (m: LiveMessage) => void, onState: (onlin
           }
         }
       } catch {
-        /* Verbindungsabbruch – gleich neu verbinden */
+        /* Verbindungsabbruch, gleich neu verbinden */
       }
       onState(false);
       if (!stopped) await new Promise((r) => setTimeout(r, 4000));

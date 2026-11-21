@@ -1,4 +1,4 @@
-// TeamsJS wird nur innerhalb von Teams geladen – im normalen Browser spart das den Download.
+// TeamsJS wird nur innerhalb von Teams geladen, im normalen Browser spart das den Download.
 type TeamsModule = typeof import("@microsoft/teams-js");
 let teamsJs: TeamsModule | null = null;
 
