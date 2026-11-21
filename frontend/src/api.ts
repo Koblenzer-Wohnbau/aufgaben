@@ -1,5 +1,5 @@
 import type {
-  AccessGrant, AccessLogEntry, AdminStatus, Attachment, AuthConfig, Counts, MyAccess, CreateTask, Me, Project, Suggestions, Task, TaskDetail, TaskEvent, TaskList, Template, UserRef, ViewKey,
+  AccessGrant, AccessLogEntry, AdminStatus, Attachment, AuthConfig, BulkAction, BulkResult, Counts, MyAccess, CreateTask, Me, Project, Suggestions, Task, TaskDetail, TaskEvent, TaskList, Template, UserRef, ViewKey,
 } from "./types";
 
 export class ApiError extends Error {
@@ -95,7 +95,13 @@ export const api = {
   patchTask: (id: number, body: Record<string, unknown>) => request<Task>("PATCH", `/api/tasks/${id}`, body),
   completeTask: (id: number) => request<Task>("POST", `/api/tasks/${id}/complete`),
   reopenTask: (id: number) => request<Task>("POST", `/api/tasks/${id}/reopen`),
+  /** In den Papierkorb legen */
   deleteTask: (id: number) => request<void>("DELETE", `/api/tasks/${id}`),
+  restoreTask: (id: number) => request<Task>("POST", `/api/tasks/${id}/restore`),
+  purgeTask: (id: number) => request<void>("DELETE", `/api/tasks/${id}/endgueltig`),
+  bulkTasks: (action: BulkAction, ids: number[]) => request<BulkResult>("POST", "/api/tasks/bulk", { action, ids }),
+  deleteCompleted: () => request<BulkResult>("POST", "/api/tasks/erledigte-loeschen"),
+  emptyTrash: () => request<BulkResult>("POST", "/api/papierkorb/leeren"),
   addChecklist: (id: number, title: string) => request<Task>("POST", `/api/tasks/${id}/checklist`, { title }),
   updateChecklist: (id: number, itemId: number, body: { title?: string; done?: boolean }) =>
     request<Task>("PATCH", `/api/tasks/${id}/checklist/${itemId}`, body),

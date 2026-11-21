@@ -29,8 +29,14 @@ public sealed class TaskService(
     public const int MaxChecklist = 100;
     public const int MaxWaitingFor = 200;
 
+    /// <summary>So lange bleiben gelöschte Aufgaben im Papierkorb, danach löscht der Hintergrunddienst sie endgültig.</summary>
+    public const int TrashDays = 30;
+
+    /// <summary>Höchstzahl für Aktionen mit mehreren Aufgaben auf einmal.</summary>
+    public const int MaxBulk = 500;
+
     public static readonly string[] Views =
-        ["mein-tag", "aufgaben", "person", "wichtig", "geplant", "zugewiesen", "delegiert", "wiedervorlagen", "warteschleife", "liste", "projekt", "erledigt", "suche"];
+        ["mein-tag", "aufgaben", "person", "wichtig", "geplant", "zugewiesen", "delegiert", "wiedervorlagen", "warteschleife", "liste", "projekt", "erledigt", "suche", "papierkorb"];
 
     /// <summary>
     /// Nicht zurückgestellt (oder der Tag ist da) – oder schon fällig: Eine Fälligkeit geht immer vor,
@@ -39,7 +45,17 @@ public sealed class TaskService(
     private static Expression<Func<TaskItem, bool>> Present(DateOnly today) =>
         t => t.SnoozedUntil == null || t.SnoozedUntil <= today || t.DueDate <= today;
 
-    private IQueryable<TaskItem> Base() => db.Tasks
+    private IQueryable<TaskItem> Base() => Base(db.Tasks);
+
+    /// <summary>Papierkorb der angemeldeten Person: von ihr gelöscht oder von ihr angelegt.</summary>
+    private IQueryable<TaskItem> Trash()
+    {
+        var u = me.Id;
+        return Base(db.Tasks.IgnoreQueryFilters().Include(t => t.DeletedBy))
+            .Where(t => t.DeletedAt != null && (t.DeletedById == u || t.CreatedById == u));
+    }
+
+    private static IQueryable<TaskItem> Base(IQueryable<TaskItem> tasks) => tasks
         .Include(t => t.CreatedBy)
         .Include(t => t.Assignee)
         .Include(t => t.CompletedBy)
@@ -187,6 +203,9 @@ public sealed class TaskService(
             case "suche":
                 q = Visible(q);
                 break;
+            case "papierkorb":
+                q = Trash();
+                break;
             default:
                 throw ApiException.Invalid("Unbekannte Ansicht.");
         }
@@ -204,6 +223,7 @@ public sealed class TaskService(
         IOrderedQueryable<TaskItem> ordered = view switch
         {
             "erledigt" => q.OrderByDescending(t => t.CompletedAt),
+            "papierkorb" => q.OrderByDescending(t => t.DeletedAt),
             // Was zuerst wieder dran ist, steht oben.
             "warteschleife" => q.OrderBy(t => t.SnoozedUntil == null ? 1 : 0).ThenBy(t => t.SnoozedUntil).ThenByDescending(t => t.CreatedAt),
             _ => q.OrderBy(t => t.Status == done ? 1 : 0)
@@ -279,9 +299,13 @@ public sealed class TaskService(
             .Select(g => new { g.Key, Count = g.Count() })
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
 
+        var trash = await db.Tasks.IgnoreQueryFilters()
+            .CountAsync(t => t.DeletedAt != null && (t.DeletedById == u || t.CreatedById == u), ct);
+
         return new CountsDto(
             own?.MyDay ?? 0, own?.Important ?? 0, own?.Planned ?? 0, own?.Assigned ?? 0, other?.Delegated ?? 0,
-            own?.FollowUps ?? 0, other?.Overdue ?? 0, lists, projects, own?.Inbox ?? 0, other?.Waiting ?? 0, other?.WaitingDue ?? 0);
+            own?.FollowUps ?? 0, other?.Overdue ?? 0, lists, projects, own?.Inbox ?? 0, other?.Waiting ?? 0, other?.WaitingDue ?? 0,
+            trash);
     }
 
     /// <summary>
@@ -652,6 +676,7 @@ public sealed class TaskService(
         return ToDto(task);
     }
 
+    /// <summary>In den Papierkorb legen. Endgültig gelöscht wird nach <see cref="TrashDays"/> Tagen oder von Hand.</summary>
     public async Task DeleteAsync(int id, CancellationToken ct)
     {
         var task = await LoadEditableAsync(id, ct);
@@ -659,23 +684,141 @@ public sealed class TaskService(
         {
             throw ApiException.Forbidden("Nur die Person, die die Aufgabe angelegt hat, kann sie löschen.");
         }
-        var targets = new List<int> { task.CreatedById, task.AssigneeId };
-        if (task.ListId is int deletedListId)
-        {
-            targets.AddRange(await ListAudienceAsync(deletedListId, ct));
-        }
-        var isProject = task.ProjectId is not null;
+        var now = clock.UtcNow;
+        task.DeletedAt = now;
+        task.DeletedById = me.Id;
+        task.Version++;
+        task.UpdatedAt = now;
+        AddEvent(task.Id, "papierkorb", "");
+        await db.SaveChangesAsync(ct);
+        await PublishGoneAsync(task.Id, task.CreatedById, task.AssigneeId, task.ListId, task.ProjectId, ct);
+    }
+
+    /// <summary>Aus dem Papierkorb zurückholen – wer gelöscht oder angelegt hat.</summary>
+    public async Task<TaskDto> RestoreAsync(int id, CancellationToken ct)
+    {
+        var task = await Trash().FirstOrDefaultAsync(t => t.Id == id, ct) ?? throw ApiException.NotFound("Aufgabe im Papierkorb");
+        task.DeletedAt = null;
+        task.DeletedById = null;
+        task.DeletedBy = null;
+        task.Version++;
+        task.UpdatedAt = clock.UtcNow;
+        AddEvent(task.Id, "wiederhergestellt", "");
+        await db.SaveChangesAsync(ct);
+        await PublishAsync(task, ct);
+        return ToDto(task);
+    }
+
+    /// <summary>Endgültig löschen – nur aus dem Papierkorb, mit Checkliste, Anhängen und Verlauf.</summary>
+    public async Task PurgeAsync(int id, CancellationToken ct)
+    {
+        var task = await Trash().FirstOrDefaultAsync(t => t.Id == id, ct) ?? throw ApiException.NotFound("Aufgabe im Papierkorb");
         db.Tasks.Remove(task);
         await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>Den eigenen Papierkorb leeren; gibt die Zahl der endgültig gelöschten Aufgaben zurück.</summary>
+    public async Task<int> EmptyTrashAsync(CancellationToken ct)
+    {
+        var u = me.Id;
+        // Checklisten, Anhänge und Verlauf folgen per ON DELETE CASCADE.
+        return await db.Tasks.IgnoreQueryFilters()
+            .Where(t => t.DeletedAt != null && (t.DeletedById == u || t.CreatedById == u))
+            .ExecuteDeleteAsync(ct);
+    }
+
+    /// <summary>
+    /// Alle erledigten Aufgaben, die die Person angelegt hat, in den Papierkorb legen. Erledigte Aufgaben,
+    /// die andere angelegt haben, bleiben – die zählt <c>Skipped</c>.
+    /// </summary>
+    public async Task<BulkResultDto> DeleteCompletedAsync(CancellationToken ct)
+    {
+        var u = me.Id;
+        var done = Values.Done;
+        var mine = await db.Tasks
+            .Where(t => t.Status == done && t.CreatedById == u)
+            .Select(t => new { t.Id, t.CreatedById, t.AssigneeId, t.ListId, t.ProjectId })
+            .ToListAsync(ct);
+        var kept = await db.Tasks.CountAsync(t => t.Status == done && t.AssigneeId == u && t.CreatedById != u, ct);
+        if (mine.Count == 0)
+        {
+            return new BulkResultDto(0, kept);
+        }
+
+        var ids = mine.Select(t => t.Id).ToList();
+        var now = clock.UtcNow;
+        await using var tx = await BeginAsync(ct);
+        await db.Tasks.Where(t => ids.Contains(t.Id)).ExecuteUpdateAsync(s => s
+            .SetProperty(t => t.DeletedAt, now)
+            .SetProperty(t => t.DeletedById, u)
+            .SetProperty(t => t.UpdatedAt, now)
+            .SetProperty(t => t.Version, t => t.Version + 1), ct);
+        foreach (var id in ids)
+        {
+            AddEvent(id, "papierkorb", "");
+        }
+        await db.SaveChangesAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
+
+        foreach (var t in mine)
+        {
+            await PublishGoneAsync(t.Id, t.CreatedById, t.AssigneeId, t.ListId, t.ProjectId, ct);
+        }
+        return new BulkResultDto(mine.Count, kept);
+    }
+
+    /// <summary>
+    /// Dieselbe Aktion für mehrere Aufgaben. Jede Aufgabe läuft durch dieselben Prüfungen wie einzeln;
+    /// was nicht erlaubt oder nicht mehr da ist, wird übersprungen statt die ganze Aktion abzubrechen.
+    /// </summary>
+    public async Task<BulkResultDto> BulkAsync(BulkRequest req, CancellationToken ct)
+    {
+        var ids = (req.Ids ?? []).Distinct().ToList();
+        if (ids.Count > MaxBulk)
+        {
+            throw ApiException.Invalid($"Höchstens {MaxBulk} Aufgaben auf einmal.");
+        }
+        Func<int, Task> action = req.Action switch
+        {
+            "erledigen" => id => CompleteAsync(id, ct),
+            "loeschen" => id => DeleteAsync(id, ct),
+            "wiederherstellen" => id => RestoreAsync(id, ct),
+            "endgueltig-loeschen" => id => PurgeAsync(id, ct),
+            _ => throw ApiException.Invalid("Unbekannte Aktion – erlaubt sind erledigen, loeschen, wiederherstellen und endgueltig-loeschen."),
+        };
+        var doneCount = 0;
+        var skipped = 0;
+        foreach (var id in ids)
+        {
+            try
+            {
+                await action(id);
+                doneCount++;
+            }
+            catch (ApiException)
+            {
+                // Die Prüfungen schlagen fehl, bevor etwas geändert wird – es bleibt nichts halb gespeichert.
+                skipped++;
+            }
+        }
+        return new BulkResultDto(doneCount, skipped);
+    }
+
+    /// <summary>Live-Meldung „weg“ an alle, die die Aufgabe bisher gesehen haben.</summary>
+    private async Task PublishGoneAsync(int id, int createdById, int assigneeId, int? listId, int? projectId, CancellationToken ct)
+    {
         var message = new { type = "task-deleted", id };
-        if (isProject)
+        if (projectId is not null)
         {
             hub.Broadcast(message);
+            return;
         }
-        else
+        var targets = new List<int> { createdById, assigneeId };
+        if (listId is int l)
         {
-            hub.Publish(targets, message);
+            targets.AddRange(await ListAudienceAsync(l, ct));
         }
+        hub.Publish(targets, message);
     }
 
     public async Task<TaskDto> AddChecklistItemAsync(int id, ChecklistRequest req, CancellationToken ct)
@@ -1060,7 +1203,9 @@ public sealed class TaskService(
             t.WaitingSince?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             t.SnoozedUntil?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             // Gerade ausgeblendet – eine Fälligkeit holt die Aufgabe früher zurück.
-            !t.IsDone && t.SnoozedUntil > today && !(t.DueDate <= today));
+            !t.IsDone && t.SnoozedUntil > today && !(t.DueDate <= today),
+            t.DeletedAt,
+            t.DeletedBy is null ? null : UserRef.From(t.DeletedBy));
     }
 
     // ---------------------------------------------------------------- Validierung

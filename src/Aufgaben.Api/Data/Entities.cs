@@ -106,6 +106,14 @@ public sealed class TaskItem
     /// <summary>Wann ans Nachhaken erinnert wurde – einmal je Termin.</summary>
     public DateTimeOffset? FollowUpNotifiedAt { get; set; }
 
+    /// <summary>
+    /// Im Papierkorb seit … (leer: nicht gelöscht). Ein globaler Filter blendet solche Aufgaben in allen
+    /// Abfragen aus; nur der Papierkorb liest sie ausdrücklich mit <c>IgnoreQueryFilters</c>.
+    /// </summary>
+    public DateTimeOffset? DeletedAt { get; set; }
+    public int? DeletedById { get; set; }
+    public User? DeletedBy { get; set; }
+
     public string Recurrence { get; set; } = "";
     public DateTimeOffset? CompletedAt { get; set; }
     public int? CompletedById { get; set; }

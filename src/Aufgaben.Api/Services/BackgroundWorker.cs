@@ -10,7 +10,7 @@ namespace Aufgaben.Api.Services;
 /// Läuft im Hintergrund (Standard: alle 30 Sekunden):
 /// 1. fällige Erinnerungen in den Ausgangskorb legen,
 /// 2. einmal täglich die Tagesübersicht erzeugen,
-/// 3. bei „Warte auf …“ am Tag zum Nachhaken erinnern,
+/// 3. bei „Warte auf …“ am Tag zum Nachhaken erinnern und den Papierkorb nach 30 Tagen leeren,
 /// 4. den Ausgangskorb versenden (Teams oder E-Mail, mit Wiederholungen),
 /// 5. regelmäßig Personen aus Entra übernehmen.
 ///
@@ -42,6 +42,7 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
         await Safe("Erinnerungen", ct, (sp, c) => QueueRemindersAsync(sp, c));
         await Safe("Tagesübersicht", ct, (sp, c) => QueueDigestsAsync(sp, c));
         await Safe("Nachhaken", ct, (sp, c) => IsOfficeTime(sp) ? QueueFollowUpsAsync(sp, c) : Task.CompletedTask);
+        await Safe("Papierkorb", ct, (sp, c) => PurgeTrashAsync(sp, c));
         await Safe("Aufgaben-Postfach", ct, (sp, c) => PollInboxAsync(sp, c));
         await Safe("Versand", ct, (sp, c) => DispatchAsync(sp, c));
         await Safe("Verzeichnisabgleich", ct, (sp, c) => SyncDirectoryAsync(sp, c));
@@ -143,6 +144,15 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
         {
             await db.SaveChangesAsync(ct);
         }
+    }
+
+    /// <summary>Aufgaben, die länger als <see cref="TaskService.TrashDays"/> Tage im Papierkorb liegen, endgültig löschen.</summary>
+    internal static async Task<int> PurgeTrashAsync(IServiceProvider sp, CancellationToken ct)
+    {
+        var db = sp.GetRequiredService<AppDbContext>();
+        var limit = sp.GetRequiredService<AppClock>().UtcNow.AddDays(-TaskService.TrashDays);
+        // Checklisten, Anhänge und Verlauf folgen per ON DELETE CASCADE.
+        return await db.Tasks.IgnoreQueryFilters().Where(t => t.DeletedAt < limit).ExecuteDeleteAsync(ct);
     }
 
     /// <summary>Ab der Uhrzeit der Tagesübersicht, am Wochenende nur, wenn die Tagesübersicht dann auch kommt.</summary>

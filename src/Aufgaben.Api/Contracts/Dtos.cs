@@ -50,7 +50,15 @@ public sealed record TaskDto(
     string WaitingFor,
     string? WaitingSince,
     string? SnoozedUntil,
-    bool IsSnoozed);
+    bool IsSnoozed,
+    DateTimeOffset? DeletedAt,
+    UserRef? DeletedBy);
+
+/// <summary>Aktion für mehrere Aufgaben: erledigen, loeschen, wiederherstellen, endgueltig-loeschen.</summary>
+public sealed record BulkRequest(string Action, List<int>? Ids);
+
+/// <summary>Done: ausgeführt. Skipped: übersprungen, weil nicht erlaubt oder nicht (mehr) vorhanden.</summary>
+public sealed record BulkResultDto(int Done, int Skipped);
 
 public sealed record AttachmentDto(int Id, string FileName, string ContentType, long Size);
 
@@ -90,7 +98,8 @@ public sealed record CountsDto(
     Dictionary<int, int> Projects,
     int Inbox,
     int Waiting,
-    int WaitingDue);
+    int WaitingDue,
+    int Trash);
 
 public sealed record SuggestionsDto(List<TaskDto> Yesterday, List<TaskDto> DueSoon, List<TaskDto> Important, List<TaskDto> Recent);
 
