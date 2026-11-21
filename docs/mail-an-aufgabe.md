@@ -88,6 +88,22 @@ Aufgaben__MailInbox__SendConfirmation=true
 
 Die Bestätigungsmails laufen über die SMTP-Einstellungen unter `Aufgaben__Mail__*`.
 
+**Selbst ausgestelltes Exchange-Zertifikat:** Zeigt Exchange für IMAP nur sein Standardzertifikat
+(ausgestellt auf den Servernamen, z. B. `server.firma.local`), lehnt die App die Verbindung zunächst ab.
+Statt einer CA-Datei genügt dann der Fingerabdruck genau dieses Zertifikats – die App akzeptiert nur
+dieses eine Zertifikat, auch unter einem anderen Namen:
+
+```bash
+echo | openssl s_client -connect mail.example.de:993 2>/dev/null | openssl x509 -noout -fingerprint -sha256
+```
+
+```ini
+Aufgaben__MailInbox__CertificateThumbprint=AB:CD:…   # Ausgabe von oben, Doppelpunkte erlaubt
+```
+
+Wird das Exchange-Zertifikat erneuert, ändert sich der Fingerabdruck – dann den neuen eintragen.
+Sauberer ist ein Zertifikat einer öffentlichen oder der eigenen Zertifizierungsstelle am Exchange.
+
 ## Testen
 
 1. Als bekannte Person eine Mail mit Betreff `Test Mail an Aufgabe morgen` an die Adresse schicken.

@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Security;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
@@ -163,11 +164,8 @@ public sealed class MailNotifier(IOptions<AufgabenOptions> options, ILogger<Mail
     {
         var o = options.Value;
         using var client = new SmtpClient();
-        if (!string.IsNullOrWhiteSpace(o.Mail.CaCertificatePath))
-        {
-            var ca = TlsTrust.LoadCa(o.Mail.CaCertificatePath);
-            client.ServerCertificateValidationCallback = (_, cert, _, errors) => TlsTrust.ValidateWithCustomCa(cert, errors, ca);
-        }
+        // Standard: öffentlich vertrauenswürdiges Zertifikat. Sonst eigene CA oder fester Fingerabdruck.
+        client.ServerCertificateValidationCallback = TlsTrust.Callback(o.Mail.CaCertificatePath, o.Mail.CertificateThumbprint);
         var security = Enum.TryParse<SecureSocketOptions>(o.Mail.Security, true, out var s) ? s : SecureSocketOptions.StartTls;
         await client.ConnectAsync(o.Mail.Host, o.Mail.Port, security, ct);
         if (!string.IsNullOrWhiteSpace(o.Mail.Username))
@@ -221,6 +219,50 @@ public sealed class MailNotifier(IOptions<AufgabenOptions> options, ILogger<Mail
 /// <summary>Prüft Serverzertifikate gegen eine interne Zertifizierungsstelle (für SMTP und IMAP).</summary>
 public static class TlsTrust
 {
+    /// <summary>
+    /// Prüfregel für TLS zum Mailserver. Ohne Angaben: Standardprüfung (öffentlich vertrauenswürdig, Name passt).
+    /// Mit Fingerabdruck: genau dieses eine Serverzertifikat wird akzeptiert – auch selbst ausgestellt und
+    /// unter anderem Namen (z. B. das Standardzertifikat von Exchange); jedes andere wird abgelehnt.
+    /// Mit CA-Datei: Zertifikate dieser Zertifizierungsstelle, der Name muss passen.
+    /// </summary>
+    public static RemoteCertificateValidationCallback? Callback(string? caPath, string? thumbprint)
+    {
+        var pinned = NormalizeThumbprint(thumbprint);
+        if (pinned.Length > 0)
+        {
+            return (_, cert, _, _) => cert is not null && Matches(cert, pinned);
+        }
+        if (!string.IsNullOrWhiteSpace(caPath))
+        {
+            var ca = LoadCa(caPath);
+            return (_, cert, _, errors) => ValidateWithCustomCa(cert, errors, ca);
+        }
+        return null;
+    }
+
+    /// <summary>Fingerabdruck als Hex in Großbuchstaben, Doppelpunkte und Leerzeichen entfernt. SHA-256 (64) oder SHA-1 (40).</summary>
+    public static string NormalizeThumbprint(string? value)
+    {
+        var text = (value ?? "").Replace(":", "").Replace(" ", "").Replace("-", "").Trim().ToUpperInvariant();
+        if (text.Length == 0)
+        {
+            return "";
+        }
+        if (text.Length is not (40 or 64) || !text.All(Uri.IsHexDigit))
+        {
+            throw new InvalidOperationException("Zertifikat-Fingerabdruck: SHA-256 (64 Zeichen) oder SHA-1 (40 Zeichen) in Hex, Doppelpunkte erlaubt.");
+        }
+        return text;
+    }
+
+    /// <summary>Stimmt das Zertifikat mit dem hinterlegten Fingerabdruck überein (SHA-256 oder SHA-1, je nach Länge)?</summary>
+    public static bool Matches(X509Certificate certificate, string pinned)
+    {
+        using var cert = new X509Certificate2(certificate);
+        var actual = pinned.Length == 64 ? cert.GetCertHashString(HashAlgorithmName.SHA256) : cert.GetCertHashString(HashAlgorithmName.SHA1);
+        return CryptographicOperations.FixedTimeEquals(Encoding.ASCII.GetBytes(actual), Encoding.ASCII.GetBytes(pinned));
+    }
+
     /// <summary>
     /// Lädt die CA-Datei. Eine PEM-Datei darf mehrere Zertifikate enthalten (Stamm- und
     /// Zwischenzertifikat einer zweistufigen PKI); DER-Dateien (.cer) enthalten genau eines.

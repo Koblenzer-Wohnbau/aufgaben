@@ -327,11 +327,8 @@ public sealed class MailInboxPoller(IServiceScopeFactory scopes, IOptions<Aufgab
             return 0;
         }
         using var client = new ImapClient();
-        if (!string.IsNullOrWhiteSpace(o.CaCertificatePath))
-        {
-            var ca = TlsTrust.LoadCa(o.CaCertificatePath);
-            client.ServerCertificateValidationCallback = (_, cert, _, errors) => TlsTrust.ValidateWithCustomCa(cert, errors, ca);
-        }
+        // Standard: öffentlich vertrauenswürdiges Zertifikat. Sonst eigene CA oder fester Fingerabdruck.
+        client.ServerCertificateValidationCallback = TlsTrust.Callback(o.CaCertificatePath, o.CertificateThumbprint);
         var security = Enum.TryParse<SecureSocketOptions>(o.Security, true, out var s) ? s : SecureSocketOptions.SslOnConnect;
         await client.ConnectAsync(o.Host, o.Port, security, ct);
         await client.AuthenticateAsync(o.Username, o.Password, ct);
