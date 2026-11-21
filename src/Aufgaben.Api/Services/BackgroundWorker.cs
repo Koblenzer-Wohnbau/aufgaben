@@ -119,7 +119,7 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
             var open = db.Tasks.Where(t => t.AssigneeId == user.Id && t.Status == Values.Open);
             var dueToday = await open.CountAsync(t => t.DueDate == today, ct);
             var overdue = await open.CountAsync(t => t.DueDate != null && t.DueDate < today, ct);
-            var followUp = await open.CountAsync(t => t.WaitingFor != "" && t.SnoozedUntil != null && t.SnoozedUntil <= today, ct);
+            var followUp = await open.CountAsync(t => t.WaitingFor != "" && t.SnoozedUntil <= today, ct);
             var myDay = await open.CountAsync(t => t.MyDayOn == today && (t.DueDate == null || t.DueDate > today) && t.WaitingFor == "", ct);
             if (dueToday + overdue + myDay + followUp == 0)
             {
@@ -167,7 +167,7 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
         var now = clock.UtcNow;
 
         var due = await db.Tasks
-            .Where(t => t.Status == Values.Open && t.WaitingFor != "" && t.SnoozedUntil != null && t.SnoozedUntil <= today
+            .Where(t => t.Status == Values.Open && t.WaitingFor != "" && t.SnoozedUntil <= today
                         && t.FollowUpNotifiedAt == null)
             .OrderBy(t => t.SnoozedUntil)
             .Take(200)

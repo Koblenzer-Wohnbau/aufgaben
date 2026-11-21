@@ -37,7 +37,7 @@ public sealed class TaskService(
     /// damit keine Frist in der Warteschleife verschwindet.
     /// </summary>
     private static Expression<Func<TaskItem, bool>> Present(DateOnly today) =>
-        t => t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today);
+        t => t.SnoozedUntil == null || t.SnoozedUntil <= today || t.DueDate <= today;
 
     private IQueryable<TaskItem> Base() => db.Tasks
         .Include(t => t.CreatedBy)
@@ -165,8 +165,8 @@ public sealed class TaskService(
                 }
                 // Geteilte Liste: alle Aufgaben der Liste, egal wer sie angelegt hat. Zurückgestellt
                 // heißt nur für die verantwortliche Person „ausgeblendet“.
-                q = q.Where(t => t.ListId == listId && (t.Status == open || t.CompletedAt >= recent)
-                                 && (t.AssigneeId != u || t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today)));
+                q = q.Where(t => t.ListId == listId && (t.Status == open || t.CompletedAt >= recent))
+                     .Where(t => t.AssigneeId != u || t.SnoozedUntil == null || t.SnoozedUntil <= today || t.DueDate <= today);
                 break;
             case "person":
                 var ownerId = id ?? throw ApiException.Invalid("Person fehlt.");
@@ -234,35 +234,35 @@ public sealed class TaskService(
         var today = clock.Today;
         var open = Values.Open;
 
-        // Eine einzige Abfrage mit bedingten Zählungen statt einer Abfrage pro Zähler –
-        // die Seitenleiste wird bei jeder Live-Änderung neu geladen.
-        // "Mine" zählt nur, was in den eigenen Ansichten auch zu sehen ist (siehe Present).
-        var c = await db.Tasks
-            .Where(t => t.Status == open && (t.AssigneeId == u || t.CreatedById == u))
+        // Zwei Abfragen mit bedingten Zählungen statt einer Abfrage pro Zähler – die Seitenleiste wird
+        // bei jeder Live-Änderung neu geladen. Die Bedingungen müssen Ausdrücke bleiben (keine Lambdas
+        // mit Anweisungsblock), sonst kann EF Core sie nicht in SQL übersetzen.
+        var mine = db.Tasks.Where(t => t.Status == open && (t.AssigneeId == u || t.CreatedById == u));
+
+        // Was in den eigenen Ansichten zu sehen ist: Zurückgestelltes zählt erst ab seinem Tag (siehe Present).
+        var own = await mine
+            .Where(t => t.AssigneeId == u)
+            .Where(Present(today))
             .GroupBy(_ => 1)
             .Select(g => new
             {
-                MyDay = g.Count(t =>
-                {
-                    var isAssignee = t.AssigneeId == u;
-                    var isMyDayOrDue = t.MyDayOn == today || (t.DueDate != null && t.DueDate <= today);
-                    var isUnsnoozedOrDue = t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today);
-                    return isAssignee && isMyDayOrDue && isUnsnoozedOrDue;
-                }),
-                Important = g.Count(t => t.AssigneeId == u && t.Priority == "hoch"
-                                         && (t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today))),
-                Planned = g.Count(t => t.AssigneeId == u && t.DueDate != null
-                                       && (t.SnoozedUntil == null || t.SnoozedUntil <= today || t.DueDate <= today)),
-                Assigned = g.Count(t => t.AssigneeId == u && t.CreatedById != u
-                                        && (t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today))),
-                FollowUps = g.Count(t => t.AssigneeId == u && t.Kind == "wiedervorlage"
-                                         && (t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today))),
-                Overdue = g.Count(t => t.AssigneeId == u && t.DueDate != null && t.DueDate < today),
+                MyDay = g.Count(t => t.MyDayOn == today || t.DueDate <= today),
+                Important = g.Count(t => t.Priority == "hoch"),
+                Planned = g.Count(t => t.DueDate != null),
+                Assigned = g.Count(t => t.CreatedById != u),
+                FollowUps = g.Count(t => t.Kind == "wiedervorlage"),
+                Inbox = g.Count(t => t.ListId == null),
+            })
+            .FirstOrDefaultAsync(ct);
+
+        var other = await mine
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                Overdue = g.Count(t => t.AssigneeId == u && t.DueDate < today),
                 Delegated = g.Count(t => t.CreatedById == u && t.AssigneeId != u),
-                Inbox = g.Count(t => t.AssigneeId == u && t.ListId == null
-                                     && (t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today))),
                 Waiting = g.Count(t => t.AssigneeId == u && (t.WaitingFor != "" || t.SnoozedUntil > today)),
-                WaitingDue = g.Count(t => t.AssigneeId == u && t.WaitingFor != "" && t.SnoozedUntil != null && t.SnoozedUntil <= today),
+                WaitingDue = g.Count(t => t.AssigneeId == u && t.WaitingFor != "" && t.SnoozedUntil <= today),
             })
             .FirstOrDefaultAsync(ct);
 
@@ -280,8 +280,8 @@ public sealed class TaskService(
             .ToDictionaryAsync(x => x.Key, x => x.Count, ct);
 
         return new CountsDto(
-            c?.MyDay ?? 0, c?.Important ?? 0, c?.Planned ?? 0, c?.Assigned ?? 0, c?.Delegated ?? 0,
-            c?.FollowUps ?? 0, c?.Overdue ?? 0, lists, projects, c?.Inbox ?? 0, c?.Waiting ?? 0, c?.WaitingDue ?? 0);
+            own?.MyDay ?? 0, own?.Important ?? 0, own?.Planned ?? 0, own?.Assigned ?? 0, other?.Delegated ?? 0,
+            own?.FollowUps ?? 0, other?.Overdue ?? 0, lists, projects, own?.Inbox ?? 0, other?.Waiting ?? 0, other?.WaitingDue ?? 0);
     }
 
     /// <summary>
@@ -1060,7 +1060,7 @@ public sealed class TaskService(
             t.WaitingSince?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             t.SnoozedUntil?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             // Gerade ausgeblendet – eine Fälligkeit holt die Aufgabe früher zurück.
-            !t.IsDone && t.SnoozedUntil is { } snoozed && snoozed > today && !(t.DueDate is { } dueDay && dueDay <= today));
+            !t.IsDone && t.SnoozedUntil > today && !(t.DueDate <= today));
     }
 
     // ---------------------------------------------------------------- Validierung
