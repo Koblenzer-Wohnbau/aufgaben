@@ -145,6 +145,7 @@ eingebetteten Vorlage und den Angaben in der `.env` – am Image ändert sich ni
 | `Aufgaben__Privacy__DpoContact` | Datenschutzbeauftragte bzw. Datenschutzbeauftragter mit Kontakt (Pflicht) |
 | `Aufgaben__Privacy__Retention` | Speicherdauer und Löschfristen (Pflicht) |
 | `Aufgaben__Privacy__Hosting` | Speicherort, ggf. Auftragsverarbeiter (optional, leer = eigener Server im Unternehmen) |
+| `Aufgaben__Privacy__Ai` | KI-Anbieter: Vertrag zur Auftragsverarbeitung, Speicherdauer beim Anbieter (Pflicht, sobald `Aufgaben__Mistral__Enabled=true`) |
 
 ```bash
 Aufgaben__Privacy__Controller=Beispiel GmbH | Musterstraße 1 | 12345 Musterstadt | info@example.de
@@ -152,7 +153,10 @@ Aufgaben__Privacy__Controller=Beispiel GmbH | Musterstraße 1 | 12345 Musterstad
 
 * `|` (oder `\n`) trennt Zeilen; die Werte erscheinen als reiner Text, HTML aus der `.env` wird nie ausgeführt.
 * Fehlt eine Pflichtangabe, steht an der Stelle weiter der Platzhalter, und oben bleibt der gelbe Hinweis „Vorlage“.
-  Er verschwindet erst, wenn alle drei Pflichtangaben gesetzt sind.
+  Er verschwindet erst, wenn alle Pflichtangaben gesetzt sind – mit KI-Vorschlägen auch `Aufgaben__Privacy__Ai`.
+* Mit eingeschalteter KI beschreibt die Seite selbst, was an die Mistral-API geht (Text bzw. Bildschirmfoto, eingebende
+  Person, Namen und Funktionen der aktiven Personen, Projektbezeichnungen) und was nicht. Mit `Aufgaben__Teams__BotId`
+  kommt ein Absatz zu „Als Aufgabe“ an Teams-Nachrichten dazu.
 * Ob alles vollständig ist, zeigt **Verwaltung → System → Datenschutzhinweise** (mit Link auf die Seite).
 * Nach einer Änderung der `.env`: `sudo docker compose up -d` (legt den Container mit den neuen Werten neu an).
 * Die Texte sind eine Vorlage – vor dem Betrieb von der bzw. dem Datenschutzbeauftragten prüfen lassen.

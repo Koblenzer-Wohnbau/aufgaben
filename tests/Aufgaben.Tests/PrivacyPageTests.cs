@@ -82,6 +82,50 @@ public class PrivacyPageTests
     }
 
     [Fact]
+    public void Without_ai_and_bot_there_is_no_section_about_them()
+    {
+        var html = PrivacyPage.Render(Complete());
+
+        Assert.DoesNotContain("KI-Vorschläge", html);
+        Assert.DoesNotContain("Mistral", html);
+        Assert.DoesNotContain("Als Aufgabe", html);
+        Assert.DoesNotContain("{{", html);
+    }
+
+    [Fact]
+    public void With_ai_the_page_names_mistral_and_what_is_sent_and_needs_the_provider_details()
+    {
+        var options = Complete();
+        var html = PrivacyPage.Render(options, ai: true);
+
+        Assert.Contains("<h2>KI-Vorschläge</h2>", html);
+        Assert.Contains("Mistral-API (Mistral AI, Frankreich)", html);
+        Assert.Contains("Name, Funktion und interne Kennung aller aktiven Nutzerinnen und Nutzer", html);
+        Assert.Contains("E-Mail-Adressen, gespeicherte Aufgaben und Notizen werden nicht übermittelt", html);
+        Assert.Contains("[Durch den Verantwortlichen zu ergänzen: Vertrag zur Auftragsverarbeitung", html);
+        Assert.Contains(Notice, html);
+        Assert.Equal([PrivacyPage.AiSetting], PrivacyPage.Missing(options, ai: true));
+        Assert.Empty(PrivacyPage.Missing(options)); // ohne KI keine Pflicht
+        Assert.DoesNotContain("{{", html);
+
+        options.Ai = "Vertrag zur Auftragsverarbeitung seit 01.12.2026 | <b>Löschung</b> beim Anbieter nach 30 Tagen";
+        html = PrivacyPage.Render(options, ai: true);
+        Assert.DoesNotContain(Notice, html);
+        Assert.Contains("<p>Vertrag zur Auftragsverarbeitung seit 01.12.2026<br>&lt;b&gt;Löschung&lt;/b&gt; beim Anbieter nach 30 Tagen</p>", html);
+        Assert.Empty(PrivacyPage.Missing(options, ai: true));
+    }
+
+    [Fact]
+    public void With_the_teams_bot_the_page_explains_what_happens_with_the_message()
+    {
+        var html = PrivacyPage.Render(Complete(), teamsMessages: true);
+
+        Assert.Contains("<li>Bei „Als Aufgabe“ an einer Teams-Nachricht:", html);
+        Assert.Contains("höchstens 30 Minuten im Arbeitsspeicher", html);
+        Assert.DoesNotContain("KI-Vorschläge", html);
+    }
+
+    [Fact]
     public void Placeholders_inside_values_are_not_replaced_again()
     {
         var options = Complete();

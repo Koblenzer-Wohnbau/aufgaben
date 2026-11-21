@@ -408,7 +408,7 @@ public static class AppEndpoints
                 MailInboxPoller.LastResult,
                 await db.InboundMails.CountAsync(m => m.Result == InboundResult.Rejected && m.ProcessedAt >= week, ct),
                 TeamsPackage.AppVersion,
-                PrivacyPage.Missing(opts.Value.Privacy));
+                PrivacyPage.Missing(opts.Value.Privacy, opts.Value.Mistral.Enabled));
         });
 
         // Teams-App-Paket aus der laufenden Konfiguration – passt immer zu Adresse, Entra-App und Version
