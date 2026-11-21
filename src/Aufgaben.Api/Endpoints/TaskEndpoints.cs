@@ -29,11 +29,27 @@ public static class TaskEndpoints
 
         tasks.MapPost("/{id:int}/reopen", (int id, TaskService svc, CancellationToken ct) => svc.ReopenAsync(id, ct));
 
+        // Löschen legt in den Papierkorb; endgültig gelöscht wird nur von dort.
         tasks.MapDelete("/{id:int}", async (int id, TaskService svc, CancellationToken ct) =>
         {
             await svc.DeleteAsync(id, ct);
             return Results.NoContent();
         });
+
+        tasks.MapPost("/{id:int}/restore", (int id, TaskService svc, CancellationToken ct) => svc.RestoreAsync(id, ct));
+
+        tasks.MapDelete("/{id:int}/endgueltig", async (int id, TaskService svc, CancellationToken ct) =>
+        {
+            await svc.PurgeAsync(id, ct);
+            return Results.NoContent();
+        });
+
+        tasks.MapPost("/bulk", (BulkRequest req, TaskService svc, CancellationToken ct) => svc.BulkAsync(req, ct));
+
+        tasks.MapPost("/erledigte-loeschen", (TaskService svc, CancellationToken ct) => svc.DeleteCompletedAsync(ct));
+
+        api.MapPost("/papierkorb/leeren", async (TaskService svc, CancellationToken ct) =>
+            new BulkResultDto(await svc.EmptyTrashAsync(ct), 0));
 
         tasks.MapPost("/{id:int}/checklist", (int id, ChecklistRequest req, TaskService svc, CancellationToken ct) =>
             svc.AddChecklistItemAsync(id, req, ct));

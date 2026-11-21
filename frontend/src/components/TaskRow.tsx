@@ -1,5 +1,5 @@
 import { useState, type MouseEvent } from "react";
-import { Avatar, makeStyles, mergeClasses, Text, Tooltip, tokens } from "@fluentui/react-components";
+import { Avatar, Checkbox, makeStyles, mergeClasses, Text, Tooltip, tokens } from "@fluentui/react-components";
 import {
   ClockAlarmRegular,
   ArrowRepeatAllRegular,
@@ -54,6 +54,8 @@ const useStyles = makeStyles({
   },
   dragging: { opacity: 0.45, transform: "scale(0.98)" },
   selected: { outline: `2px solid ${tokens.colorBrandStroke1}` },
+  checked: { backgroundColor: tokens.colorBrandBackground2, ":hover": { backgroundColor: tokens.colorBrandBackground2Hover } },
+  pick: { display: "flex", marginLeft: "-6px", marginRight: "-6px" },
   check: {
     border: "none",
     background: "transparent",
@@ -93,9 +95,14 @@ interface Props {
   task: Task;
   selected: boolean;
   showAssignee: boolean;
+  /** Auswahlmodus: links ein runder Haken statt „erledigen“, ein Klick wählt aus statt zu öffnen. */
+  selecting?: boolean;
+  checked?: boolean;
+  /** range: mit Umschalt geklickt – alles seit dem letzten Klick auswählen */
+  onSelect?: (id: number, range: boolean) => void;
 }
 
-export function TaskRow({ task, selected, showAssignee }: Props) {
+export function TaskRow({ task, selected, showAssignee, selecting = false, checked = false, onSelect }: Props) {
   const styles = useStyles();
   const { today, me, openTask, notify } = useApp();
   const queryClient = useQueryClient();
@@ -164,32 +171,48 @@ export function TaskRow({ task, selected, showAssignee }: Props) {
   const fromOther = task.isDelegated && task.createdBy.id !== me.id;
   const waitingDue = followUpDue(task, today);
   // „Später“ plant die verantwortliche Person selbst
-  const canPlan = !done && task.assignee.id === me.id;
+  const canPlan = !done && !selecting && task.assignee.id === me.id;
 
   return (
     <div
-      className={mergeClasses(styles.row, selected && styles.selected, dragging && styles.dragging)}
-      onClick={() => openTask(task.id)}
-      draggable={!done}
+      className={mergeClasses(styles.row, selected && !selecting && styles.selected, dragging && styles.dragging, selecting && checked && styles.checked)}
+      onClick={(e) => (selecting ? onSelect?.(task.id, e.shiftKey) : openTask(task.id))}
+      draggable={!done && !selecting}
       onDragStart={(e) => {
         startTaskDrag(e, task);
         setDragging(true);
       }}
       onDragEnd={() => setDragging(false)}
-      title={done ? undefined : "Zum Verschieben auf einen Eintrag links ziehen"}
+      title={done || selecting ? undefined : "Zum Verschieben auf einen Eintrag links ziehen"}
       role="button"
+      aria-pressed={selecting ? checked : undefined}
       tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && openTask(task.id)}
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (selecting && (e.key === " " || e.key === "Enter")) {
+          e.preventDefault();
+          onSelect?.(task.id, e.shiftKey);
+        } else if (e.key === "Enter") {
+          openTask(task.id);
+        }
+      }}
     >
-      <button
-        className={mergeClasses(styles.check, done && styles.checkDone)}
-        onClick={toggle}
-        onMouseEnter={() => setHover(true)}
-        onMouseLeave={() => setHover(false)}
-        aria-label={done ? "Als offen markieren" : "Als erledigt markieren"}
-      >
-        {done ? <CheckmarkCircleFilled /> : hover ? <CheckmarkCircleRegular /> : <CircleRegular />}
-      </button>
+      {selecting ? (
+        <span className={styles.pick}>
+          {/* Der Klick läuft zur Zeile hoch und wählt dort aus – so wirkt auch Umschalt+Klick */}
+          <Checkbox shape="circular" checked={checked} tabIndex={-1} aria-label={`„${task.title}“ auswählen`} />
+        </span>
+      ) : (
+        <button
+          className={mergeClasses(styles.check, done && styles.checkDone)}
+          onClick={toggle}
+          onMouseEnter={() => setHover(true)}
+          onMouseLeave={() => setHover(false)}
+          aria-label={done ? "Als offen markieren" : "Als erledigt markieren"}
+        >
+          {done ? <CheckmarkCircleFilled /> : hover ? <CheckmarkCircleRegular /> : <CircleRegular />}
+        </button>
+      )}
       <div className={styles.body}>
         <Text className={mergeClasses(styles.title, done && styles.done)}>{task.title}</Text>
         <div className={styles.meta}>
@@ -270,9 +293,11 @@ export function TaskRow({ task, selected, showAssignee }: Props) {
           onPick={(date) => void later(date)}
         />
       )}
-      <button className={mergeClasses(styles.star, high && styles.starOn)} onClick={toggleStar} aria-label="Wichtig umschalten">
-        {high ? <StarFilled /> : <StarRegular />}
-      </button>
+      {!selecting && (
+        <button className={mergeClasses(styles.star, high && styles.starOn)} onClick={toggleStar} aria-label="Wichtig umschalten">
+          {high ? <StarFilled /> : <StarRegular />}
+        </button>
+      )}
     </div>
   );
 }

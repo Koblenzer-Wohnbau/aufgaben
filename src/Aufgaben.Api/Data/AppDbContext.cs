@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Aufgaben.Api.Data;
 
@@ -21,6 +22,11 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<AccessGrant> AccessGrants => Set<AccessGrant>();
     public DbSet<AccessLogEntry> AccessLog => Set<AccessLogEntry>();
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
+
+    // Checklisten, Anhänge und Verlauf hängen an Aufgaben mit Papierkorb-Filter. Sie werden nie ohne ihre
+    // Aufgabe abgefragt, die Warnung von EF Core dazu ist hier deshalb gegenstandslos.
+    protected override void OnConfiguring(DbContextOptionsBuilder options) =>
+        options.ConfigureWarnings(w => w.Ignore(CoreEventId.PossibleIncorrectRequiredNavigationWithQueryFilterInteractionWarning));
 
     protected override void OnModelCreating(ModelBuilder b)
     {
@@ -89,6 +95,10 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
             e.HasIndex(x => x.DueDate);
             e.HasIndex(x => x.RemindAt);
             e.HasIndex(x => x.SnoozedUntil);
+            e.HasIndex(x => x.DeletedAt);
+            // Papierkorb: Gelöschtes ist für alle Abfragen unsichtbar, außer ausdrücklich mit IgnoreQueryFilters().
+            e.HasQueryFilter(x => x.DeletedAt == null);
+            e.HasOne(x => x.DeletedBy).WithMany().HasForeignKey(x => x.DeletedById).OnDelete(DeleteBehavior.SetNull);
             e.HasOne(x => x.CreatedBy).WithMany().HasForeignKey(x => x.CreatedById).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Assignee).WithMany().HasForeignKey(x => x.AssigneeId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.CompletedBy).WithMany().HasForeignKey(x => x.CompletedById).OnDelete(DeleteBehavior.SetNull);

@@ -20,6 +20,7 @@ import { inChannelTab, inTeams, type TeamsInfo } from "./teams";
 import { LoginScreen } from "./components/LoginScreen";
 import { Sidebar } from "./components/Sidebar";
 import { TaskView } from "./components/TaskView";
+import { TrashView } from "./components/TrashView";
 import { TaskDrawer } from "./components/TaskDrawer";
 
 // Selten genutzte Bereiche erst bei Bedarf laden – kleinerer Start-Download.
@@ -240,6 +241,8 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
               <TemplatesView />
             ) : route.page === "verwaltung" ? (
               <AdminView />
+            ) : route.view === "papierkorb" ? (
+              <TrashView compact={inChannelTab} />
             ) : (
               <TaskView route={route} compact={inChannelTab} />
             )}

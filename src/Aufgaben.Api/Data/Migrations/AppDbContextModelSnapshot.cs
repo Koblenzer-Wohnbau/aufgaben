@@ -443,6 +443,12 @@ namespace Aufgaben.Api.Data.Migrations
                     b.Property<int>("CreatedById")
                         .HasColumnType("integer");
 
+                    b.Property<DateTimeOffset?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("DeletedById")
+                        .HasColumnType("integer");
+
                     b.Property<DateOnly?>("DueDate")
                         .HasColumnType("date");
 
@@ -522,6 +528,10 @@ namespace Aufgaben.Api.Data.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("CompletedById");
+
+                    b.HasIndex("DeletedAt");
+
+                    b.HasIndex("DeletedById");
 
                     b.HasIndex("DueDate");
 
@@ -899,6 +909,11 @@ namespace Aufgaben.Api.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("Aufgaben.Api.Data.User", "DeletedBy")
+                        .WithMany()
+                        .HasForeignKey("DeletedById")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("Aufgaben.Api.Data.TaskList", null)
                         .WithMany()
                         .HasForeignKey("ListId")
@@ -914,6 +929,8 @@ namespace Aufgaben.Api.Data.Migrations
                     b.Navigation("CompletedBy");
 
                     b.Navigation("CreatedBy");
+
+                    b.Navigation("DeletedBy");
 
                     b.Navigation("Project");
                 });

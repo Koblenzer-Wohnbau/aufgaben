@@ -72,6 +72,18 @@ export interface Task {
   snoozedUntil: string | null;
   /** Gerade ausgeblendet – eine Fälligkeit holt die Aufgabe früher zurück */
   isSnoozed: boolean;
+  /** Im Papierkorb seit … (nur in der Ansicht „Papierkorb“ gesetzt) */
+  deletedAt: string | null;
+  deletedBy: UserRef | null;
+}
+
+export type BulkAction = "erledigen" | "loeschen" | "wiederherstellen" | "endgueltig-loeschen";
+
+export interface BulkResult {
+  /** ausgeführt */
+  done: number;
+  /** übersprungen: nicht erlaubt oder nicht mehr vorhanden */
+  skipped: number;
 }
 
 export interface TaskEvent {
@@ -106,6 +118,8 @@ export interface Counts {
   waiting: number;
   /** davon: Tag zum Nachhaken ist da */
   waitingDue: number;
+  /** Aufgaben im eigenen Papierkorb */
+  trash: number;
 }
 
 export interface TaskList {
@@ -249,6 +263,7 @@ export type ViewKey =
   | "wiedervorlagen"
   | "warteschleife"
   | "erledigt"
+  | "papierkorb"
   | "liste"
   | "projekt"
   | "suche";
