@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Claims;
 using Aufgaben.Api.Data;
 using Aufgaben.Api.Options;
+using Aufgaben.Api.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -45,9 +46,20 @@ public static class AuthSetup
         auth.AddPolicyScheme(SmartScheme, "Cookie oder Teams-Token", o =>
         {
             o.ForwardDefaultSelector = ctx =>
-                !isDev && ctx.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
+            {
+                if (isDev)
+                {
+                    return CookieAuthenticationDefaults.AuthenticationScheme;
+                }
+                // Aufrufe von Teams an den Bot tragen ein Token des Bot Framework, kein Entra-Token einer Person.
+                if (ctx.Request.Path.StartsWithSegments(TeamsBot.Path))
+                {
+                    return TeamsBot.Scheme;
+                }
+                return ctx.Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)
                     ? JwtBearerDefaults.AuthenticationScheme
                     : CookieAuthenticationDefaults.AuthenticationScheme;
+            };
         });
 
         if (isDev)
@@ -89,6 +101,35 @@ public static class AuthSetup
                 ],
                 NameClaimType = "name",
                 RoleClaimType = "roles",
+            };
+        });
+
+        // „Als Aufgabe“ in Teams: Teams ruft den Bot mit einem Token des Bot Framework auf.
+        auth.AddJwtBearer(TeamsBot.Scheme, o =>
+        {
+            o.MetadataAddress = TeamsBot.MetadataAddress;
+            o.MapInboundClaims = false;
+            o.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidIssuer = TeamsBot.Issuer,
+                // Ohne Bot-ID passt kein Token – der Endpunkt ist dann ohnehin nicht eingerichtet.
+                ValidAudience = opts.Teams.BotEnabled ? opts.Teams.BotId : Guid.NewGuid().ToString(),
+                ClockSkew = TimeSpan.FromMinutes(5),
+            };
+            o.Events = new JwtBearerEvents
+            {
+                OnTokenValidated = async ctx =>
+                {
+                    var kid = (ctx.SecurityToken as Microsoft.IdentityModel.JsonWebTokens.JsonWebToken)?.Kid;
+                    var config = ctx.Options.ConfigurationManager is null
+                        ? null
+                        : await ctx.Options.ConfigurationManager.GetConfigurationAsync(ctx.HttpContext.RequestAborted);
+                    var key = config?.JsonWebKeySet?.Keys.FirstOrDefault(k => k.Kid == kid);
+                    if (key is null || !TeamsBot.Endorses(key, TeamsBot.Channel))
+                    {
+                        ctx.Fail("Der Signaturschlüssel ist nicht für Teams freigegeben.");
+                    }
+                },
             };
         });
     }

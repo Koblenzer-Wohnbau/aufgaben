@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyAnswer, clipboardInput, createdMessage, currentOption, dataUrlBytes, draftNotes, fitSize, modelLabel, thinkingText } from "./ai";
+import { applyAnswer, clipboardInput, createdMessage, currentOption, dataUrlBytes, draftNotes, fitSize, modelLabel, plainTitle, teamsDraftText, thinkingText } from "./ai";
 import type { AiQuestion, AiTaskDraft, UserRef } from "./types";
 
 const draft: AiTaskDraft = {
@@ -72,5 +72,27 @@ describe("KI-Eingabe", () => {
   it("hängt das Zitat an die Notizen", () => {
     expect(draftNotes(draft)).toBe("Angebot liegt als PDF vor.\n\nAus: „bis Freitag das Angebot prüfen“");
     expect(draftNotes({ ...draft, notes: null, source: null })).toBeUndefined();
+    const link = "https://teams.microsoft.com/l/message/19:a/1";
+    expect(draftNotes({ ...draft, notes: null, source: null }, link)).toBe(`Teams-Nachricht: ${link}`);
+  });
+
+  it("stellt einer Teams-Nachricht Absender und Zeit voran", () => {
+    const at = () => "21.11.2026, 10:15";
+    expect(teamsDraftText({ text: " Kannst du das Angebot prüfen? ", from: "Thomas Becker", sentAt: "2026-11-21T09:15:00Z", link: null }, at)).toBe(
+      "Teams-Nachricht von Thomas Becker (21.11.2026, 10:15):\nKannst du das Angebot prüfen?",
+    );
+    expect(teamsDraftText({ text: "Nur Text", from: null, sentAt: null, link: null })).toBe("Nur Text");
+    // Nachricht nur mit Bild: kein Kopf ohne Inhalt – die Person tippt selbst
+    expect(teamsDraftText({ text: "", from: "Thomas Becker", sentAt: null, link: null })).toBe("");
+  });
+
+  it("nimmt ohne KI die erste Zeile nach der Anrede als Titel", () => {
+    expect(plainTitle("Hallo Anna,\nkannst du das Angebot prüfen?")).toBe("kannst du das Angebot prüfen?");
+    expect(plainTitle("Guten Morgen zusammen!\n\nZähler im Lindenpark ablesen")).toBe("Zähler im Lindenpark ablesen");
+    expect(plainTitle("Hallo")).toBe("Hallo");
+    expect(plainTitle("Hallo Anna, bitte bis Freitag den Mieterwechsel in der 1001 vorbereiten.")).toBe(
+      "Hallo Anna, bitte bis Freitag den Mieterwechsel in der 1001 vorbereiten.",
+    );
+    expect(plainTitle("x".repeat(200))).toHaveLength(118);
   });
 });

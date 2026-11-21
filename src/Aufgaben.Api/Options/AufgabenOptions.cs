@@ -64,6 +64,14 @@ public sealed class TeamsOptions
 
     /// <summary>Herausgeber im Teams-Paket (höchstens 32 Zeichen), z. B. der Name der Organisation.</summary>
     public string Developer { get; set; } = "";
+
+    /// <summary>
+    /// Optional: Bot-ID (App-ID der Bot-Registrierung) für „Als Aufgabe“ im „…“-Menü jeder Teams-Nachricht.
+    /// Leer = ohne diese Nachrichtenerweiterung. Einrichtung: docs/teams-nachricht.md
+    /// </summary>
+    public string BotId { get; set; } = "";
+
+    public bool BotEnabled => Guid.TryParse(BotId, out _);
 }
 
 public sealed class MailOptions

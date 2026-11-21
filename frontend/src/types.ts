@@ -114,6 +114,16 @@ export interface AiSuggestion {
 export interface AiInput {
   text?: string;
   image?: Blob;
+  /** Link zur Quelle, z. B. der Teams-Nachricht – kommt in die Notizen jeder angelegten Aufgabe */
+  link?: string;
+}
+
+/** „Als Aufgabe“ an einer Teams-Nachricht: der kurz gespeicherte Entwurf */
+export interface TeamsDraft {
+  text: string;
+  from: string | null;
+  sentAt: string | null;
+  link: string | null;
 }
 
 export type BulkAction = "erledigen" | "loeschen" | "wiederherstellen" | "endgueltig-loeschen";

@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 
 namespace Aufgaben.Api.Services;
@@ -56,8 +57,8 @@ public static partial class TeamsPackage
         return null;
     }
 
-    /// <summary>Erzeugt das ZIP. Vorher <see cref="Problem"/> prüfen.</summary>
-    public static byte[] Build(string baseUrl, string clientId, string appId, string developer, string version)
+    /// <summary>Erzeugt das ZIP. Vorher <see cref="Problem"/> prüfen. Mit Bot-ID kommt „Als Aufgabe“ ins „…“-Menü von Nachrichten.</summary>
+    public static byte[] Build(string baseUrl, string clientId, string appId, string developer, string version, string botId = "")
     {
         baseUrl = baseUrl.TrimEnd('/');
         var domain = new Uri(baseUrl).Host;
@@ -74,9 +75,27 @@ public static partial class TeamsPackage
             .Replace("{{DOMAIN}}", Json(domain))
             .Replace("{{COMPANY}}", Json(developer))
             .Replace("{{VERSION}}", Json(version));
-        using (JsonDocument.Parse(manifest))
+        var root = JsonNode.Parse(manifest)!.AsObject(); // prüft zugleich, ob gültiges JSON entstanden ist
+        if (Guid.TryParse(botId, out var bot))
         {
-            // nur prüfen, ob gültiges JSON entstanden ist
+            root["composeExtensions"] = new JsonArray(new JsonObject
+            {
+                ["botId"] = bot.ToString(),
+                ["commands"] = new JsonArray(new JsonObject
+                {
+                    ["id"] = TeamsBot.CommandId,
+                    ["type"] = "action",
+                    ["title"] = "Als Aufgabe",
+                    ["description"] = "Aus dieser Nachricht eine Aufgabe machen – mit KI-Vorschlag",
+                    ["context"] = new JsonArray("message"),
+                    ["fetchTask"] = true,
+                }),
+            });
+            manifest = root.ToJsonString(new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            });
         }
 
         using var buffer = new MemoryStream();

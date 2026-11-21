@@ -140,6 +140,12 @@ public sealed class CurrentUserMiddleware(RequestDelegate next)
     public async Task InvokeAsync(HttpContext ctx, CurrentUser current, UserProvisioning provisioning,
         Microsoft.Extensions.Options.IOptions<Options.AufgabenOptions> options, IConfiguration config)
     {
+        // Teams ruft den Bot an, keine Person: Prüfungen und Zuordnung erledigt der Endpunkt selbst.
+        if (ctx.Request.Path.StartsWithSegments(Services.TeamsBot.Path))
+        {
+            await next(ctx);
+            return;
+        }
         if (ctx.User.Identity?.IsAuthenticated == true)
         {
             // Zusätzlich zur Prüfung des Ausstellers: nur Konten aus dem eigenen Mandanten.

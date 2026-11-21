@@ -82,6 +82,17 @@ const useStyles = makeStyles({
   checklist: { margin: 0, paddingLeft: "20px", color: tokens.colorNeutralForeground2 },
   source: { color: tokens.colorNeutralForeground3, fontStyle: "italic" },
   meta: { display: "flex", flexWrap: "wrap", gap: "6px" },
+  page: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+    height: "100%",
+    boxSizing: "border-box",
+    padding: "16px 20px",
+    backgroundColor: tokens.colorNeutralBackground2,
+  },
+  pageBody: { flex: 1, minHeight: 0, overflowY: "auto", paddingRight: "4px" },
+  pageActions: { display: "flex", justifyContent: "flex-end", gap: "8px" },
 });
 
 type Phase = "input" | "thinking" | "review";
@@ -96,7 +107,19 @@ interface Draft extends AiTaskDraft {
  * „Mit KI erfassen“: Text aus einer Teams-Nachricht, Mail oder einem Protokoll – oder ein Bildschirmfoto –
  * wird zu Vorschlägen. Angelegt wird erst, wenn die Person bestätigt; Unklares fragt die KI direkt nach.
  */
-export function AiCaptureDialog({ initial, onClose }: { initial: AiInput; onClose: () => void }) {
+export function AiCaptureDialog({
+  initial,
+  onClose,
+  inline = false,
+  onCreated,
+}: {
+  initial: AiInput;
+  onClose: () => void;
+  /** als ganze Seite statt als Dialog (Fenster in Teams) */
+  inline?: boolean;
+  /** statt Meldung und Schließen: die Seite zeigt selbst, was angelegt wurde */
+  onCreated?: (message: string) => void;
+}) {
   const styles = useStyles();
   const { me, users, projects, notify } = useApp();
   const queryClient = useQueryClient();
@@ -196,7 +219,7 @@ export function AiCaptureDialog({ initial, onClose }: { initial: AiInput; onClos
       try {
         await api.createTask({
           title: d.title.trim(),
-          notes: draftNotes(d),
+          notes: draftNotes(d, initial.link),
           priority: d.priority,
           kind: d.kind,
           assigneeId: d.assignee && d.assignee.id !== me.id ? d.assignee.id : null,
@@ -215,8 +238,13 @@ export function AiCaptureDialog({ initial, onClose }: { initial: AiInput; onClos
     setSaving(false);
     await Promise.all([queryClient.invalidateQueries({ queryKey: ["tasks"] }), queryClient.invalidateQueries({ queryKey: ["counts"] })]);
     if (created > 0) {
-      notify(createdMessage(created, [...notified]));
-      onClose();
+      const message = createdMessage(created, [...notified]);
+      if (onCreated) {
+        onCreated(message);
+      } else {
+        notify(message);
+        onClose();
+      }
     }
   };
 
@@ -225,16 +253,14 @@ export function AiCaptureDialog({ initial, onClose }: { initial: AiInput; onClos
     if (!saving) onClose();
   };
 
-  return (
-    <Dialog open onOpenChange={(_, d) => !d.open && close()}>
-      <DialogSurface className={styles.surface}>
-        <DialogBody>
-          <DialogTitle action={<Button appearance="subtle" icon={<DismissRegular />} aria-label="Schließen" onClick={close} />}>
-            <span className={styles.title}>
-              <SparkleFilled className={styles.sparkle} /> Mit KI erfassen
-            </span>
-          </DialogTitle>
-          <DialogContent className={styles.content}>
+  const heading = (
+    <span className={styles.title}>
+      <SparkleFilled className={styles.sparkle} /> Mit KI erfassen
+    </span>
+  );
+
+  const body = (
+    <>
             {phase !== "review" && (
               <>
                 <Text className={styles.muted}>
@@ -366,8 +392,11 @@ export function AiCaptureDialog({ initial, onClose }: { initial: AiInput; onClos
                 )}
               </>
             )}
-          </DialogContent>
-          <DialogActions>
+    </>
+  );
+
+  const buttons = (
+    <>
             {phase === "input" && (
               <>
                 <Button onClick={close}>Abbrechen</Button>
@@ -387,7 +416,29 @@ export function AiCaptureDialog({ initial, onClose }: { initial: AiInput; onClos
                 </Button>
               </>
             )}
-          </DialogActions>
+    </>
+  );
+
+  // Als ganze Seite – im Fenster, das Teams für „Als Aufgabe“ öffnet
+  if (inline) {
+    return (
+      <main className={styles.page}>
+        <Text as="h1" size={500} weight="semibold">
+          {heading}
+        </Text>
+        <div className={mergeClasses(styles.content, styles.pageBody)}>{body}</div>
+        <div className={styles.pageActions}>{buttons}</div>
+      </main>
+    );
+  }
+
+  return (
+    <Dialog open onOpenChange={(_, d) => !d.open && close()}>
+      <DialogSurface className={styles.surface}>
+        <DialogBody>
+          <DialogTitle action={<Button appearance="subtle" icon={<DismissRegular />} aria-label="Schließen" onClick={close} />}>{heading}</DialogTitle>
+          <DialogContent className={styles.content}>{body}</DialogContent>
+          <DialogActions>{buttons}</DialogActions>
         </DialogBody>
       </DialogSurface>
     </Dialog>
