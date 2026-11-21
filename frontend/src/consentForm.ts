@@ -11,8 +11,8 @@ function de(date: string | null): string {
 }
 
 /**
- * Druckbares Formular (A4) zur Einsicht in Aufgaben. Wird in einem eigenen Fenster geöffnet
- * und gedruckt; alle Werte werden HTML-maskiert.
+ * Druckbares Formular (A4) zur Einsicht in Aufgaben. Wird über einen unsichtbaren Rahmen gedruckt
+ * oder als HTML-Datei heruntergeladen; alle Werte werden HTML-maskiert.
  */
 export function consentFormHtml(g: AccessGrant): string {
   const box = (checked: boolean) => (checked ? "☒" : "☐");
@@ -43,8 +43,12 @@ export function consentFormHtml(g: AccessGrant): string {
   .sign .line { border-bottom: 0.3mm solid #111; height: 14mm; }
   .sign .cap { display: flex; justify-content: space-between; font-size: 8.5pt; color: #444; margin-top: 1mm; }
   .foot { margin-top: 8mm; font-size: 8pt; color: #666; border-top: 0.3mm solid #ccc; padding-top: 2mm; }
+  .screen { background: #eef0fb; border-radius: 2mm; padding: 2.5mm 3.5mm; margin-bottom: 5mm; font-size: 9.5pt; }
+  @media screen { body { max-width: 190mm; margin: 10mm auto; padding: 0 5mm; } }
+  @media print { .screen { display: none; } }
 </style></head>
 <body>
+  <div class="screen">Zum Drucken <strong>Strg + P</strong> drücken. Dieser Hinweis erscheint nicht auf dem Ausdruck.</div>
   <h1>Einverständniserklärung zur Einsicht in Aufgaben</h1>
   <div class="sub">App „Aufgaben“ · Vorgang Nr. ${g.id} · erstellt am ${esc(created)}</div>
 
@@ -84,17 +88,58 @@ export function consentFormHtml(g: AccessGrant): string {
 </body></html>`;
 }
 
+const PRINT_FRAME_ID = "aufgaben-formular-druck";
+
 /**
- * Öffnet das Formular in einem neuen Fenster und startet den Druckdialog von hier aus –
- * das neue Fenster erbt die strenge CSP der App und darf selbst kein Skript ausführen.
+ * Druckt das Formular über einen unsichtbaren Rahmen in der Seite. Ein neues Fenster blockieren
+ * Browser und Teams als Pop-up – vor allem, wenn der Druck erst nach dem Anlegen startet.
+ * Der Rahmen bekommt das Formular ohne eigenes Skript; den Druck startet die App.
+ * Gibt false zurück, wenn der Druck nicht gestartet werden konnte.
  */
 export function printConsentForm(grant: AccessGrant): boolean {
-  const win = window.open("", "_blank", "width=900,height=1100");
-  if (!win) return false;
-  win.document.open();
-  win.document.write(consentFormHtml(grant));
-  win.document.close();
-  win.focus();
-  setTimeout(() => win.print(), 400);
-  return true;
+  try {
+    document.getElementById(PRINT_FRAME_ID)?.remove();
+    const frame = document.createElement("iframe");
+    frame.id = PRINT_FRAME_ID;
+    frame.title = "Formular zum Drucken";
+    frame.setAttribute("aria-hidden", "true");
+    frame.tabIndex = -1;
+    Object.assign(frame.style, { position: "absolute", width: "0", height: "0", top: "-10px", left: "-10px", border: "0" });
+    document.body.appendChild(frame);
+    const doc = frame.contentDocument;
+    const win = frame.contentWindow;
+    if (!doc || !win) return false;
+    doc.open();
+    doc.write(consentFormHtml(grant));
+    doc.close();
+    setTimeout(() => {
+      try {
+        win.focus();
+        win.print();
+      } catch {
+        /* Druck abgelehnt – „Herunterladen“ bleibt als Weg */
+      }
+    }, 300);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Dateiname für das heruntergeladene Formular, ohne Zeichen, die Windows in Dateinamen nicht erlaubt. */
+export function consentFormFileName(g: Pick<AccessGrant, "id" | "owner">): string {
+  const owner = g.owner.name.replace(/[<>:"/\\|?*\u0000-\u001f]/g, "").replace(/\s+/g, " ").trim();
+  return `Einsicht in Aufgaben - Nr. ${g.id}${owner ? ` - ${owner}` : ""}.html`;
+}
+
+/** Formular als HTML-Datei herunterladen – öffnet im Browser und lässt sich dort mit Strg+P drucken. */
+export function downloadConsentForm(grant: AccessGrant) {
+  const url = URL.createObjectURL(new Blob([consentFormHtml(grant)], { type: "text/html;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = consentFormFileName(grant);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
