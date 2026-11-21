@@ -387,7 +387,8 @@ public static class AppEndpoints
             return await next(ctx);
         });
 
-        admin.MapGet("/status", async (AppDbContext db, GraphClient graph, MailNotifier mail, TeamsNotifier teams, MailInboxPoller inbox, AppClock clock, CancellationToken ct) =>
+        admin.MapGet("/status", async (AppDbContext db, GraphClient graph, MailNotifier mail, TeamsNotifier teams, MailInboxPoller inbox, AppClock clock,
+            IOptions<AufgabenOptions> opts, CancellationToken ct) =>
         {
             var week = clock.UtcNow.AddDays(-7);
             return new AdminStatusDto(
@@ -403,7 +404,8 @@ public static class AppEndpoints
                 MailInboxPoller.LastRun,
                 MailInboxPoller.LastResult,
                 await db.InboundMails.CountAsync(m => m.Result == InboundResult.Rejected && m.ProcessedAt >= week, ct),
-                TeamsPackage.AppVersion);
+                TeamsPackage.AppVersion,
+                PrivacyPage.Missing(opts.Value.Privacy));
         });
 
         // Teams-App-Paket aus der laufenden Konfiguration – passt immer zu Adresse, Entra-App und Version

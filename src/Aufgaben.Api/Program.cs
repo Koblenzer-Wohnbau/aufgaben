@@ -199,6 +199,13 @@ app.MapHealthChecks("/readyz", new HealthCheckOptions { Predicate = r => r.Tags.
 app.MapAuthEndpoints();
 app.MapCalendarFeed();
 
+// Datenschutzhinweise mit den Angaben aus der .env (Aufgaben__Privacy__…), öffentlich wie bisher die statische Seite
+app.MapMethods("/datenschutz.html", [HttpMethods.Get, HttpMethods.Head], (HttpContext ctx, IOptions<AufgabenOptions> o) =>
+{
+    ctx.Response.Headers.CacheControl = "no-cache";
+    return Results.Content(PrivacyPage.Render(o.Value.Privacy), "text/html; charset=utf-8");
+}).AllowAnonymous();
+
 var api = app.MapGroup("/api").RequireAuthorization();
 api.MapTaskEndpoints();
 api.MapAppEndpoints();

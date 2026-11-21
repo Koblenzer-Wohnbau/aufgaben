@@ -175,4 +175,6 @@ public sealed record AdminStatusDto(
     DateTimeOffset? LastMailInboxRun,
     string? LastMailInboxResult,
     int RejectedMailsLast7Days,
-    string Version);
+    string Version,
+    // Pflichtangaben der Datenschutzhinweise, die in der .env fehlen (leer = vollständig)
+    IReadOnlyList<string> PrivacyMissing);
