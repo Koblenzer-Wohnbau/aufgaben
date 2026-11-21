@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { consentFormHtml } from "./consentForm";
+import { consentFormFileName, consentFormHtml } from "./consentForm";
 import type { AccessGrant } from "./types";
 
 const grant: AccessGrant = {
@@ -38,5 +38,17 @@ describe("consentFormHtml", () => {
 
   it("nennt unbefristete Freigaben ausdrücklich", () => {
     expect(consentFormHtml({ ...grant, validUntil: null })).toContain("auf unbestimmte Zeit (bis zum Widerruf)");
+  });
+
+  it("zeigt den Druckhinweis nur am Bildschirm", () => {
+    const html = consentFormHtml(grant);
+    expect(html).toContain("Strg + P");
+    expect(html).toMatch(/@media print \{ \.screen \{ display: none; \} \}/);
+  });
+
+  it("benennt die heruntergeladene Datei ohne Zeichen, die Windows ablehnt", () => {
+    expect(consentFormFileName({ id: 7, owner: { ...grant.owner, name: "Maria Klein" } })).toBe("Einsicht in Aufgaben - Nr. 7 - Maria Klein.html");
+    expect(consentFormFileName({ id: 8, owner: { ...grant.owner, name: 'A/B: "C" <D>?' } })).toBe("Einsicht in Aufgaben - Nr. 8 - AB C D.html");
+    expect(consentFormFileName({ id: 9, owner: { ...grant.owner, name: "  " } })).toBe("Einsicht in Aufgaben - Nr. 9.html");
   });
 });

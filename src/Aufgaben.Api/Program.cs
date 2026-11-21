@@ -6,6 +6,7 @@ using Aufgaben.Api.Endpoints;
 using Aufgaben.Api.Infrastructure;
 using Aufgaben.Api.Options;
 using Aufgaben.Api.Services;
+using Aufgaben.Api.Services.Ai;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -94,6 +95,10 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("kalender", ctx => RateLimitPartition.GetFixedWindowLimiter(
         "feed:" + ctx.Request.Path,
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+    // KI-Vorschläge kosten Geld und Zeit: höchstens 30 je Person in 10 Minuten.
+    o.AddPolicy("ki", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        "ki:" + (ctx.User.Oid() ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unbekannt"),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 30, Window = TimeSpan.FromMinutes(10), QueueLimit = 0 }));
 });
 
 // ---------------------------------------------------------------- Kompression
@@ -128,6 +133,13 @@ builder.Services.AddHttpClient<GraphClient>(c =>
     c.BaseAddress = new Uri("https://graph.microsoft.com/v1.0/");
     c.Timeout = TimeSpan.FromSeconds(30);
 });
+// KI-Vorschläge (Mistral, Standard GLM 5.3). Nachdenken braucht Zeit – daher die eigene, längere Grenze.
+builder.Services.AddHttpClient<MistralClient>(c =>
+{
+    c.BaseAddress = new Uri("https://api.mistral.ai/");
+    c.Timeout = TimeSpan.FromSeconds(Math.Clamp(opts.Mistral.TimeoutSeconds, 10, 900));
+});
+builder.Services.AddScoped<TaskAssistant>();
 if (opts.Worker.Enabled)
 {
     builder.Services.AddHostedService<BackgroundWorker>();
@@ -209,6 +221,7 @@ app.MapMethods("/datenschutz.html", [HttpMethods.Get, HttpMethods.Head], (HttpCo
 var api = app.MapGroup("/api").RequireAuthorization();
 api.MapTaskEndpoints();
 api.MapAppEndpoints();
+api.MapAiEndpoints();
 api.MapAccessEndpoints();
 api.MapEventStream();
 

@@ -44,12 +44,14 @@ import { api } from "../api";
 import { filesFrom, isPreviewable, uploadName, uploadProblem } from "../attachments";
 import { initials, useApp } from "../context";
 import { fromLocalInput, RECURRENCE_LABEL, shortDateTime, toLocalInput } from "../dates";
+import { TRASH_DAYS } from "../selection";
 import type { Attachment, Task, TaskEvent } from "../types";
 import { LaterPanel } from "./LaterPanel";
 import { PersonPicker } from "./PersonPicker";
 
 const useStyles = makeStyles({
   drawer: { width: "420px", borderLeft: `1px solid ${tokens.colorNeutralStroke2}` },
+  headerActions: { display: "flex", gap: "2px" },
   body: {
     display: "flex",
     flexDirection: "column",
@@ -110,6 +112,8 @@ const EVENT_TEXT: Record<string, string> = {
   "antwort-da": "hat die Antwort erhalten von",
   zurueckgestellt: "hat zurückgestellt",
   zurueckgeholt: "hat die Aufgabe zurückgeholt",
+  papierkorb: "hat in den Papierkorb gelegt",
+  wiederhergestellt: "hat aus dem Papierkorb wiederhergestellt",
 };
 
 /** Kleine Vorschau für Bildanhänge – mit Anmeldung geladen (in Teams per Token), danach freigegeben. */
@@ -144,16 +148,44 @@ function AttachmentThumb({ taskId, attachment, onOpen }: { taskId: number; attac
 
 export function TaskDrawer({ taskId, onClose, overlay }: { taskId: number | null; onClose: () => void; overlay: boolean }) {
   const styles = useStyles();
+  const { notify } = useApp();
+  const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: ["task", taskId],
     queryFn: () => api.task(taskId!),
     enabled: taskId !== null,
   });
 
+  // Oben neben „Schließen“, damit niemand bis ans Ende des Verlaufs scrollen muss
+  const moveToTrash = async () => {
+    const task = query.data?.task;
+    if (!task) return;
+    try {
+      await api.deleteTask(task.id);
+      notify(`In den Papierkorb gelegt – dort ${TRASH_DAYS} Tage lang wiederherstellbar`);
+      onClose();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+        queryClient.invalidateQueries({ queryKey: ["counts"] }),
+      ]);
+    } catch (e) {
+      notify(e instanceof Error ? e.message : "Fehler", "error");
+    }
+  };
+
   const content = (
     <>
       <DrawerHeader>
-        <DrawerHeaderTitle action={<Button appearance="subtle" icon={<DismissRegular />} aria-label="Schließen" onClick={onClose} />}>
+        <DrawerHeaderTitle
+          action={
+            <div className={styles.headerActions}>
+              {query.data?.task.canDelete && (
+                <Button appearance="subtle" icon={<DeleteRegular />} aria-label="In den Papierkorb" title="In den Papierkorb" onClick={() => void moveToTrash()} />
+              )}
+              <Button appearance="subtle" icon={<DismissRegular />} aria-label="Schließen" onClick={onClose} />
+            </div>
+          }
+        >
           Aufgabe
         </DrawerHeaderTitle>
       </DrawerHeader>
@@ -605,13 +637,13 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
           <Button
             appearance="subtle"
             icon={<DeleteRegular />}
-            onClick={() => {
-              if (window.confirm(`„${task.title}“ endgültig löschen?`)) {
-                void run(() => api.deleteTask(task.id), "Aufgabe gelöscht").then((ok) => ok && onDeleted());
-              }
-            }}
+            onClick={() =>
+              void run(() => api.deleteTask(task.id), `In den Papierkorb gelegt – dort ${TRASH_DAYS} Tage lang wiederherstellbar`).then(
+                (ok) => ok && onDeleted(),
+              )
+            }
           >
-            Löschen
+            In den Papierkorb
           </Button>
         )}
       </div>

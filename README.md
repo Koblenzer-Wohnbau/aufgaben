@@ -25,6 +25,13 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 * **Warte auf …** und **Später**: Aufgabe auf „Warte auf Fa. Müller“ setzen oder bis Montag zurückstellen – sie
   verschwindet aus den Listen in die **Warteschleife** und steht am Tag zum Nachhaken wieder in „Mein Tag“,
   mit Erinnerung per Teams oder E-Mail. Eine Fälligkeit holt sie immer früher zurück
+* **Mit KI erfassen** (optional): eine Teams-Nachricht, Mail oder ein Protokoll kopieren und in Aufgaben
+  irgendwo `Strg+V` drücken – auch ein Bildschirmfoto. Die KI (GLM 5.3 über die Mistral-API) schlägt eine oder
+  mehrere Aufgaben mit Person, Frist und Projekt vor und fragt bei Unklarem nach; angelegt wird erst nach
+  Bestätigung. Standardmäßig aus (`Aufgaben__Mistral__…` in `.env`)
+* **Mehrere Aufgaben auf einmal**: „Auswählen“ mit „Alle“ und Umschalt+Klick – erledigen, später oder löschen;
+  „Erledigte löschen“ räumt in einem Schritt auf
+* **Papierkorb**: Gelöschtes bleibt 30 Tage wiederherstellbar und wird danach endgültig gelöscht
 * **Kalender-Feed** für Outlook, **Tagesübersicht** am Morgen, **Wiedervorlagen**
 * **Einsichtsrechte** mit Formular zum Drucken, Unterschriftsbestätigung, Ablaufdatum und Zugriffsprotokoll
   (Verwaltung → Einsichtsrechte, siehe [docs/einsichtsrechte.md](docs/einsichtsrechte.md))

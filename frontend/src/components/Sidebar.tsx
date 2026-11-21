@@ -15,6 +15,7 @@ import {
   CalendarLtrRegular,
   CheckmarkCircleRegular,
   ClockAlarmRegular,
+  DeleteRegular,
   DismissRegular,
   DocumentBulletListRegular,
   EyeRegular,
@@ -140,7 +141,7 @@ function NavItem({ to, active, icon, label, count, accent, extra, onNavigate }: 
     if (!drop || id === null) return;
     e.preventDefault();
     try {
-      await api.patchTask(id, drop.patch);
+      await (drop.remove ? api.deleteTask(id) : api.patchTask(id, drop.patch ?? {}));
       notify(drop.label);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
@@ -260,6 +261,7 @@ export function Sidebar({ route, open, overlay, online, onClose, onSettings }: P
         {item({ page: "tasks", view: "warteschleife" }, <HourglassHalfRegular />, "Warteschleife", c?.waiting, !!c?.waitingDue)}
         {item({ page: "tasks", view: "wiedervorlagen" }, <ClockAlarmRegular />, "Wiedervorlagen", c?.followUps)}
         {item({ page: "tasks", view: "erledigt" }, <CheckmarkCircleRegular />, "Erledigt")}
+        {item({ page: "tasks", view: "papierkorb" }, <DeleteRegular />, "Papierkorb", c?.trash)}
         {item({ page: "vorlagen" }, <DocumentBulletListRegular />, "Vorlagen")}
         {me.isAdmin && item({ page: "verwaltung" }, <ShieldPersonRegular />, "Verwaltung")}
 

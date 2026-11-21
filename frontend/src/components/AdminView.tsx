@@ -41,7 +41,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { accessActionLabel } from "../accessText";
-import { printConsentForm } from "../consentForm";
+import { downloadConsentForm, printConsentForm } from "../consentForm";
 import { useApp } from "../context";
 import { shortDateTime } from "../dates";
 import type { AccessGrant, UserRef } from "../types";
@@ -124,7 +124,10 @@ function AccessSection() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["admin-access"] });
 
   const print = (g: AccessGrant) => {
-    if (!printConsentForm(g)) notify("Das Druckfenster wurde blockiert – bitte Pop-ups für diese Seite erlauben.", "error");
+    if (!printConsentForm(g)) {
+      downloadConsentForm(g);
+      notify("Drucken ging hier nicht – das Formular wurde stattdessen heruntergeladen.", "info");
+    }
   };
 
   const remove = async (g: AccessGrant) => {
@@ -182,7 +185,10 @@ function AccessSection() {
             )}
             <div className={styles.actions}>
               <Button size="small" icon={<PrintRegular />} onClick={() => print(g)}>
-                Formular
+                Formular drucken
+              </Button>
+              <Button size="small" icon={<ArrowDownloadRegular />} onClick={() => downloadConsentForm(g)}>
+                Herunterladen
               </Button>
               {g.status === "entwurf" && (
                 <Button size="small" appearance="primary" icon={<CheckmarkRegular />} onClick={() => setConfirming(g)}>
