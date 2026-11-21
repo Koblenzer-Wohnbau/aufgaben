@@ -242,8 +242,13 @@ public sealed class TaskService(
             .GroupBy(_ => 1)
             .Select(g => new
             {
-                MyDay = g.Count(t => t.AssigneeId == u && (t.MyDayOn == today || (t.DueDate != null && t.DueDate <= today))
-                                     && (t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today))),
+                MyDay = g.Count(t =>
+                {
+                    var isAssignee = t.AssigneeId == u;
+                    var isMyDayOrDue = t.MyDayOn == today || (t.DueDate != null && t.DueDate <= today);
+                    var isUnsnoozedOrDue = t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today);
+                    return isAssignee && isMyDayOrDue && isUnsnoozedOrDue;
+                }),
                 Important = g.Count(t => t.AssigneeId == u && t.Priority == "hoch"
                                          && (t.SnoozedUntil == null || t.SnoozedUntil <= today || (t.DueDate != null && t.DueDate <= today))),
                 Planned = g.Count(t => t.AssigneeId == u && t.DueDate != null
