@@ -27,6 +27,7 @@ import { TaskDrawer } from "./components/TaskDrawer";
 const TemplatesView = lazy(() => import("./components/TemplatesView").then((m) => ({ default: m.TemplatesView })));
 const SettingsDialog = lazy(() => import("./components/SettingsDialog").then((m) => ({ default: m.SettingsDialog })));
 const ChannelConfig = lazy(() => import("./components/ChannelConfig").then((m) => ({ default: m.ChannelConfig })));
+const AbsenceDialog = lazy(() => import("./components/AbsenceDialog").then((m) => ({ default: m.AbsenceDialog })));
 const AdminView = lazy(() => import("./components/AdminView").then((m) => ({ default: m.AdminView })));
 
 function isTyping(target: EventTarget | null) {
@@ -106,6 +107,7 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
   const drawerOverlay = useMedia("(max-width: 1100px)");
   const [navOpen, setNavOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [absenceOpen, setAbsenceOpen] = useState(false);
   const [online, setOnline] = useState(true);
   const [taskId, setTaskId] = useState<number | null>(() => {
     if (route.page === "tasks" && route.taskId) return route.taskId;
@@ -131,12 +133,17 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
             void queryClient.invalidateQueries({ queryKey: ["counts"] });
             void queryClient.invalidateQueries({ queryKey: ["projects"] });
             void queryClient.invalidateQueries({ queryKey: ["lists"] });
+            // Urlaubsübergabe: Planung, Banner und „Was ist passiert?“ zeigen den Stand der Aufgaben.
+            void queryClient.invalidateQueries({ queryKey: ["absences"] });
             if (m.id) void queryClient.invalidateQueries({ queryKey: ["task", m.id] });
           }
           if (m.type === "lists") {
             void queryClient.invalidateQueries({ queryKey: ["lists"] });
             void queryClient.invalidateQueries({ queryKey: ["counts"] });
             void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+          }
+          if (m.type === "absences") {
+            void queryClient.invalidateQueries({ queryKey: ["absences"] });
           }
           if (m.type === "verbunden") {
             void queryClient.invalidateQueries();
@@ -223,6 +230,7 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
             overlay={narrow}
             onClose={() => setNavOpen(false)}
             onSettings={() => setSettingsOpen(true)}
+            onAbsence={() => setAbsenceOpen(true)}
             online={online}
           />
         )}
@@ -253,6 +261,11 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
       {settingsOpen && (
         <Suspense fallback={null}>
           <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} inTeams={inTeams} />
+        </Suspense>
+      )}
+      {absenceOpen && (
+        <Suspense fallback={null}>
+          <AbsenceDialog onClose={() => setAbsenceOpen(false)} />
         </Suspense>
       )}
       <Toaster toasterId={toasterId} position="bottom-end" />

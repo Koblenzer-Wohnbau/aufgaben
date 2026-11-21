@@ -22,6 +22,76 @@ namespace Aufgaben.Api.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Aufgaben.Api.Data.Absence", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("DeputyId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly>("From")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("SummaryClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateOnly>("Until")
+                        .HasColumnType("date");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeputyId", "Until");
+
+                    b.HasIndex("UserId", "Until");
+
+                    b.ToTable("absences", (string)null);
+                });
+
+            modelBuilder.Entity("Aufgaben.Api.Data.AbsenceTask", b =>
+                {
+                    b.Property<int>("AbsenceId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TaskId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTimeOffset>("DecidedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Decision")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
+                    b.Property<DateOnly?>("PreviousDueDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("PreviousSnoozedUntil")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset?>("ReturnedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("AbsenceId", "TaskId");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("absence_tasks", (string)null);
+                });
+
             modelBuilder.Entity("Aufgaben.Api.Data.AccessGrant", b =>
                 {
                     b.Property<int>("Id")
@@ -771,6 +841,40 @@ namespace Aufgaben.Api.Data.Migrations
                     b.ToTable("data_protection_keys", (string)null);
                 });
 
+            modelBuilder.Entity("Aufgaben.Api.Data.Absence", b =>
+                {
+                    b.HasOne("Aufgaben.Api.Data.User", "Deputy")
+                        .WithMany()
+                        .HasForeignKey("DeputyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Aufgaben.Api.Data.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Deputy");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Aufgaben.Api.Data.AbsenceTask", b =>
+                {
+                    b.HasOne("Aufgaben.Api.Data.Absence", null)
+                        .WithMany("Tasks")
+                        .HasForeignKey("AbsenceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Aufgaben.Api.Data.TaskItem", null)
+                        .WithMany()
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("Aufgaben.Api.Data.AccessGrant", b =>
                 {
                     b.HasOne("Aufgaben.Api.Data.User", null)
@@ -976,6 +1080,11 @@ namespace Aufgaben.Api.Data.Migrations
                         .HasForeignKey("TemplateId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Aufgaben.Api.Data.Absence", b =>
+                {
+                    b.Navigation("Tasks");
                 });
 
             modelBuilder.Entity("Aufgaben.Api.Data.TaskItem", b =>

@@ -112,6 +112,8 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
 
         var users = await db.Users
             .Where(u => u.IsActive && u.DigestEnabled && u.NotifyChannel != "aus" && (u.LastDigestOn == null || u.LastDigestOn < today))
+            // Im Urlaub keine Tagesübersicht
+            .Where(u => !db.Absences.Any(a => a.UserId == u.Id && a.ClosedAt == null && a.From <= today && a.Until >= today))
             .Take(500)
             .ToListAsync(ct);
         foreach (var user in users)

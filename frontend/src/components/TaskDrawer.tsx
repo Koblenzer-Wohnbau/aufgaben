@@ -44,6 +44,7 @@ import { api } from "../api";
 import { filesFrom, isPreviewable, uploadName, uploadProblem } from "../attachments";
 import { initials, useApp } from "../context";
 import { fromLocalInput, RECURRENCE_LABEL, shortDateTime, toLocalInput } from "../dates";
+import { eventLine } from "../eventText";
 import { TRASH_DAYS } from "../selection";
 import type { Attachment, Task, TaskEvent } from "../types";
 import { LaterPanel } from "./LaterPanel";
@@ -97,24 +98,6 @@ function formatSize(bytes: number) {
   if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
   return `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
 }
-
-const EVENT_TEXT: Record<string, string> = {
-  angelegt: "hat die Aufgabe angelegt",
-  zugewiesen: "hat zugewiesen",
-  erledigt: "hat erledigt",
-  "wieder-geoeffnet": "hat wieder geöffnet",
-  termin: "hat den Termin geändert:",
-  folgeaufgabe: "hat die Folgeaufgabe angelegt,",
-  kommentar: "",
-  anhang: "hat angehängt:",
-  "anhang-entfernt": "hat den Anhang entfernt:",
-  warten: "wartet",
-  "antwort-da": "hat die Antwort erhalten von",
-  zurueckgestellt: "hat zurückgestellt",
-  zurueckgeholt: "hat die Aufgabe zurückgeholt",
-  papierkorb: "hat in den Papierkorb gelegt",
-  wiederhergestellt: "hat aus dem Papierkorb wiederhergestellt",
-};
 
 /** Kleine Vorschau für Bildanhänge – mit Anmeldung geladen (in Teams per Token), danach freigegeben. */
 function AttachmentThumb({ taskId, attachment, onOpen }: { taskId: number; attachment: Attachment; onOpen: (url: string) => void }) {
@@ -601,7 +584,7 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
             <div style={{ flex: 1, minWidth: 0 }}>
               <Caption1 className={styles.meta}>
                 <b>{e.actor?.name ?? "System"}</b>{" "}
-                {e.kind === "angelegt" && e.text ? `hat die Aufgabe ${e.text} angelegt` : `${EVENT_TEXT[e.kind] ?? e.kind} ${e.kind !== "kommentar" ? e.text : ""}`} · {shortDateTime(e.createdAt)}
+                {eventLine(e)} · {shortDateTime(e.createdAt)}
               </Caption1>
               {e.kind === "kommentar" && <div className={styles.comment}>{e.text}</div>}
             </div>

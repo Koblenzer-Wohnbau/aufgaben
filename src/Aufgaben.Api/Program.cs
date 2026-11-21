@@ -117,6 +117,7 @@ builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<UserProvisioning>();
 builder.Services.AddScoped<NotificationOutbox>();
 builder.Services.AddScoped<TaskService>();
+builder.Services.AddScoped<AbsenceService>();
 builder.Services.AddScoped<TemplateService>();
 builder.Services.AddScoped<DirectorySync>();
 builder.Services.AddScoped<TeamsNotifier>();
@@ -203,6 +204,7 @@ var api = app.MapGroup("/api").RequireAuthorization();
 api.MapTaskEndpoints();
 api.MapAppEndpoints();
 api.MapAccessEndpoints();
+api.MapAbsenceEndpoints();
 api.MapEventStream();
 
 app.MapFallback("/api/{**rest}", () => Results.NotFound(new { error = "Unbekannter Endpunkt." }));

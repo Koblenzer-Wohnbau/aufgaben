@@ -134,6 +134,57 @@ public sealed record MyAccessDto(int GrantId, UserRef Owner, string Permission, 
 
 public sealed record AccessAboutMeDto(List<AccessGrantDto> Grants, List<AccessLogDto> Log);
 
+/// <summary>
+/// Eigener Urlaub mit Vertretung. ReturnDay: erster Arbeitstag danach. Ended: vorbei oder vorzeitig beendet.
+/// HandedOver und Kept: Aufgaben, die gerade übergeben bzw. behalten sind.
+/// </summary>
+public sealed record AbsenceDto(int Id, string From, string Until, string ReturnDay, UserRef Deputy, bool Started, bool Ended, int HandedOver, int Kept);
+
+/// <summary>Vertretung für jemanden, der gerade abwesend ist. Open: übergebene Aufgaben, die noch offen sind.</summary>
+public sealed record DeputyDto(int AbsenceId, UserRef Person, string From, string Until, int Open);
+
+/// <summary>Current: eingetragener oder laufender eigener Urlaub. Returned: zurück, Übersicht noch nicht geschlossen.</summary>
+public sealed record AbsenceStatusDto(AbsenceDto? Current, AbsenceDto? Returned, List<DeputyDto> Deputy);
+
+public sealed record AbsenceRequest(string? From, string? Until, int? DeputyId);
+
+/// <summary>Aufgabe in der Übergabe. Decision: "uebergeben", "behalten" oder null (noch nicht entschieden).</summary>
+public sealed record AbsenceItemDto(
+    int TaskId,
+    string Title,
+    string Kind,
+    string? DueDate,
+    string WaitingFor,
+    string? FollowUp,
+    string? Decision,
+    UserRef Assignee,
+    bool CanOpen);
+
+public sealed record AbsencePlanDto(AbsenceDto Absence, List<AbsenceItemDto> Items);
+
+/// <summary>Decision: "uebergeben" (Note wird als Kommentar gespeichert) oder "behalten".</summary>
+public sealed record AbsenceDecisionRequest(string Decision, string? Note);
+
+/// <summary>TaskIds leer oder null: alle, für die die Aktion in Frage kommt.</summary>
+public sealed record AbsenceTaskIdsRequest(List<int>? TaskIds);
+
+public sealed record AbsenceCountDto(int Count);
+
+/// <summary>Übergebene Aufgabe nach der Rückkehr: erledigt, noch bei der Vertretung, schon zurück oder weitergegeben.</summary>
+public sealed record HandoverStateDto(
+    int TaskId,
+    string Title,
+    string Status,
+    UserRef Assignee,
+    UserRef? CompletedBy,
+    DateTimeOffset? CompletedAt,
+    bool CanTakeBack,
+    bool CanOpen);
+
+public sealed record SummaryEventDto(long Id, int TaskId, string TaskTitle, string Kind, string Text, UserRef? Actor, DateTimeOffset CreatedAt);
+
+public sealed record AbsenceSummaryDto(AbsenceDto Absence, List<HandoverStateDto> Handovers, int Kept, List<SummaryEventDto> Events);
+
 public sealed record ListRequest(string? Name, string? Color, int? Position);
 
 public sealed record ProjectRequest(string? Number, string? Name, string? TeamName, bool? Archived);

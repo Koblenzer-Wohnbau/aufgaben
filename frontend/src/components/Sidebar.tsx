@@ -12,6 +12,7 @@ import {
 } from "@fluentui/react-components";
 import {
   AddRegular,
+  BeachRegular,
   CalendarLtrRegular,
   CheckmarkCircleRegular,
   ClockAlarmRegular,
@@ -24,6 +25,7 @@ import {
   ListRegular,
   NumberSymbolRegular,
   PeopleRegular,
+  PeopleSwapRegular,
   PersonArrowLeftRegular,
   SearchRegular,
   SendRegular,
@@ -36,6 +38,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { initials, useApp } from "../context";
 import { draggedTaskId, dropPatch, isTaskDrag } from "../dnd";
+import { weekdayDate } from "../later";
 import { hrefFor, navigate, type Route } from "../route";
 import type { Project } from "../types";
 
@@ -98,6 +101,13 @@ const useStyles = makeStyles({
     borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
   },
   dot: { width: "8px", height: "8px", borderRadius: "50%", flexShrink: 0 },
+  action: {
+    width: "100%",
+    border: "none",
+    background: "transparent",
+    fontFamily: "inherit",
+    textAlign: "left",
+  },
   newList: { margin: "4px 2px" },
 });
 
@@ -177,13 +187,15 @@ interface Props {
   online: boolean;
   onClose: () => void;
   onSettings: () => void;
+  onAbsence: () => void;
 }
 
-export function Sidebar({ route, open, overlay, online, onClose, onSettings }: Props) {
+export function Sidebar({ route, open, overlay, online, onClose, onSettings, onAbsence }: Props) {
   const styles = useStyles();
   const { me, projects, lists, notify } = useApp();
   const counts = useQuery({ queryKey: ["counts"], queryFn: api.counts, refetchInterval: 60_000 });
   const access = useQuery({ queryKey: ["access-mine"], queryFn: api.accessMine, staleTime: 60_000 });
+  const absences = useQuery({ queryKey: ["absences"], queryFn: api.absenceStatus, staleTime: 60_000 });
   const queryClient = useQueryClient();
   const [search, setSearch] = useState(route.page === "tasks" && route.view === "suche" ? route.q ?? "" : "");
   const [newList, setNewList] = useState<string | null>(null);
@@ -262,6 +274,25 @@ export function Sidebar({ route, open, overlay, online, onClose, onSettings }: P
         {item({ page: "tasks", view: "wiedervorlagen" }, <ClockAlarmRegular />, "Wiedervorlagen", c?.followUps)}
         {item({ page: "tasks", view: "erledigt" }, <CheckmarkCircleRegular />, "Erledigt")}
         {item({ page: "tasks", view: "papierkorb" }, <DeleteRegular />, "Papierkorb", c?.trash)}
+        <button
+          type="button"
+          className={mergeClasses(styles.item, styles.action)}
+          onClick={() => {
+            onAbsence();
+            if (overlay) onClose();
+          }}
+        >
+          <span className={styles.icon}>
+            <BeachRegular />
+          </span>
+          <span className={styles.label}>
+            {absences.data?.current
+              ? absences.data.current.started
+                ? `Im Urlaub bis ${weekdayDate(absences.data.current.until)}`
+                : `Urlaub ab ${weekdayDate(absences.data.current.from)}`
+              : "Urlaub und Vertretung"}
+          </span>
+        </button>
         {item({ page: "vorlagen" }, <DocumentBulletListRegular />, "Vorlagen")}
         {me.isAdmin && item({ page: "verwaltung" }, <ShieldPersonRegular />, "Verwaltung")}
 
@@ -301,6 +332,27 @@ export function Sidebar({ route, open, overlay, online, onClose, onSettings }: P
             ) : undefined,
             `l${l.id}`,
           ),
+        )}
+
+        {(absences.data?.deputy.length ?? 0) > 0 && (
+          <>
+            <div className={styles.section}>
+              <Text size={200} weight="semibold">
+                Vertretung
+              </Text>
+            </div>
+            {absences.data!.deputy.map((d) =>
+              item(
+                { page: "tasks", view: "vertretung", id: d.absenceId },
+                <PeopleSwapRegular />,
+                `Für ${d.person.name}`,
+                d.open,
+                false,
+                undefined,
+                `v${d.absenceId}`,
+              ),
+            )}
+          </>
         )}
 
         {(access.data?.length ?? 0) > 0 && (

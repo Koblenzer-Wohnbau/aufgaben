@@ -36,7 +36,7 @@ public sealed class TaskService(
     public const int MaxBulk = 500;
 
     public static readonly string[] Views =
-        ["mein-tag", "aufgaben", "person", "wichtig", "geplant", "zugewiesen", "delegiert", "wiedervorlagen", "warteschleife", "liste", "projekt", "erledigt", "suche", "papierkorb"];
+        ["mein-tag", "aufgaben", "person", "wichtig", "geplant", "zugewiesen", "delegiert", "wiedervorlagen", "warteschleife", "liste", "projekt", "erledigt", "suche", "papierkorb", "vertretung"];
 
     /// <summary>
     /// Nicht zurückgestellt (oder der Tag ist da) – oder schon fällig: Eine Fälligkeit geht immer vor,
@@ -45,7 +45,7 @@ public sealed class TaskService(
     private static Expression<Func<TaskItem, bool>> Present(DateOnly today) =>
         t => t.SnoozedUntil == null || t.SnoozedUntil <= today || t.DueDate <= today;
 
-    private IQueryable<TaskItem> Base() => Base(db.Tasks);
+    internal IQueryable<TaskItem> Base() => Base(db.Tasks);
 
     /// <summary>Papierkorb der angemeldeten Person: von ihr gelöscht oder von ihr angelegt.</summary>
     private IQueryable<TaskItem> Trash()
@@ -73,7 +73,7 @@ public sealed class TaskService(
     }
 
     /// <summary>Eigene Rechte plus aktive Einsichtsrechte (für Änderungen nur mit "bearbeiten").</summary>
-    private IQueryable<TaskItem> Visible(IQueryable<TaskItem> q, bool forEdit = false)
+    internal IQueryable<TaskItem> Visible(IQueryable<TaskItem> q, bool forEdit = false)
     {
         var u = me.Id;
         var today = clock.Today;
@@ -205,6 +205,14 @@ public sealed class TaskService(
                 break;
             case "papierkorb":
                 q = Trash();
+                break;
+            case "vertretung":
+                // Was mir jemand für seinen Urlaub übergeben hat – nur, was mir (noch) zugewiesen ist.
+                var absenceId = id ?? throw ApiException.Invalid("Abwesenheit fehlt.");
+                var handedOver = AbsenceTask.HandedOver;
+                q = q.Where(t => t.AssigneeId == u && (t.Status == open || t.CompletedAt >= recent)
+                                 && db.AbsenceTasks.Any(h => h.AbsenceId == absenceId && h.TaskId == t.Id
+                                                             && h.Decision == handedOver && h.ReturnedAt == null));
                 break;
             default:
                 throw ApiException.Invalid("Unbekannte Ansicht.");
@@ -645,6 +653,15 @@ public sealed class TaskService(
         {
             AddEvent(next.Id, "angelegt", $"als Wiederholung ({Recurrence.Label(task.Recurrence)})");
             AddEvent(task.Id, "folgeaufgabe", $"nächster Termin {next.DueDate:dd.MM.yyyy}");
+            // Urlaubsvertretung: Die Folgeaufgabe gehört mit zur Übergabe, damit „Zurück an mich“ sie erfasst.
+            var handovers = await db.AbsenceTasks
+                .Where(h => h.TaskId == task.Id && h.Decision == AbsenceTask.HandedOver && h.ReturnedAt == null)
+                .Select(h => h.AbsenceId)
+                .ToListAsync(ct);
+            foreach (var absenceId in handovers)
+            {
+                db.AbsenceTasks.Add(new AbsenceTask { AbsenceId = absenceId, TaskId = next.Id, Decision = AbsenceTask.HandedOver, DecidedAt = now });
+            }
             await db.SaveChangesAsync(ct);
         }
         if (tx is not null) await tx.CommitAsync(ct);
@@ -952,7 +969,7 @@ public sealed class TaskService(
     /// „Warte auf …“ und Zurückstellen. Beides plant die verantwortliche Person (oder ihre Vertretung
     /// mit Freigabe zum Bearbeiten) – wer nur delegiert hat, blendet anderen nichts aus.
     /// </summary>
-    private void ApplyWaitingAndSnooze(TaskItem task, string? waitingFor, bool snoozeSet, DateOnly? snooze, bool viaGrant)
+    internal void ApplyWaitingAndSnooze(TaskItem task, string? waitingFor, bool snoozeSet, DateOnly? snooze, bool viaGrant)
     {
         if (task.AssigneeId != me.Id && !viaGrant)
         {
@@ -1126,14 +1143,14 @@ public sealed class TaskService(
 
     private bool CanDelete(TaskItem t) => t.CreatedById == me.Id || (t.ProjectId is not null && me.IsAdmin);
 
-    private TaskEvent AddEvent(int taskId, string kind, string text)
+    internal TaskEvent AddEvent(int taskId, string kind, string text)
     {
         var ev = new TaskEvent { TaskId = taskId, ActorId = me.Id, Kind = kind, Text = text, CreatedAt = clock.UtcNow };
         db.TaskEvents.Add(ev);
         return ev;
     }
 
-    private async Task PublishAsync(TaskItem task, CancellationToken ct, params int[] extraUsers)
+    internal async Task PublishAsync(TaskItem task, CancellationToken ct, params int[] extraUsers)
     {
         var message = new { type = "task", id = task.Id };
         if (task.ProjectId is not null)
