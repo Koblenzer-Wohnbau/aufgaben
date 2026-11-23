@@ -242,7 +242,7 @@ export function parseQuickAdd(input: string, today: Date = new Date()): ParsedQu
 
   const title = rest
     .replace(/\s{2,}/g, " ")
-    .replace(/^[\s,;:–-]+|[\s,;:–-]+$/g, "")
+    .replace(/^[\s,;:\u2013-]+|[\s,;:\u2013-]+$/g, "")
     .trim();
   result.title = title || input.trim();
   return result;

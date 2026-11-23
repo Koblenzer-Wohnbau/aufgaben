@@ -411,9 +411,12 @@ export function AiCaptureDialog({
                 <Button disabled={saving} onClick={() => setPhase("input")}>
                   Zurück
                 </Button>
-                <Button appearance="primary" disabled={saving || chosen.length === 0} onClick={() => void create()}>
-                  {saving ? "Lege an …" : chosen.length === 1 ? "Aufgabe anlegen" : `${chosen.length} Aufgaben anlegen`}
-                </Button>
+                {/* Ohne Vorschlag gibt es nichts anzulegen: dann nur „Zurück“, um den Text zu ergänzen */}
+                {drafts.length > 0 && (
+                  <Button appearance="primary" disabled={saving || chosen.length === 0} onClick={() => void create()}>
+                    {saving ? "Lege an …" : chosen.length === 1 ? "Aufgabe anlegen" : `${chosen.length} Aufgaben anlegen`}
+                  </Button>
+                )}
               </>
             )}
     </>

@@ -68,6 +68,8 @@ public sealed partial class TaskAssistant(MistralClient mistral, AppDbContext db
           Mindestens 2, höchstens 4 optionen. Setze das Feld trotzdem auf die wahrscheinlichste Option.
           frage: kurz, freundlich, auf Deutsch in der Du-Form.
         - hinweis: ein kurzer Satz, wenn der Text keine Aufgabe enthält oder etwas Wichtiges fehlt, sonst null.
+        - Schreibe titel, notizen, checkliste, frage und hinweis ohne Gedankenstriche (weder Halbgeviertstrich
+          noch Geviertstrich). Nutze stattdessen Komma, Doppelpunkt, Klammern oder einen neuen Satz.
 
         JSON-Schema:
         {"type":"object","properties":{
@@ -171,7 +173,8 @@ public sealed partial class TaskAssistant(MistralClient mistral, AppDbContext db
                     assignee,
                     project,
                     checklist,
-                    Clean(Str(t, "quelle"), 160, singleLine: true),
+                    // Wörtliches Zitat aus dem Text: bleibt, wie es dasteht
+                    Clean(Str(t, "quelle"), 160, singleLine: true, literal: true),
                     Questions(t, today, personById, projectById)));
             }
         }
@@ -245,13 +248,46 @@ public sealed partial class TaskAssistant(MistralClient mistral, AppDbContext db
         return m.Success ? m.Groups["body"].Value : raw;
     }
 
-    private static string? Clean(string? value, int max, bool singleLine)
+    [GeneratedRegex(@"\s*[\u2013\u2014]\s*(?=[,.;:!?)])")]
+    private static partial Regex DashBeforePunctuation();
+
+    [GeneratedRegex(@"(^|\n)[ \t]*[\u2013\u2014][ \t]+")]
+    private static partial Regex LeadingDash();
+
+    [GeneratedRegex(@"(?<=[\w.)])[\u2013\u2014](?=[\w(])")]
+    private static partial Regex RangeDash();
+
+    [GeneratedRegex(@"[ \t]+[\u2013\u2014][ \t]+")]
+    private static partial Regex SpacedDash();
+
+    /// <summary>
+    /// Gedankenstriche aus KI-Texten entfernen, falls das Modell sie trotz Anweisung schreibt:
+    /// im Satz ein Komma, am Zeilenanfang nichts, zwischen Zahlen ein Bindestrich.
+    /// </summary>
+    internal static string NoDashes(string text)
+    {
+        if (text.IndexOfAny(['\u2013', '\u2014']) < 0)
+        {
+            return text;
+        }
+        text = DashBeforePunctuation().Replace(text, "");
+        text = LeadingDash().Replace(text, "$1");
+        text = RangeDash().Replace(text, "-");
+        text = SpacedDash().Replace(text, ", ");
+        return text.Replace('\u2013', '-').Replace('\u2014', '-');
+    }
+
+    private static string? Clean(string? value, int max, bool singleLine, bool literal = false)
     {
         if (value is null)
         {
             return null;
         }
         var text = ControlChars().Replace(value, "");
+        if (!literal)
+        {
+            text = NoDashes(text);
+        }
         text = singleLine ? Whitespace().Replace(text, " ").Trim() : text.Trim();
         if (text.Length == 0)
         {

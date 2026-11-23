@@ -26,6 +26,33 @@ public class AiSuggestionRuleTests
 
     private static AiSuggestionDto Validate(string json) => TaskAssistant.Validate(json, Today, Me, People, Projects);
 
+    [Theory]
+    [InlineData("Keine Aufgabe ableitbar \u2013 bitte prüfen.", "Keine Aufgabe ableitbar, bitte prüfen.")]
+    [InlineData("Angebot prüfen \u2014 dringend", "Angebot prüfen, dringend")]
+    [InlineData("Termin 9\u201317 Uhr", "Termin 9-17 Uhr")]
+    [InlineData("Zähler ablesen (Whg. 3 \u2013).", "Zähler ablesen (Whg. 3).")]
+    [InlineData("\u2013 erster Schritt\n\u2013 zweiter Schritt", "erster Schritt\nzweiter Schritt")]
+    [InlineData("ohne Strich", "ohne Strich")]
+    public void Dashes_from_the_model_are_rewritten(string input, string expected) =>
+        Assert.Equal(expected, TaskAssistant.NoDashes(input));
+
+    [Fact]
+    public void Ai_texts_lose_dashes_but_the_quote_stays_literal()
+    {
+        var result = Validate("""
+            {"aufgaben":[{"titel":"Angebot prüfen \u2013 Dachdecker","notizen":"Bis Freitag \u2013 sonst verfällt es.",
+              "checkliste":["Preis prüfen \u2013 Vergleich"],"quelle":"bitte \u2013 bis Freitag","prioritaet":"normal",
+              "wiedervorlage":false,"verantwortlich":null,"projekt":null,"faellig":null,"uhrzeit":null,"fragen":[]}],
+             "hinweis":"Frist unklar \u2013 bitte prüfen."}
+            """);
+        var task = Assert.Single(result.Tasks);
+        Assert.Equal("Angebot prüfen, Dachdecker", task.Title);
+        Assert.Equal("Bis Freitag, sonst verfällt es.", task.Notes);
+        Assert.Equal(["Preis prüfen, Vergleich"], task.Checklist);
+        Assert.Equal("bitte \u2013 bis Freitag", task.Source);
+        Assert.Equal("Frist unklar, bitte prüfen.", result.Note);
+    }
+
     [Fact]
     public void Valid_answer_becomes_drafts_with_real_people_and_projects()
     {
