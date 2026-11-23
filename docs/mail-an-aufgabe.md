@@ -7,17 +7,40 @@ Die App holt das Postfach per IMAP ab und macht aus jeder Mail eine Aufgabe, mit
 
 * Mail in Outlook **weiterleiten** an die Aufgaben-Adresse (die Adresse steht in der App unter *Einstellungen*).
 * Der **Betreff** wird zum Titel. „WG:“, „AW:“, „FW:“ usw. werden entfernt.
-* Im Betreff funktioniert dasselbe wie in der Schnelleingabe:
+* Im Betreff und im **eigenen Text über der weitergeleiteten Mail** funktioniert dasselbe wie in der
+  Schnelleingabe der App:
 
-| Im Betreff | Wirkung |
+| Eingabe | Wirkung |
 |---|---|
 | `#1001` | Projekt mit Nummer bzw. Namensanfang „1001“ |
 | `@Becker` | an Thomas Becker delegieren (wird benachrichtigt) |
-| `!hoch` | Priorität hoch |
+| `!hoch`, `!niedrig` | Priorität |
 | `wv` | als Wiedervorlage anlegen |
 | `heute`, `morgen`, `übermorgen`, `30.11.`, `15.01.2027` | Fälligkeit |
+| `in 5 Tagen`, `5 Tage`, `2 Wochen`, `1 Monat` | Fälligkeit; fällt sie aufs Wochenende, gilt der Montag danach |
+| `Freitag`, `bis Freitag`, `nächste Woche`, `Ende der Woche`, `Monatsende` | Fälligkeit |
+| `14:30`, `15 Uhr` | Uhrzeit |
+| `jeden Montag`, `täglich`, `werktags`, `monatlich` | Wiederholung |
 
-Beispiel: `WG: Angebot Dachdecker prüfen #1001 @Becker !hoch morgen`
+Beispiel im Betreff: `WG: Angebot Dachdecker prüfen #1001 @Becker !hoch 5 Tage`
+
+Oder im eigenen Text über der weitergeleiteten Mail:
+
+```text
+@Becker bitte bis Freitag prüfen.
+
+Viele Grüße
+Anna
+
+-----Ursprüngliche Nachricht-----
+Von: Fa. Müller …
+```
+
+* **Der Betreff geht vor.** Steht im Betreff `@Müller` und im Text `@Becker`, ist Müller verantwortlich. Der Titel
+  kommt immer aus dem Betreff.
+* Ausgewertet wird nur der eigene Text bis zur weitergeleiteten Mail („Von: …“, „-----Ursprüngliche
+  Nachricht-----“, „Am … schrieb …“) und bis zum Gruß bzw. zur Signatur. Ein Datum in der weitergeleiteten Mail
+  wird also nicht zur Frist.
 
 * Der Text der Mail landet in den Notizen, Anhänge (auch als Anhang weitergeleitete Mails als `.eml`) an der Aufgabe.
 * Die absendende Person bekommt eine kurze Bestätigung mit Link (abschaltbar).

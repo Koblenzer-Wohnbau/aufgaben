@@ -51,6 +51,16 @@ describe("parseQuickAdd", () => {
     expect(parseQuickAdd("Abrechnung Monatsende", today).dueDate).toBe("2026-11-30");
   });
 
+  it("versteht „5 Tage“ auch ohne „in“ und schiebt Wochenenden auf Montag", () => {
+    const r = parseQuickAdd("Komplett PDF bitte Aufgabe erstellen. 5 tage", today);
+    expect(r.dueDate).toBe("2026-11-25");
+    expect(r.title).toBe("Komplett PDF bitte Aufgabe erstellen.");
+    expect(parseQuickAdd("Rückruf in 1 Tag", today).dueDate).toBe("2026-11-23"); // Samstag → Montag
+    expect(parseQuickAdd("Mietspiegel 1 Monat", today).dueDate).toBe("2026-12-21"); // Sonntag → Montag
+    expect(parseQuickAdd("Angebot prüfen bis Freitag", today)).toMatchObject({ dueDate: "2026-11-27", title: "Angebot prüfen" });
+    expect(parseQuickAdd("Zähler ablesen bis morgen", today)).toMatchObject({ dueDate: "2026-11-21", title: "Zähler ablesen" });
+  });
+
   it("erkennt Wiederholungen", () => {
     const r = parseQuickAdd("Baustellenrundgang jeden Montag 8 Uhr", today);
     expect(r.recurrence).toBe("woechentlich");

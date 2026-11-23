@@ -39,6 +39,75 @@ public class MailSubjectTests
         Assert.Equal(DateOnly.Parse(expected), MailSubject.Parse(subject, Today).DueDate);
     }
 
+    [Theory]
+    [InlineData("Fw: Komplett PDF bitte Aufgabe erstellen. 5 tage", "2026-11-25", "Komplett PDF bitte Aufgabe erstellen.")]
+    [InlineData("Nachfassen in 3 Tagen", "2026-11-23", "Nachfassen")]
+    [InlineData("Rückruf in 1 Tag", "2026-11-23", "Rückruf")] // Samstag → Montag
+    [InlineData("WV Gewährleistung Dach in 2 Wochen", "2026-12-04", "Gewährleistung Dach")]
+    [InlineData("Mietspiegel prüfen 1 Monat", "2026-12-21", "Mietspiegel prüfen")] // Sonntag → Montag
+    [InlineData("Angebot prüfen bis Freitag", "2026-11-27", "Angebot prüfen")]
+    [InlineData("Montag Zähler ablesen", "2026-11-23", "Zähler ablesen")]
+    [InlineData("Bericht nächste Woche", "2026-11-23", "Bericht")]
+    [InlineData("Unterlagen prüfen Monatsende", "2026-11-30", "Unterlagen prüfen")]
+    [InlineData("Abrechnung Ende der Woche", "2026-11-20", "Abrechnung")]
+    public void Understands_the_same_dates_as_the_quick_add(string subject, string due, string title)
+    {
+        var p = MailSubject.Parse(subject, Today);
+        Assert.Equal(DateOnly.Parse(due), p.DueDate);
+        Assert.Equal(title, p.Title);
+    }
+
+    [Fact]
+    public void Reads_time_recurrence_and_low_priority_like_the_quick_add()
+    {
+        var walk = MailSubject.Parse("Baustellenrundgang jeden Montag 8 Uhr", Today);
+        Assert.Equal("Baustellenrundgang", walk.Title);
+        Assert.Equal("woechentlich", walk.Recurrence);
+        Assert.Equal(new DateOnly(2026, 11, 23), walk.DueDate);
+        Assert.Equal(new TimeOnly(8, 0), walk.DueTime);
+
+        var visit = MailSubject.Parse("Begehung 10.12. um 14:30 !niedrig", Today);
+        Assert.Equal(new DateOnly(2026, 12, 10), visit.DueDate);
+        Assert.Equal(new TimeOnly(14, 30), visit.DueTime);
+        Assert.True(visit.Low);
+
+        // Uhrzeit ohne Datum: heute, oder morgen, wenn sie schon vorbei ist
+        Assert.Equal(Today, MailSubject.Parse("Rückruf 15 Uhr", Today, new TimeOnly(9, 0)).DueDate);
+        Assert.Equal(Today.AddDays(1), MailSubject.Parse("Rückruf 15 Uhr", Today, new TimeOnly(16, 0)).DueDate);
+    }
+
+    [Theory]
+    [InlineData("@Becker bitte bis Freitag.\n\nViele Grüße\nAnna\n\n________________________________\nVon: Fa. Müller <info@example.test>\nGesendet: Donnerstag, 19. November 2026 10:00\nBetreff: Angebot\n\nBitte bis 30.12. antworten.")]
+    [InlineData("@Becker bitte bis Freitag.\r\n\r\n-----Ursprüngliche Nachricht-----\r\nVon: Fa. Müller\r\nBitte bis 30.12. antworten.")]
+    [InlineData("@Becker bitte bis Freitag.\n\n-----Original Message-----\nFrom: Fa. Müller\nPlease reply by 30.12.")]
+    [InlineData("@Becker bitte bis Freitag.\n\n---------- Forwarded message ---------\nVon: Fa. Müller\nBitte bis 30.12.")]
+    [InlineData("@Becker bitte bis Freitag.\n\nAm 19.11.2026 um 10:00 schrieb Fa. Müller:\n> Bitte bis 30.12. antworten.")]
+    [InlineData("@Becker bitte bis Freitag.\n--\nAnna Schneider | Tel. 0261 123 30.12.")]
+    public void Own_text_above_the_forwarded_mail_counts_but_the_forwarded_mail_does_not(string body)
+    {
+        var own = MailSubject.OwnText(body);
+        Assert.Equal("@Becker bitte bis Freitag.", own);
+
+        var p = MailSubject.Merge(MailSubject.Parse("WG: Angebot prüfen", Today), MailSubject.ParseText(own, Today));
+        Assert.Equal("Angebot prüfen", p.Title);
+        Assert.Equal("Becker", p.PersonQuery);
+        Assert.Equal(new DateOnly(2026, 11, 27), p.DueDate);
+    }
+
+    [Fact]
+    public void Subject_wins_over_own_text()
+    {
+        var p = MailSubject.Merge(
+            MailSubject.Parse("WG: Angebot @Müller morgen !hoch", Today),
+            MailSubject.ParseText("@Becker bitte Freitag !niedrig #1001", Today));
+        Assert.Equal("Müller", p.PersonQuery);
+        Assert.Equal(Today.AddDays(1), p.DueDate);
+        Assert.True(p.High);
+        Assert.False(p.Low);
+        Assert.Equal("1001", p.ProjectQuery); // fehlte im Betreff
+        Assert.Equal("", MailSubject.OwnText("   \n"));
+    }
+
     [Fact]
     public void Leaves_ordinary_words_and_invalid_dates_alone()
     {
@@ -140,6 +209,20 @@ public sealed class MailInboxTests(AppFixture app)
         Assert.Equal("Jonas Wagner", task.Assignee.DisplayName);
         var notified = await app.WithDbAsync(db => db.Notifications.AnyAsync(n => n.TaskId == task.Id && n.UserId == task.AssigneeId && n.Kind == NotificationOutbox.Assigned));
         Assert.True(notified);
+    }
+
+    [Fact]
+    public async Task Own_text_above_a_forwarded_mail_sets_person_and_due_date()
+    {
+        const string body = "@Wagner bitte bis Freitag erledigen.\n\nViele Grüße\nAnna\n\n-----Ursprüngliche Nachricht-----\nVon: Fa. Müller\nBitte bis 30.12. antworten.";
+        var result = await Process(Mail("anna.schneider@example.test", "WG: Angebot Fensterbau prüfen", body));
+        var task = await app.WithDbAsync(db => db.Tasks.Include(t => t.Assignee).SingleAsync(t => t.Id == result.TaskId));
+
+        Assert.Equal("Angebot Fensterbau prüfen", task.Title);
+        Assert.Equal("Jonas Wagner", task.Assignee.DisplayName);
+        Assert.Equal(DayOfWeek.Friday, task.DueDate!.Value.DayOfWeek);
+        Assert.False(task.DueDate.Value is { Month: 12, Day: 30 }); // nicht der 30.12. aus der weitergeleiteten Mail
+        Assert.Contains("Bitte bis 30.12. antworten.", task.Notes); // der ganze Text bleibt in den Notizen
     }
 
     [Fact]

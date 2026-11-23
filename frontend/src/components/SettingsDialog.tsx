@@ -87,8 +87,9 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
             {me.mailInboxAddress && (
               <Field label="Mail an Aufgabe">
                 <Text className={styles.muted}>
-                  Leite eine E-Mail an diese Adresse weiter, daraus wird eine Aufgabe mit Text und Anhängen. Im Betreff funktioniert dasselbe wie in der
-                  Schnelleingabe: #Projekt, @Person, !hoch, „wv“, heute, morgen oder ein Datum wie 30.11.
+                  Leite eine E-Mail an diese Adresse weiter, daraus wird eine Aufgabe mit Text und Anhängen. Im Betreff und in deinem Text über der
+                  weitergeleiteten Mail funktioniert dasselbe wie in der Schnelleingabe: #Projekt, @Person, !hoch, „wv“, morgen, Freitag, 5 Tage
+                  oder ein Datum wie 30.11. Der Betreff geht vor.
                 </Text>
                 <div className={styles.row}>
                   <Input readOnly value={me.mailInboxAddress} onFocus={(e) => e.currentTarget.select()} />
