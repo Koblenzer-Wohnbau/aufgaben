@@ -74,7 +74,7 @@ function de(date: string | null) {
 }
 
 function statusBadge(g: AccessGrant) {
-  if (g.status === "entwurf") return <Badge appearance="tint" color="warning">Entwurf – wartet auf Unterschrift</Badge>;
+  if (g.status === "entwurf") return <Badge appearance="tint" color="warning">Entwurf, wartet auf Unterschrift</Badge>;
   if (g.status === "widerrufen") return <Badge appearance="tint" color="subtle">Widerrufen</Badge>;
   return g.isCurrentlyActive ? <Badge appearance="tint" color="success">Aktiv</Badge> : <Badge appearance="tint" color="informative">Bestätigt, nicht im Zeitraum</Badge>;
 }
@@ -126,7 +126,7 @@ function AccessSection() {
   const print = (g: AccessGrant) => {
     if (!printConsentForm(g)) {
       downloadConsentForm(g);
-      notify("Drucken ging hier nicht – das Formular wurde stattdessen heruntergeladen.", "info");
+      notify("Drucken ging hier nicht, das Formular wurde stattdessen heruntergeladen.", "info");
     }
   };
 
@@ -234,7 +234,7 @@ function AccessSection() {
             await api.confirmAccess(confirming.id, note);
             setConfirming(null);
             await refresh();
-            notify("Freigabe aktiv – beide Personen werden benachrichtigt (je nach ihrer Einstellung)");
+            notify("Freigabe aktiv, beide Personen werden benachrichtigt (je nach ihrer Einstellung)");
           }}
         />
       )}
@@ -312,7 +312,7 @@ function CreateGrantDialog({ onClose, onCreated }: { onClose: () => void; onCrea
                 <Input type="date" value={until} onChange={(_, d) => setUntil(d.value)} />
               </Field>
             </div>
-            <Field label="Zweck" required hint="Steht auf dem Formular, z. B. „Urlaubsvertretung 22.12.–06.01.“">
+            <Field label="Zweck" required hint="Steht auf dem Formular, z. B. „Urlaubsvertretung 22.12. bis 06.01.“">
               <Input value={purpose} onChange={(_, d) => setPurpose(d.value)} maxLength={300} />
             </Field>
           </DialogContent>
@@ -458,7 +458,7 @@ function SystemSection() {
           icon={<ArrowDownloadRegular />}
           disabled={busy !== null}
           onClick={() => void run("teams", api.downloadTeamsPackage, (name) =>
-            `${name} gespeichert – im Teams Admin Center unter „Apps verwalten“ hochladen.`)}
+            `${name} gespeichert. Im Teams Admin Center unter „Apps verwalten“ hochladen.`)}
         >
           Teams-Paket herunterladen
         </Button>
@@ -483,13 +483,13 @@ function SystemSection() {
             <Text weight="semibold">Microsoft Graph {yes(s.graphConfigured)}</Text>
             <Caption1 className={styles.muted}>
               Teams-Benachrichtigungen {s.teamsNotificationsConfigured ? "aktiv" : "aus"} · letzter Verzeichnisabgleich{" "}
-              {s.lastDirectorySync ? shortDateTime(s.lastDirectorySync) : "–"} {s.lastDirectorySyncResult ? `(${s.lastDirectorySyncResult})` : ""}
+              {s.lastDirectorySync ? shortDateTime(s.lastDirectorySync) : "-"} {s.lastDirectorySyncResult ? `(${s.lastDirectorySyncResult})` : ""}
             </Caption1>
           </Card>
           <Card className={styles.stat}>
             <Text weight="semibold">E-Mail {yes(s.mailConfigured)}</Text>
             <Caption1 className={styles.muted}>
-              Aufgaben-Postfach {s.mailInboxConfigured ? "aktiv" : "aus"} · letzter Abruf {s.lastMailInboxRun ? shortDateTime(s.lastMailInboxRun) : "–"}{" "}
+              Aufgaben-Postfach {s.mailInboxConfigured ? "aktiv" : "aus"} · letzter Abruf {s.lastMailInboxRun ? shortDateTime(s.lastMailInboxRun) : "-"}{" "}
               {s.lastMailInboxResult ? `(${s.lastMailInboxResult})` : ""} · abgelehnt (7 Tage): {s.rejectedMailsLast7Days}
             </Caption1>
           </Card>

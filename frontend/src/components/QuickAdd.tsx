@@ -165,7 +165,7 @@ export function QuickAdd({ defaults, placeholder }: Props) {
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
         queryClient.invalidateQueries({ queryKey: ["counts"] }),
       ]);
-      if (person && person.id !== me.id) notify(`An ${person.name} delegiert – ${person.name.split(" ")[0]} wird benachrichtigt`);
+      if (person && person.id !== me.id) notify(`An ${person.name} delegiert, ${person.name.split(" ")[0]} wird benachrichtigt`);
     } catch (e) {
       notify(e instanceof Error ? e.message : "Aufgabe konnte nicht angelegt werden", "error");
     } finally {
@@ -226,7 +226,7 @@ export function QuickAdd({ defaults, placeholder }: Props) {
           ref={inputRef}
           className={styles.input}
           value={text}
-          placeholder={placeholder ?? "Aufgabe hinzufügen – z. B. „Montag 10 Uhr Angebot prüfen #1001 @Becker !hoch“"}
+          placeholder={placeholder ?? "Aufgabe hinzufügen, z. B. „Montag 10 Uhr Angebot prüfen #1001 @Becker !hoch“"}
           aria-label="Neue Aufgabe"
           onChange={(e) => {
             setText(e.target.value);

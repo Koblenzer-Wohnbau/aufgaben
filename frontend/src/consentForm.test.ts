@@ -21,7 +21,7 @@ const grant: AccessGrant = {
 };
 
 describe("consentFormHtml", () => {
-  it("maskiert alle Werte – kein eingeschleustes HTML im Formular", () => {
+  it("maskiert alle Werte, kein eingeschleustes HTML im Formular", () => {
     const html = consentFormHtml(grant);
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).toContain("Anna &lt;script&gt;alert(1)&lt;/script&gt; Schneider");

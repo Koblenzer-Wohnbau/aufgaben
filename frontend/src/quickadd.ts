@@ -5,7 +5,7 @@
  *   "Montag 10 Uhr Angebot Dachdecker prüfen #1001 @Becker !hoch"
  *   → Titel "Angebot Dachdecker prüfen", Mo, 10:00, Projekt "1001", Person "Becker", hoch
  *
- * Läuft komplett im Browser – keine KI, keine Daten nach außen.
+ * Läuft komplett im Browser, keine KI, keine Daten nach außen.
  */
 
 export type Recurrence = "taeglich" | "werktags" | "woechentlich" | "monatlich" | "jaehrlich";
@@ -242,7 +242,7 @@ export function parseQuickAdd(input: string, today: Date = new Date()): ParsedQu
 
   const title = rest
     .replace(/\s{2,}/g, " ")
-    .replace(/^[\s,;:–-]+|[\s,;:–-]+$/g, "")
+    .replace(/^[\s,;:\u2013-]+|[\s,;:\u2013-]+$/g, "")
     .trim();
   result.title = title || input.trim();
   return result;

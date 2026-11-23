@@ -3,7 +3,7 @@ using Aufgaben.Api.Services;
 
 namespace Aufgaben.Api.Endpoints;
 
-/// <summary>Urlaubsübergabe – jede Person verwaltet nur ihren eigenen Urlaub.</summary>
+/// <summary>Urlaubsübergabe, jede Person verwaltet nur ihren eigenen Urlaub.</summary>
 public static class AbsenceEndpoints
 {
     public static void MapAbsenceEndpoints(this RouteGroupBuilder api)

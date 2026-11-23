@@ -74,7 +74,7 @@ public static class TaskEndpoints
             return Results.File(data, "application/octet-stream", meta.FileName);
         });
 
-        // Vorschau nur für echte Bilder (erkannt an den ersten Bytes) – alles andere bleibt Download.
+        // Vorschau nur für echte Bilder (erkannt an den ersten Bytes), alles andere bleibt Download.
         tasks.MapGet("/{id:int}/attachments/{attachmentId:int}/vorschau", async (int id, int attachmentId, HttpContext ctx, TaskService svc, CancellationToken ct) =>
         {
             var (_, data) = await svc.GetAttachmentAsync(id, attachmentId, ct);

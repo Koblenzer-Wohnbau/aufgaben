@@ -411,7 +411,7 @@ public static class AppEndpoints
                 PrivacyPage.Missing(opts.Value.Privacy, opts.Value.Mistral.Enabled));
         });
 
-        // Teams-App-Paket aus der laufenden Konfiguration – passt immer zu Adresse, Entra-App und Version
+        // Teams-App-Paket aus der laufenden Konfiguration, passt immer zu Adresse, Entra-App und Version
         admin.MapGet("/teams-package", (IOptions<AufgabenOptions> opts, IConfiguration config) =>
         {
             var o = opts.Value;
@@ -424,7 +424,7 @@ public static class AppEndpoints
             var version = TeamsPackage.AppVersion;
             if (!string.IsNullOrWhiteSpace(o.Teams.BotId) && !o.Teams.BotEnabled)
             {
-                throw ApiException.Invalid("Aufgaben__Teams__BotId ist keine GUID – bitte die Bot-ID aus dem Teams Developer Portal eintragen oder leer lassen.");
+                throw ApiException.Invalid("Aufgaben__Teams__BotId ist keine GUID, bitte die Bot-ID aus dem Teams Developer Portal eintragen oder leer lassen.");
             }
             var zip = TeamsPackage.Build(o.NormalizedBaseUrl, clientId, o.Teams.AppId, o.Teams.Developer, version, o.Teams.BotId);
             return Results.File(zip, "application/zip", $"aufgaben-teams-{version}.zip");

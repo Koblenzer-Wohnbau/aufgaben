@@ -5,7 +5,7 @@ import { longDate } from "../dates";
 const useStyles = makeStyles({
   hero: {
     position: "relative",
-    // "clip" statt "hidden": Der Lichtkreis ragt über den Rand – mit "hidden" wäre der Bereich
+    // "clip" statt "hidden": Der Lichtkreis ragt über den Rand, mit "hidden" wäre der Bereich
     // scrollbar, und der Browser verschiebt ihn beim Fokussieren eines Knopfs.
     overflow: "clip",
     margin: "16px 32px 4px",
@@ -107,7 +107,7 @@ export function MyDayHero({ name, today, done, total, compact, suggestionsOpen, 
   const circumference = 2 * Math.PI * r;
   const firstName = name.split(" ")[0];
   const message =
-    total === 0 ? "Noch nichts geplant – hol dir Vorschläge." : done === total ? "Alles erledigt. Stark!" : `${total - done} von ${total} noch offen`;
+    total === 0 ? "Noch nichts geplant, hol dir Vorschläge." : done === total ? "Alles erledigt. Stark!" : `${total - done} von ${total} noch offen`;
 
   return (
     <section className={`${styles.hero} ${compact ? styles.compact : ""}`} aria-label="Mein Tag">

@@ -41,7 +41,7 @@ const useStyles = makeStyles({
     gridTemplateColumns: "minmax(0, 1fr) minmax(0, 240px)",
     gap: "8px",
     alignItems: "center",
-    // Fluent-Comboboxen haben eine Mindestbreite (~250 px) – sonst ragt die Auswahl über den Dialog
+    // Fluent-Comboboxen haben eine Mindestbreite (~250 px), sonst ragt die Auswahl über den Dialog
     // hinaus und es entsteht ein seitlicher Scrollbalken.
     "& .fui-Combobox": { minWidth: 0, width: "100%", boxSizing: "border-box" },
     "& .fui-Combobox__input": { minWidth: 0 },
@@ -67,7 +67,7 @@ export function TemplatesView() {
         <Title2 as="h1">Vorlagen</Title2>
       </div>
       <Text className={styles.muted}>
-        Wiederkehrende Abläufe mit einem Klick starten: Alle Schritte werden als Aufgaben angelegt – mit Termin relativ zum Stichtag, Checkliste und zuständiger Person.
+        Wiederkehrende Abläufe mit einem Klick starten: Alle Schritte werden als Aufgaben angelegt, mit Termin relativ zum Stichtag, Checkliste und zuständiger Person.
       </Text>
       {templates.isLoading && <Spinner style={{ marginTop: 32 }} />}
       <div className={styles.grid}>

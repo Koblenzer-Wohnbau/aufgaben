@@ -4,7 +4,7 @@
 #
 # Einmalig einrichten (als Admin-Benutzer, Werte in /etc/aufgaben-backup.env, chmod 600):
 #   RESTIC_REPOSITORY=sftp:backup@backup.example.de:/srv/restic/aufgaben   (oder s3:..., rest:...)
-#   RESTIC_PASSWORD=<langes Passwort – getrennt aufbewahren!>
+#   RESTIC_PASSWORD=<langes Passwort: getrennt aufbewahren!>
 #   AUFGABEN_DIR=/opt/aufgaben
 #
 #   sudo -E restic init         # einmalig, mit geladenen Variablen
@@ -35,7 +35,7 @@ docker compose --project-directory "$AUFGABEN_DIR" exec -T db \
 cp "$AUFGABEN_DIR/.env" "$work/env-$stamp"
 cp -r "$AUFGABEN_DIR/secrets" "$work/secrets-$stamp" 2>/dev/null || true
 # Eigene TLS-Zertifikate (internes Netz) und die Nginx-Konfiguration gehören zur Wiederherstellung.
-# Das restic-Kennwort (/etc/aufgaben-backup.env) bewusst NICHT – es gehört getrennt verwahrt.
+# Das restic-Kennwort (/etc/aufgaben-backup.env) bewusst NICHT, es gehört getrennt verwahrt.
 cp -r "$AUFGABEN_DIR/tls" "$work/tls-$stamp" 2>/dev/null || true
 mkdir -p "$work/nginx-$stamp"
 cp /etc/nginx/sites-available/aufgaben* "$work/nginx-$stamp/" 2>/dev/null || true

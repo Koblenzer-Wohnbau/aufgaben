@@ -8,7 +8,7 @@ using Aufgaben.Api.Services.Ai;
 namespace Aufgaben.Api.Endpoints;
 
 /// <summary>
-/// KI-Vorschläge: Text oder Bildschirmfoto rein, Aufgaben-Entwürfe raus. Angelegt wird hier nichts –
+/// KI-Vorschläge: Text oder Bildschirmfoto rein, Aufgaben-Entwürfe raus. Angelegt wird hier nichts:
 /// die Oberfläche zeigt die Entwürfe, die Person bestätigt, dann legt <c>POST /api/tasks</c> an.
 /// </summary>
 public static partial class AiEndpoints
@@ -33,7 +33,7 @@ public static partial class AiEndpoints
             var text = (req.Text ?? "").Trim();
             if (text.Length > TaskAssistant.MaxInputChars)
             {
-                throw ApiException.Invalid($"Höchstens {TaskAssistant.MaxInputChars:N0} Zeichen – bitte den Text aufteilen.");
+                throw ApiException.Invalid($"Höchstens {TaskAssistant.MaxInputChars:N0} Zeichen, bitte den Text aufteilen.");
             }
             try
             {
@@ -80,7 +80,7 @@ public static partial class AiEndpoints
         }
         if (bytes.Length > MaxImageBytes)
         {
-            throw ApiException.Invalid("Das Bild ist zu groß – bitte einen kleineren Ausschnitt einfügen.");
+            throw ApiException.Invalid("Das Bild ist zu groß, bitte einen kleineren Ausschnitt einfügen.");
         }
         var detected = AttachmentRules.ImageType(bytes);
         if (detected is not ("image/png" or "image/jpeg" or "image/webp"))

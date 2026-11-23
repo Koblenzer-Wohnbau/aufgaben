@@ -27,7 +27,7 @@ public static class TeamsBotEndpoints
         app.MapPost(TeamsBot.Path, HandleAsync).RequireAuthorization(onlyBotFramework);
     }
 
-    /// <summary>Entwurf für das Fenster in Teams – nur für die Person, die die Nachricht gewählt hat.</summary>
+    /// <summary>Entwurf für das Fenster in Teams, nur für die Person, die die Nachricht gewählt hat.</summary>
     public static void MapTeamsDrafts(this RouteGroupBuilder api)
     {
         api.MapGet("/teams/entwurf/{id}", (string id, TeamsDraftStore drafts, CurrentUser me) =>

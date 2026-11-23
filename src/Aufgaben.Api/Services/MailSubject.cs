@@ -70,7 +70,7 @@ public static partial class MailSubject
             });
         }
 
-        var title = Spaces().Replace(text, " ").Trim().Trim(',', ';', ':', '-', '–').Trim();
+        var title = Spaces().Replace(text, " ").Trim().Trim(',', ';', ':', '-', '-').Trim();
         if (title.Length == 0)
         {
             title = string.IsNullOrWhiteSpace(subject) ? "E-Mail ohne Betreff" : subject.Trim();

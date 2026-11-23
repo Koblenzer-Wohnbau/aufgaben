@@ -54,8 +54,8 @@ describe("KI-Eingabe", () => {
 
   it("meldet, wer benachrichtigt wurde", () => {
     expect(createdMessage(1, [])).toBe("Aufgabe angelegt");
-    expect(createdMessage(3, ["Thomas Becker"])).toBe("3 Aufgaben angelegt – Thomas Becker wurde benachrichtigt");
-    expect(createdMessage(4, ["Anna", "Thomas", "Maria"])).toBe("4 Aufgaben angelegt – Anna, Thomas und Maria wurden benachrichtigt");
+    expect(createdMessage(3, ["Thomas Becker"])).toBe("3 Aufgaben angelegt, Thomas Becker wurde benachrichtigt");
+    expect(createdMessage(4, ["Anna", "Thomas", "Maria"])).toBe("4 Aufgaben angelegt, Anna, Thomas und Maria wurden benachrichtigt");
   });
 
   it("übernimmt Antworten auf Rückfragen ins Feld", () => {
@@ -82,7 +82,7 @@ describe("KI-Eingabe", () => {
       "Teams-Nachricht von Thomas Becker (21.11.2026, 10:15):\nKannst du das Angebot prüfen?",
     );
     expect(teamsDraftText({ text: "Nur Text", from: null, sentAt: null, link: null })).toBe("Nur Text");
-    // Nachricht nur mit Bild: kein Kopf ohne Inhalt – die Person tippt selbst
+    // Nachricht nur mit Bild: kein Kopf ohne Inhalt, die Person tippt selbst
     expect(teamsDraftText({ text: "", from: "Thomas Becker", sentAt: null, link: null })).toBe("");
   });
 

@@ -17,9 +17,9 @@ export function suggestedAbsence(today: string): { from: string; until: string }
   return { from, until: addDays(from, daysToFriday) };
 }
 
-/** "Mo 24.11. – Fr 5.12." */
+/** "Mo 24.11., Fr 5.12." */
 export function rangeLabel(from: string, until: string): string {
-  return from === until ? weekdayDate(from) : `${weekdayDate(from)} – ${weekdayDate(until)}`;
+  return from === until ? weekdayDate(from) : `${weekdayDate(from)} bis ${weekdayDate(until)}`;
 }
 
 /** Für das Banner der Vertretung: "heute letzter Tag", "noch bis morgen", "noch 4 Tage" (heute mitgezählt). */
@@ -30,7 +30,7 @@ export function remainingLabel(until: string, today: string): string {
   return `noch ${days + 1} Tage`;
 }
 
-/** Prüfung vor dem Absenden – dieselben Regeln wie auf dem Server, damit Fehler gleich am Feld stehen. */
+/** Prüfung vor dem Absenden, dieselben Regeln wie auf dem Server, damit Fehler gleich am Feld stehen. */
 export function absenceProblem(from: string, until: string, deputyId: number | null, meId: number, today: string): string | null {
   if (!from || !until) return "Bitte den ersten und den letzten Urlaubstag angeben.";
   if (until < from) return "Der letzte Urlaubstag liegt vor dem ersten.";
@@ -40,7 +40,7 @@ export function absenceProblem(from: string, until: string, deputyId: number | n
   return null;
 }
 
-/** Warum eine Aufgabe in der Übergabe steht – danger: überfällig oder Nachhaken ist schon dran. */
+/** Warum eine Aufgabe in der Übergabe steht, danger: überfällig oder Nachhaken ist schon dran. */
 export function reasonLabel(item: Pick<AbsenceItem, "kind" | "dueDate" | "waitingFor" | "followUp">, from: string, today: string): { text: string; danger: boolean } {
   if (item.waitingFor) {
     if (!item.followUp) return { text: `Warte auf ${item.waitingFor}`, danger: false };
@@ -50,7 +50,7 @@ export function reasonLabel(item: Pick<AbsenceItem, "kind" | "dueDate" | "waitin
   if (!item.dueDate) return { text: "", danger: false };
   if (item.dueDate < today) return { text: `überfällig seit ${weekdayDate(item.dueDate)}`, danger: true };
   const what = item.kind === "wiedervorlage" ? "Wiedervorlage" : "fällig";
-  return { text: `${what} ${relativeDay(item.dueDate, today)}${item.dueDate < from ? " – noch vor dem Urlaub" : ""}`, danger: false };
+  return { text: `${what} ${relativeDay(item.dueDate, today)}${item.dueDate < from ? ", noch vor dem Urlaub" : ""}`, danger: false };
 }
 
 /** Was nach der Entscheidung mit der Aufgabe passiert. */
@@ -60,15 +60,15 @@ export function decisionLabel(item: AbsenceItem, deputyId: number, back: string,
   }
   if (item.decision !== "behalten") return "";
   // Eine Frist geht immer vor (wie bei „Später“): Was schon fällig ist, bleibt sichtbar.
-  if (!item.waitingFor && item.kind !== "wiedervorlage" && item.dueDate && item.dueDate <= today) return "Bleibt bei dir – die Frist ist schon da";
+  if (!item.waitingFor && item.kind !== "wiedervorlage" && item.dueDate && item.dueDate <= today) return "Bleibt bei dir, die Frist ist schon da";
   if (!item.waitingFor && item.kind !== "wiedervorlage" && item.dueDate && item.dueDate < back) {
-    return `Bleibt bei dir – ausgeblendet bis zur Fälligkeit ${weekdayDate(item.dueDate)}`;
+    return `Bleibt bei dir, ausgeblendet bis zur Fälligkeit ${weekdayDate(item.dueDate)}`;
   }
-  return `Bleibt bei dir – wieder da am ${weekdayDate(back)}`;
+  return `Bleibt bei dir, wieder da am ${weekdayDate(back)}`;
 }
 
 export interface SummaryGroups {
-  /** noch bei der Vertretung – „Zurück an mich“ */
+  /** noch bei der Vertretung, „Zurück an mich“ */
   open: HandoverState[];
   done: HandoverState[];
   /** schon wieder bei mir */

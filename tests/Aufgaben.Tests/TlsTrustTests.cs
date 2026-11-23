@@ -53,7 +53,7 @@ public class TlsTrustTests
 
         var onlyNtlm = new HashSet<string> { "NTLM" };
         SmtpLogin.PreferPassword(onlyNtlm);
-        Assert.Equal(["NTLM"], onlyNtlm); // nichts anderes da – dann bleibt es dabei
+        Assert.Equal(["NTLM"], onlyNtlm); // nichts anderes da, dann bleibt es dabei
     }
 
     [Theory]

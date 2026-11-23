@@ -101,7 +101,7 @@ export const api = {
   restoreTask: (id: number) => request<Task>("POST", `/api/tasks/${id}/restore`),
   purgeTask: (id: number) => request<void>("DELETE", `/api/tasks/${id}/endgueltig`),
   bulkTasks: (action: BulkAction, ids: number[]) => request<BulkResult>("POST", "/api/tasks/bulk", { action, ids }),
-  /** KI-Vorschläge zu Text und/oder Bildschirmfoto (Data-URL) – abbrechbar, weil Nachdenken dauern kann. */
+  /** KI-Vorschläge zu Text und/oder Bildschirmfoto (Data-URL): abbrechbar, weil Nachdenken dauern kann. */
   aiSuggest: async (text: string, image: string | null, signal?: AbortSignal): Promise<AiSuggestion> => {
     const res = await fetch("/api/ki/vorschlag", {
       method: "POST",
@@ -111,7 +111,7 @@ export const api = {
       signal,
     });
     if (!res.ok) {
-      let message = res.status === 413 ? "Text und Bild sind zusammen zu groß – bitte kürzen." : `KI-Vorschlag fehlgeschlagen (${res.status}).`;
+      let message = res.status === 413 ? "Text und Bild sind zusammen zu groß, bitte kürzen." : `KI-Vorschlag fehlgeschlagen (${res.status}).`;
       try {
         const data = await res.json();
         if (data?.error) message = data.error;
@@ -159,7 +159,7 @@ export const api = {
     if (!res.ok) {
       // 413 ohne JSON kommt von Nginx: dessen Grenze für Uploads ist noch nicht eingerichtet
       let message = res.status === 413
-        ? "Die Datei ist zu groß für den Server. Höchstens 10 MB – sonst die Nginx-Einrichtung aktualisieren."
+        ? "Die Datei ist zu groß für den Server. Höchstens 10 MB, sonst die Nginx-Einrichtung aktualisieren."
         : `Hochladen fehlgeschlagen (${res.status}).`;
       try {
         const data = await res.json();
@@ -221,7 +221,7 @@ export const api = {
   decideAbsenceTask: (id: number, taskId: number, decision: AbsenceDecision, note?: string) =>
     request<AbsenceItem>("POST", `/api/absences/${id}/tasks/${taskId}`, { decision, note: note || null }),
   handOverAll: (id: number) => request<{ count: number }>("POST", `/api/absences/${id}/handover-all`),
-  /** „Zurück an mich“ – ohne Auswahl alles, was noch bei der Vertretung liegt */
+  /** „Zurück an mich“, ohne Auswahl alles, was noch bei der Vertretung liegt */
   takeBack: (id: number, taskIds?: number[]) => request<{ count: number }>("POST", `/api/absences/${id}/take-back`, { taskIds: taskIds ?? null }),
   absenceSummary: (id: number) => request<AbsenceSummary>("GET", `/api/absences/${id}/summary`),
   closeAbsenceSummary: (id: number) => request<void>("POST", `/api/absences/${id}/summary/close`),

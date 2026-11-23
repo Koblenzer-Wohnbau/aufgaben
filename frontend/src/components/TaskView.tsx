@@ -195,7 +195,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
       case "mein-tag":
         return { title: "Mein Tag", icon: <WeatherSunnyRegular />, subtitle: longDate(today), defaults: { myDay: true }, empty: "Nichts für heute geplant. Hol dir oben Vorschläge oder plane etwas ein." };
       case "aufgaben":
-        return { title: "Aufgaben", icon: <HomeRegular />, subtitle: "Alles, was dir gehört und in keiner Liste steckt", defaults: {}, empty: "Keine losen Aufgaben – alles ist einsortiert." };
+        return { title: "Aufgaben", icon: <HomeRegular />, subtitle: "Alles, was dir gehört und in keiner Liste steckt", defaults: {}, empty: "Keine losen Aufgaben, alles ist einsortiert." };
       case "wichtig":
         return { title: "Wichtig", icon: <StarRegular />, defaults: { priority: "hoch" }, empty: "Keine wichtigen Aufgaben offen." };
       case "geplant":
@@ -203,14 +203,14 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
       case "zugewiesen":
         return { title: "Mir zugewiesen", icon: <PersonArrowLeftRegular />, subtitle: "Aufgaben, die dir andere gegeben haben", defaults: {}, empty: "Niemand hat dir gerade etwas zugewiesen." };
       case "delegiert":
-        return { title: "Wartet auf andere", icon: <SendRegular />, subtitle: "Was du delegiert hast – live mit Status", defaults: {}, empty: "Du hast nichts delegiert. Tipp: @Name in der Eingabe." };
+        return { title: "Wartet auf andere", icon: <SendRegular />, subtitle: "Was du delegiert hast, live mit Status", defaults: {}, empty: "Du hast nichts delegiert. Tipp: @Name in der Eingabe." };
       case "wiedervorlagen":
         return { title: "Wiedervorlagen", icon: <ClockAlarmRegular />, subtitle: "Fristen und Dinge, die wieder auf den Tisch müssen", defaults: { kind: "wiedervorlage" }, empty: "Keine Wiedervorlagen." };
       case "warteschleife":
         return {
           title: "Warteschleife",
           icon: <HourglassHalfRegular />,
-          subtitle: "Warte auf Antwort und Zurückgestelltes – kommt am Tag von selbst in „Mein Tag“ zurück",
+          subtitle: "Warte auf Antwort und Zurückgestelltes, kommt am Tag von selbst in „Mein Tag“ zurück",
           defaults: {},
           empty: "Nichts in der Warteschleife. In einer Aufgabe auf „Warte auf …“ oder „Später“ klicken.",
         };
@@ -245,7 +245,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
           icon: <PeopleSwapRegular />,
           subtitle: represented ? `Im Urlaub übergeben · bis ${weekdayDate(represented.until)}` : "Im Urlaub übergeben",
           defaults: {},
-          empty: "Keine übergebenen Aufgaben mehr – alles erledigt oder zurückgegeben.",
+          empty: "Keine übergebenen Aufgaben mehr, alles erledigt oder zurückgegeben.",
         };
       case "person":
         return {
@@ -301,7 +301,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
 
   const isCollapsedGroup = (key: string) => collapsed[key] ?? (key === "erledigt" && route.view !== "erledigt");
   const allIds = useMemo(() => (query.data ?? []).map((t) => t.id), [query.data]);
-  // Nur, was noch in der Ansicht steht – Gelöschtes oder Weggefallenes zählt nicht mit
+  // Nur, was noch in der Ansicht steht, Gelöschtes oder Weggefallenes zählt nicht mit
   const chosen = useMemo(() => (query.data ?? []).filter((t) => picked.has(t.id)), [query.data, picked]);
   const visibleOrder = groups.filter((g) => !isCollapsedGroup(g.key)).flatMap((g) => g.tasks.map((t) => t.id));
 
@@ -355,12 +355,12 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
         await api.patchTask(t.id, laterAction(t, date, today).patch);
         ok++;
       } catch {
-        /* z. B. inzwischen erledigt – wird unten mitgezählt */
+        /* z. B. inzwischen erledigt, wird unten mitgezählt */
       }
     }
     setBusy(false);
     setPicked(new Set());
-    notify(`${tasksLabel(ok)} auf ${weekdayDate(date)} gelegt${ok < own.length ? ` – ${own.length - ok} ging nicht` : ""}`, ok ? "success" : "error");
+    notify(`${tasksLabel(ok)} auf ${weekdayDate(date)} gelegt${ok < own.length ? `, ${own.length - ok} ging nicht` : ""}`, ok ? "success" : "error");
     await refreshAll();
   };
 
@@ -376,7 +376,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
       notify(
         result.done === 0
           ? "Keine erledigten Aufgaben, die du angelegt hast"
-          : `${tasksLabel(result.done)} in den Papierkorb gelegt${result.skipped ? ` – ${result.skipped} von anderen angelegte bleiben` : ""}`,
+          : `${tasksLabel(result.done)} in den Papierkorb gelegt${result.skipped ? `, ${result.skipped} von anderen angelegte bleiben` : ""}`,
         result.done === 0 ? "info" : "success",
       );
       await refreshAll();
@@ -391,7 +391,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
   useEffect(() => {
     if (!selecting) return;
     const onKey = (e: KeyboardEvent) => {
-      // In der Rückfrage gehört Esc dem Dialog – sonst wäre danach auch die Auswahl weg.
+      // In der Rückfrage gehört Esc dem Dialog, sonst wäre danach auch die Auswahl weg.
       if ((e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable='true'], [role='dialog'], [role='alertdialog']")) return;
       if (e.key === "Escape") {
         exitSelect();
@@ -413,7 +413,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
       checked={selecting}
       appearance={selecting ? "primary" : "subtle"}
       onClick={() => (selecting ? exitSelect() : setSelecting(true))}
-      title="Mehrere Aufgaben auswählen – Umschalt+Klick wählt einen Bereich"
+      title="Mehrere Aufgaben auswählen, Umschalt+Klick wählt einen Bereich"
     >
       Auswählen
     </ToggleButton>
@@ -427,7 +427,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
     if (route.view !== "mein-tag" || !query.data) return;
     if (previousOpen.current !== null && previousOpen.current > 0 && openCount === 0 && doneCount > 0) {
       setConfetti((c) => c + 1);
-      notify("Mein Tag ist erledigt – stark!");
+      notify("Mein Tag ist erledigt, stark!");
     }
     previousOpen.current = openCount;
   }, [openCount, doneCount, route.view, query.data, notify]);
@@ -443,7 +443,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
     try {
       localStorage.setItem(`aufgaben.sortierung.${route.view}`, value);
     } catch {
-      /* privater Modus – Sortierung gilt nur bis zum Neuladen */
+      /* privater Modus, Sortierung gilt nur bis zum Neuladen */
     }
   };
 
@@ -560,7 +560,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
               <QuickAdd defaults={info.defaults} />
             </div>
             {me.aiAvailable && (
-              <Tooltip content="Mit KI erfassen – oder einfach irgendwo Strg+V drücken" relationship="label">
+              <Tooltip content="Mit KI erfassen oder einfach irgendwo Strg+V drücken" relationship="label">
                 <Button className={styles.aiButton} size="large" icon={<SparkleRegular />} onClick={() => openAi()}>
                   {compact ? "" : "KI"}
                 </Button>
@@ -581,7 +581,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
         )}
         {query.data && query.data.length === 0 && <EmptyState text={info.empty} sunny={myDay} />}
         {groups.map((g) => {
-          // Erledigte sind sonst eingeklappt – in der Ansicht „Erledigt“ sind sie der Inhalt.
+          // Erledigte sind sonst eingeklappt, in der Ansicht „Erledigt“ sind sie der Inhalt.
           const isCollapsed = isCollapsedGroup(g.key);
           return (
             <div key={g.key} style={{ display: "contents" }}>

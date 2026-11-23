@@ -16,7 +16,7 @@ export interface ConfirmRequest {
   text?: string;
   /** Beschriftung der bestätigenden Schaltfläche, z. B. „In den Papierkorb“. */
   confirmLabel: string;
-  /** Rot hervorheben – für Schritte, die sich nicht rückgängig machen lassen. */
+  /** Rot hervorheben, für Schritte, die sich nicht rückgängig machen lassen. */
   danger?: boolean;
 }
 
@@ -31,7 +31,7 @@ const useStyles = makeStyles({
 
 /**
  * Rückfrage vor dem Löschen u. ä. Ersetzt window.confirm: Das blockiert Teams in Tabs ohne Meldung
- * und liefert sofort „Abbrechen“ – die Aktion passierte dann einfach nicht.
+ * und liefert sofort „Abbrechen“, die Aktion passierte dann einfach nicht.
  */
 export function ConfirmDialog({ request, open, onAnswer }: { request: ConfirmRequest | null; open: boolean; onAnswer: (ok: boolean) => void }) {
   const styles = useStyles();

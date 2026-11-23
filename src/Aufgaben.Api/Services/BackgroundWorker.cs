@@ -168,7 +168,7 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
 
     /// <summary>
     /// „Warte auf …“: Ist der Tag zum Nachhaken da, einmal erinnern. Die Aufgabe steht dann ohnehin
-    /// wieder in „Mein Tag“ – die Nachricht sorgt dafür, dass es auch auffällt.
+    /// wieder in „Mein Tag“, die Nachricht sorgt dafür, dass es auch auffällt.
     /// </summary>
     internal static async Task QueueFollowUpsAsync(IServiceProvider sp, CancellationToken ct)
     {
@@ -187,7 +187,7 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
         foreach (var task in due)
         {
             task.FollowUpNotifiedAt = now;
-            // Nach längerem Stillstand keine Flut alter Erinnerungen – die Aufgaben stehen ja wieder in den Listen.
+            // Nach längerem Stillstand keine Flut alter Erinnerungen, die Aufgaben stehen ja wieder in den Listen.
             if (task.SnoozedUntil!.Value < today.AddDays(-3))
             {
                 continue;
@@ -240,7 +240,7 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
                             if (result.ShouldFallBackToMail)
                             {
                                 // 400/403/404: meist ist die App bei der Person nicht installiert. Ein neuer
-                                // Versuch ändert daran nichts – sofort als endgültig fehlgeschlagen verbuchen.
+                                // Versuch ändert daran nichts, sofort als endgültig fehlgeschlagen verbuchen.
                                 n.Attempts = MaxAttempts;
                             }
                             throw new InvalidOperationException($"Teams: {(int?)result.Status} {result.Error}");

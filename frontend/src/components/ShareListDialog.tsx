@@ -44,7 +44,7 @@ export function ShareListDialog({ list, onClose }: { list: TaskList; onClose: ()
     try {
       await api.addListMember(list.id, user.id);
       await refresh();
-      notify(`Mit ${user.name} geteilt – ${user.name.split(" ")[0]} wird benachrichtigt`);
+      notify(`Mit ${user.name} geteilt, ${user.name.split(" ")[0]} wird benachrichtigt`);
     } catch (e) {
       notify(e instanceof Error ? e.message : "Fehler", "error");
     }

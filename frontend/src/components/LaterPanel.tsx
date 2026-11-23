@@ -71,7 +71,7 @@ export function LaterPanel({ task, patch, readOnly }: { task: Task; patch: Patch
         </div>
         {!readOnly && (
           <div className={styles.actions}>
-            <Button size="small" appearance="primary" icon={<CheckmarkRegular />} onClick={() => patch({ waitingFor: null }, "Antwort ist da – die Aufgabe steht jetzt in „Mein Tag“")}>
+            <Button size="small" appearance="primary" icon={<CheckmarkRegular />} onClick={() => patch({ waitingFor: null }, "Antwort ist da, die Aufgabe steht jetzt in „Mein Tag“")}>
               Antwort da
             </Button>
             <LaterMenu
@@ -106,7 +106,7 @@ export function LaterPanel({ task, patch, readOnly }: { task: Task; patch: Patch
         </div>
         {!readOnly && (
           <div className={styles.actions}>
-            <Button size="small" appearance="primary" onClick={() => patch({ snoozedUntil: null }, "Wieder da – steht jetzt in „Mein Tag“")}>
+            <Button size="small" appearance="primary" onClick={() => patch({ snoozedUntil: null }, "Wieder da, steht jetzt in „Mein Tag“")}>
               Jetzt zurückholen
             </Button>
             <LaterMenu
@@ -160,7 +160,7 @@ function WaitDialog({ task, patch, onClose }: { task: Task; patch: Patch; onClos
     const body: Record<string, unknown> = { waitingFor: trimmed };
     // Wird nur der Name korrigiert, bleibt der Tag zum Nachhaken, wie er ist.
     if (!task.waitingFor || date !== task.snoozedUntil) body.snoozedUntil = date;
-    const ok = await patch(body, `Warte auf ${trimmed} – nachhaken am ${weekdayDate(date)}`);
+    const ok = await patch(body, `Warte auf ${trimmed}, nachhaken am ${weekdayDate(date)}`);
     setBusy(false);
     if (ok) onClose();
   };

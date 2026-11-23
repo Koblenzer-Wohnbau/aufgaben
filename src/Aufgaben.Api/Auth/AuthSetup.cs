@@ -112,7 +112,7 @@ public static class AuthSetup
             o.TokenValidationParameters = new TokenValidationParameters
             {
                 ValidIssuer = TeamsBot.Issuer,
-                // Ohne Bot-ID passt kein Token – der Endpunkt ist dann ohnehin nicht eingerichtet.
+                // Ohne Bot-ID passt kein Token, der Endpunkt ist dann ohnehin nicht eingerichtet.
                 ValidAudience = opts.Teams.BotEnabled ? opts.Teams.BotId : Guid.NewGuid().ToString(),
                 ClockSkew = TimeSpan.FromMinutes(5),
             };
@@ -144,7 +144,7 @@ public static class AuthSetup
         o.SlidingExpiration = true;
 
         // Höchstdauer ab der Anmeldung: Ohne sie verlängert ein dauerhaft offener Tab die Sitzung
-        // immer weiter – und eine in Entra entzogene Rolle käme nie an.
+        // immer weiter, und eine in Entra entzogene Rolle käme nie an.
         var maxAge = TimeSpan.FromHours(Math.Clamp(opts.Auth.MaxSessionHours, 1, 24 * 14));
         var previousSigningIn = o.Events.OnSigningIn;
         o.Events.OnSigningIn = async ctx =>

@@ -23,7 +23,7 @@ import { navigate } from "../route";
 import type { Absence, DeputyInfo, HandoverState } from "../types";
 
 const useStyles = makeStyles({
-  // Die Liste darunter ist eine scrollende Flex-Spalte – ohne flexShrink: 0 würden Karte und Banner gestaucht.
+  // Die Liste darunter ist eine scrollende Flex-Spalte, ohne flexShrink: 0 würden Karte und Banner gestaucht.
   card: {
     flexShrink: 0,
     display: "flex",
@@ -71,7 +71,7 @@ const useStyles = makeStyles({
   banner: { flexShrink: 0, marginBottom: "6px" },
 });
 
-/** „Was ist passiert?“ nach dem Urlaub – oben in „Mein Tag“, bis die Person sie schließt. */
+/** „Was ist passiert?“ nach dem Urlaub, oben in „Mein Tag“, bis die Person sie schließt. */
 export function ReturnSummary({ absence }: { absence: Absence }) {
   const styles = useStyles();
   const { me, notify, openTask } = useApp();
@@ -92,7 +92,7 @@ export function ReturnSummary({ absence }: { absence: Absence }) {
     setBusy(true);
     try {
       const { count } = await api.takeBack(absence.id, taskIds);
-      notify(count === 0 ? "Nichts mehr zurückzuholen" : `${taskCount(count)} zurück bei dir – steht in „Mein Tag“`, count === 0 ? "info" : "success");
+      notify(count === 0 ? "Nichts mehr zurückzuholen" : `${taskCount(count)} zurück bei dir, steht in „Mein Tag“`, count === 0 ? "info" : "success");
       await refresh();
     } catch (e) {
       notify(e instanceof Error ? e.message : "Fehler", "error");
@@ -202,7 +202,7 @@ export function ReturnSummary({ absence }: { absence: Absence }) {
 
       {data && data.kept > 0 && (
         <Caption1 className={styles.muted}>
-          {taskCount(data.kept)} hattest du behalten – {data.kept === 1 ? "sie ist" : "sie sind"} wieder in deinen Listen.
+          {taskCount(data.kept)} hattest du behalten, {data.kept === 1 ? "sie ist" : "sie sind"} wieder in deinen Listen.
         </Caption1>
       )}
 
@@ -240,7 +240,7 @@ export function ReturnSummary({ absence }: { absence: Absence }) {
   );
 }
 
-/** Banner für die Vertretung während des Urlaubs – mit Link auf die übergebenen Aufgaben. */
+/** Banner für die Vertretung während des Urlaubs, mit Link auf die übergebenen Aufgaben. */
 export function DeputyBanner({ deputy }: { deputy: DeputyInfo }) {
   const styles = useStyles();
   const { today } = useApp();

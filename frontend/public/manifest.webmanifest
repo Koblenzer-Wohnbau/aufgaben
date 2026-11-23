@@ -1,7 +1,7 @@
 {
   "name": "Aufgaben",
   "short_name": "Aufgaben",
-  "description": "Persönliche Aufgaben, Delegationen und Projektaufgaben – im Browser und in Teams.",
+  "description": "Persönliche Aufgaben, Delegationen und Projektaufgaben, im Browser und in Teams.",
   "lang": "de",
   "start_url": "/",
   "scope": "/",

@@ -59,7 +59,7 @@ const useStyles = makeStyles({
     gap: "14px",
     paddingBottom: "32px",
     overflowX: "hidden",
-    // Fluent-Felder haben eine Mindestbreite – hier sollen sie sich der Spalte anpassen.
+    // Fluent-Felder haben eine Mindestbreite, hier sollen sie sich der Spalte anpassen.
     "& .fui-Dropdown, & .fui-Input, & .fui-Combobox, & .fui-Textarea": { minWidth: 0, width: "100%", boxSizing: "border-box" },
   },
   titleRow: { display: "flex", alignItems: "flex-start", gap: "8px" },
@@ -99,7 +99,7 @@ function formatSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1).replace(".", ",")} MB`;
 }
 
-/** Kleine Vorschau für Bildanhänge – mit Anmeldung geladen (in Teams per Token), danach freigegeben. */
+/** Kleine Vorschau für Bildanhänge, mit Anmeldung geladen (in Teams per Token), danach freigegeben. */
 function AttachmentThumb({ taskId, attachment, onOpen }: { taskId: number; attachment: Attachment; onOpen: (url: string) => void }) {
   const styles = useStyles();
   const [url, setUrl] = useState<string | null>(null);
@@ -145,7 +145,7 @@ export function TaskDrawer({ taskId, onClose, overlay }: { taskId: number | null
     if (!task) return;
     try {
       await api.deleteTask(task.id);
-      notify(`In den Papierkorb gelegt – dort ${TRASH_DAYS} Tage lang wiederherstellbar`);
+      notify(`In den Papierkorb gelegt, dort ${TRASH_DAYS} Tage lang wiederherstellbar`);
       onClose();
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
@@ -227,7 +227,7 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
   const fileInput = useRef<HTMLInputElement>(null);
   const done = task.status === "erledigt";
 
-  // Live-Änderungen übernehmen – aber nie Text überschreiben, den die Person gerade tippt.
+  // Live-Änderungen übernehmen, aber nie Text überschreiben, den die Person gerade tippt.
   const serverTitle = useRef(task.title);
   const serverNotes = useRef(task.notes);
   useEffect(() => {
@@ -323,7 +323,7 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
         <MessageBar intent={canEdit ? "info" : "warning"}>
           <MessageBarBody>
             {canEdit
-              ? "Über ein Einsichtsrecht: Inhalte dürfen geändert werden – Verantwortliche, Projekt und Liste nicht."
+              ? "Über ein Einsichtsrecht: Inhalte dürfen geändert werden, Verantwortliche, Projekt und Liste nicht."
               : "Über ein Einsichtsrecht: nur lesen."}
           </MessageBarBody>
         </MessageBar>
@@ -594,7 +594,7 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
       <fieldset className={`${styles.fieldset} ${styles.commentBox}`} disabled={!canEdit}>
         <Textarea
           style={{ flex: 1 }}
-          placeholder={task.isDelegated ? "Kommentar – die andere Person wird benachrichtigt" : "Kommentar"}
+          placeholder={task.isDelegated ? "Kommentar, die andere Person wird benachrichtigt" : "Kommentar"}
           value={comment}
           onChange={(_, d) => setComment(d.value)}
           resize="vertical"
@@ -621,7 +621,7 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
             appearance="subtle"
             icon={<DeleteRegular />}
             onClick={() =>
-              void run(() => api.deleteTask(task.id), `In den Papierkorb gelegt – dort ${TRASH_DAYS} Tage lang wiederherstellbar`).then(
+              void run(() => api.deleteTask(task.id), `In den Papierkorb gelegt, dort ${TRASH_DAYS} Tage lang wiederherstellbar`).then(
                 (ok) => ok && onDeleted(),
               )
             }

@@ -41,7 +41,7 @@ const GROUPS: { key: "yesterday" | "dueSoon" | "important" | "recent"; label: st
   { key: "recent", label: "Neu angelegt" },
 ];
 
-/** Vorschläge für "Mein Tag" – ein Klick plant die Aufgabe für heute ein. */
+/** Vorschläge für "Mein Tag", ein Klick plant die Aufgabe für heute ein. */
 export function SuggestionsPanel({ compact, onClose }: { compact: boolean; onClose: () => void }) {
   const styles = useStyles();
   const { today, notify } = useApp();
@@ -82,7 +82,7 @@ export function SuggestionsPanel({ compact, onClose }: { compact: boolean; onClo
         <Button size="small" appearance="subtle" icon={<DismissRegular />} aria-label="Vorschläge schließen" onClick={onClose} />
       </div>
       {suggestions.isLoading && <Spinner size="tiny" />}
-      {data && total === 0 && <Text className={styles.empty}>Keine Vorschläge – dein Tag ist gut sortiert.</Text>}
+      {data && total === 0 && <Text className={styles.empty}>Keine Vorschläge, dein Tag ist gut sortiert.</Text>}
       {data &&
         GROUPS.filter((g) => data[g.key].length > 0).map((g) => (
           <div key={g.key} className={styles.group}>

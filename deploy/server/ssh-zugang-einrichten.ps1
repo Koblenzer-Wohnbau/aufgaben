@@ -1,12 +1,12 @@
 ﻿<#
 .SYNOPSIS
-  Richtet den SSH-Zugang von diesem Windows-PC zum Aufgaben-Server ein – in einem Rutsch.
+  Richtet den SSH-Zugang von diesem Windows-PC zum Aufgaben-Server ein, in einem Rutsch.
 
 .DESCRIPTION
   1. Erzeugt einen eigenen SSH-Schlüssel (ed25519), falls er noch nicht existiert.
   2. Kopiert den öffentlichen Schlüssel auf den Server (fragt dafür EINMAL nach dem Server-Passwort).
   3. Prüft, ob die Anmeldung jetzt ohne Passwort klappt.
-  4. Legt in ~/.ssh/config Kurznamen an – danach genügt "ssh <hostname der VM>" (oder "ssh aufgaben").
+  4. Legt in ~/.ssh/config Kurznamen an, danach genügt "ssh <hostname der VM>" (oder "ssh aufgaben").
 
   Erst wenn Schritt 3 klappt, darf deploy/server/haerten.sh laufen (es schaltet Passwörter für SSH ab).
 
@@ -27,11 +27,11 @@ function Write-Step([string] $text) { Write-Host ""; Write-Host "==> $text" -For
 function Stop-WithError([string] $text) { Write-Host ""; Write-Host "ABBRUCH: $text" -ForegroundColor Red; exit 1 }
 
 # Windows-OpenSSH verweigert private Schlüssel und ~/.ssh/config, wenn außer dem Besitzer noch jemand
-# Rechte hat – häufig vom Profilordner geerbt (z. B. ein Support-Konto): "Bad owner or permissions" bzw.
+# Rechte hat: häufig vom Profilordner geerbt (z. B. ein Support-Konto): "Bad owner or permissions" bzw.
 # "UNPROTECTED PRIVATE KEY FILE". Deshalb: nur die eigene Person und SYSTEM, keine Vererbung.
 function Set-OwnerOnlyAcl([string] $path) {
     # icacls statt Set-Acl: braucht keine Sonderrechte (Set-Acl verlangt je nach Datei SeSecurityPrivilege),
-    # gibt es auf jedem Windows und arbeitet mit SIDs – unabhängig von der Sprache des Systems.
+    # gibt es auf jedem Windows und arbeitet mit SIDs: unabhängig von der Sprache des Systems.
     $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
     $previous = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
@@ -39,7 +39,7 @@ function Set-OwnerOnlyAcl([string] $path) {
         & icacls $path /reset /Q 2>$null | Out-Null
         & icacls $path /inheritance:r /grant:r "*${sid}:F" "*S-1-5-18:F" /Q 2>$null | Out-Null
         $ok = ($LASTEXITCODE -eq 0)
-        # Besitz übernehmen klappt nicht immer (z. B. als Administrator angelegt) – OpenSSH akzeptiert
+        # Besitz übernehmen klappt nicht immer (z. B. als Administrator angelegt): OpenSSH akzeptiert
         # dann auch die Gruppe Administratoren als Besitzer.
         & icacls $path /setowner "*$sid" /Q 2>$null | Out-Null
     } finally {
@@ -67,7 +67,7 @@ if (-not (Test-Path $sshDir)) { New-Item -ItemType Directory -Path $sshDir | Out
 # ---------------------------------------------------------------- 1. Schlüssel
 Write-Step "Schlüssel $key"
 if (Test-Path $pub) {
-    Write-Host "vorhanden – wird wiederverwendet"
+    Write-Host "vorhanden, wird wiederverwendet"
 } else {
     Write-Host "Neuer Schlüssel. Eine Passphrase ist empfohlen (schützt den Schlüssel, falls jemand an den PC kommt)."
     Write-Host "Ohne Passphrase: zweimal Enter drücken."
@@ -101,7 +101,7 @@ if ($LASTEXITCODE -ne 0 -or ($check -notcontains "schluessel-ok")) {
     Stop-WithError "Anmeldung mit Schlüssel klappt noch nicht. haerten.sh NICHT ausführen."
 }
 Write-Host "Anmeldung mit Schlüssel klappt." -ForegroundColor Green
-# Echter Hostname der VM – damit auch "ssh <hostname>" funktioniert, ganz ohne DNS-Eintrag.
+# Echter Hostname der VM, damit auch "ssh <hostname>" funktioniert, ganz ohne DNS-Eintrag.
 $remoteHost = ($check | Where-Object { $_ -and $_ -ne "schluessel-ok" } | Select-Object -Last 1)
 if ($remoteHost) { $remoteHost = $remoteHost.Trim() }
 
@@ -113,7 +113,7 @@ $existing = ""
 if (Test-Path $config) { $existing = Get-Content $config -Raw }
 $taken = $names | Where-Object { $existing -match "(?m)^\s*Host\s+(.*\s)?$([regex]::Escape($_))(\s|$)" }
 if ($taken) {
-    Write-Host "Schon in der Datei vorhanden: $($taken -join ', ') – nicht verändert. Bei Bedarf $config von Hand anpassen."
+    Write-Host "Schon in der Datei vorhanden: $($taken -join ', '), nicht verändert. Bei Bedarf $config von Hand anpassen."
 } else {
     $block = @(
         "",
@@ -131,7 +131,7 @@ if ($taken) {
 }
 Set-OwnerOnlyAcl $config
 & ssh -G $Alias 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) { Stop-WithError "ssh kann $config nicht lesen – Rechte der Datei prüfen." }
+if ($LASTEXITCODE -ne 0) { Stop-WithError "ssh kann $config nicht lesen, Rechte der Datei prüfen." }
 
 # ---------------------------------------------------------------- Fertig
 Write-Host ""

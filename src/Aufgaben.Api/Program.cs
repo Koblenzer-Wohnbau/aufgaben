@@ -39,7 +39,7 @@ var opts = builder.Configuration.GetSection(AufgabenOptions.Section).Get<Aufgabe
 builder.WebHost.ConfigureKestrel(k =>
 {
     k.AddServerHeader = false;
-    k.Limits.MaxRequestBodySize = 1024 * 1024; // 1 MB – die App lädt keine Dateien hoch
+    k.Limits.MaxRequestBodySize = 1024 * 1024; // 1 MB, die App lädt keine Dateien hoch
 });
 
 // ---------------------------------------------------------------- Datenbank
@@ -78,7 +78,7 @@ builder.Services.AddRateLimiter(o =>
         return new ValueTask(ctx.HttpContext.Response.WriteAsync(
             "{\"error\":\"Zu viele Anfragen in kurzer Zeit. Bitte einen Moment warten.\"}", token));
     };
-    // Angemeldet: Limit pro Person. Anonym: pro IP – großzügiger, weil sich in Firmen
+    // Angemeldet: Limit pro Person. Anonym: pro IP, großzügiger, weil sich in Firmen
     // oft alle Mitarbeitenden eine öffentliche Adresse (NAT) teilen.
     o.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
     {
@@ -134,7 +134,7 @@ builder.Services.AddHttpClient<GraphClient>(c =>
     c.BaseAddress = new Uri("https://graph.microsoft.com/v1.0/");
     c.Timeout = TimeSpan.FromSeconds(30);
 });
-// KI-Vorschläge (Mistral, Standard GLM 5.3). Nachdenken braucht Zeit – daher die eigene, längere Grenze.
+// KI-Vorschläge (Mistral, Standard GLM 5.3). Nachdenken braucht Zeit, daher die eigene, längere Grenze.
 // Region (global, eu, us) schon beim Start prüfen: ein Tippfehler soll nicht erst beim ersten Vorschlag auffallen.
 var mistralBase = MistralClient.BaseAddress(opts.Mistral.Region);
 builder.Services.AddHttpClient<MistralClient>(c =>
@@ -174,7 +174,7 @@ await using (var scope = app.Services.CreateAsyncScope())
 
 // ---------------------------------------------------------------- Pipeline
 app.UseForwardedHeaders();
-// Im Betrieb: Schema und Host fest aus Aufgaben__BaseUrl – die Anmeldung funktioniert dann auch,
+// Im Betrieb: Schema und Host fest aus Aufgaben__BaseUrl, die Anmeldung funktioniert dann auch,
 // wenn der Reverse Proxy Host oder X-Forwarded-Proto nicht (richtig) weiterreicht.
 if (!opts.Auth.IsDev && CanonicalUrl.TryParse(opts.NormalizedBaseUrl, out var publicUri))
 {
@@ -247,7 +247,7 @@ if (opts.Mistral.Enabled)
 }
 if (opts.Auth.IsDev)
 {
-    log.LogWarning("ENTWICKLUNGS-LOGIN AKTIV – nur für lokale Tests, niemals im Betrieb verwenden.");
+    log.LogWarning("ENTWICKLUNGS-LOGIN AKTIV, nur für lokale Tests, niemals im Betrieb verwenden.");
 }
 
 await app.RunAsync();

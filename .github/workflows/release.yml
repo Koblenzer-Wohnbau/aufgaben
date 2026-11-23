@@ -1,6 +1,6 @@
 name: Release
 
-# Neue Version veröffentlichen – zwei Wege:
+# Neue Version veröffentlichen: zwei Wege:
 #   1. Knopf: GitHub → Actions → „Release“ → „Run workflow“ → Version eintragen (z. B. 1.0.3).
 #      Der Workflow legt den Tag v1.0.3 selbst an.
 #   2. Tag von Hand: git tag v1.0.3 && git push origin v1.0.3
@@ -40,7 +40,7 @@ jobs:
             version="${INPUT_VERSION#v}"
             echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || { echo "::error::Version muss wie 1.0.3 aussehen."; exit 1; }
             if git rev-parse -q --verify "refs/tags/v$version" >/dev/null; then
-              echo "::error::Den Tag v$version gibt es schon – eine höhere Version wählen."; exit 1
+              echo "::error::Den Tag v$version gibt es schon, eine höhere Version wählen."; exit 1
             fi
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

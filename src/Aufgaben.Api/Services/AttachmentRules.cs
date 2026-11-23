@@ -12,7 +12,7 @@ public static class AttachmentRules
     /// <summary>Höchstgröße einer Datei. Nginx lässt für die Upload-Adresse etwas mehr durch.</summary>
     public const int MaxFileBytes = 10 * 1024 * 1024;
 
-    /// <summary>Höchstsumme aller Anhänge einer Aufgabe – die Anhänge liegen in der Datenbank.</summary>
+    /// <summary>Höchstsumme aller Anhänge einer Aufgabe, die Anhänge liegen in der Datenbank.</summary>
     public const long MaxTotalBytes = 50L * 1024 * 1024;
 
     public const int MaxPerTask = 30;
@@ -39,7 +39,7 @@ public static class AttachmentRules
         {
             throw TooLarge();
         }
-        // Punkte und Leerzeichen am Ende entfernt Windows beim Speichern – „datei.exe.“ wäre sonst „datei.exe“.
+        // Punkte und Leerzeichen am Ende entfernt Windows beim Speichern, „datei.exe.“ wäre sonst „datei.exe“.
         var name = MailInboxProcessor.SafeFileName(string.IsNullOrWhiteSpace(fileName) ? "anhang" : fileName.Trim()).TrimEnd('.', ' ');
         if (name.Length == 0)
         {
@@ -48,7 +48,7 @@ public static class AttachmentRules
         var extension = Path.GetExtension(name);
         if (Blocked.Contains(extension))
         {
-            throw ApiException.Invalid($"Dateien vom Typ „{extension}“ lassen sich nicht anhängen – Programme und Skripte sind aus Sicherheitsgründen gesperrt.");
+            throw ApiException.Invalid($"Dateien vom Typ „{extension}“ lassen sich nicht anhängen, Programme und Skripte sind aus Sicherheitsgründen gesperrt.");
         }
         return name;
     }
@@ -84,7 +84,7 @@ public static class AttachmentRules
             return image;
         }
         var type = (declared ?? "").Split(';')[0].Trim().ToLowerInvariant();
-        // Ein angegebener Bildtyp ohne passende erste Bytes ist kein Bild (z. B. HTML als „bild.png“) –
+        // Ein angegebener Bildtyp ohne passende erste Bytes ist kein Bild (z. B. HTML als „bild.png“):
         // nicht übernehmen, sonst hielte die Oberfläche die Datei für ein Bild.
         if (type.StartsWith("image/", StringComparison.Ordinal))
         {

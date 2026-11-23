@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 #
-# Aufgaben – Container-Image in drei Stufen:
+# Aufgaben: Container-Image in drei Stufen:
 #   1. Frontend (React) bauen
 #   2. Backend (.NET 10) veröffentlichen
 #   3. Schlankes Laufzeit-Image ohne Shell, ohne Paketmanager, ohne Root ("chiseled")
@@ -15,7 +15,7 @@ RUN npm run build
 
 # ------------------------------------------------------------------ 2. Backend
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-# Versionsnummer aus dem Release (z. B. 1.0.3) – erscheint in Verwaltung → System und im Teams-Paket
+# Versionsnummer aus dem Release (z. B. 1.0.3): erscheint in Verwaltung → System und im Teams-Paket
 ARG APP_VERSION=0.0.0
 WORKDIR /src
 COPY Directory.Build.props Aufgaben.slnx ./

@@ -23,7 +23,7 @@ import { addDays, laterChoices, weekdayDate, type DateChoice } from "../later";
 interface Props {
   /** Knopf, der das Menü öffnet */
   trigger: ReactElement;
-  /** Vorgeschlagene Tage – Standard: morgen, nächste Woche, in einer oder zwei Wochen */
+  /** Vorgeschlagene Tage, Standard: morgen, nächste Woche, in einer oder zwei Wochen */
   choices?: DateChoice[];
   /** Überschrift beim eigenen Datum */
   title?: string;
@@ -37,7 +37,7 @@ export function LaterMenu({ trigger, choices, title = "Bis wann zurückstellen?"
   const items = choices ?? laterChoices(today);
   const min = addDays(today, 1);
 
-  // Menü und Dialog liegen im Portal, ihre Ereignisse laufen in React trotzdem zur Aufgabenzeile hoch –
+  // Menü und Dialog liegen im Portal, ihre Ereignisse laufen in React trotzdem zur Aufgabenzeile hoch:
   // dort würden sie die Aufgabe öffnen.
   const stop = (e: SyntheticEvent) => e.stopPropagation();
 

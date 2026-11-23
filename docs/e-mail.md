@@ -1,21 +1,21 @@
 # E-Mail senden
 
 Die App verschickt E-Mails für Benachrichtigungen (zugewiesen, erledigt, kommentiert, Erinnerungen,
-Tagesübersicht) an alle, die E-Mail statt Teams gewählt haben oder kein Teams nutzen – und die Bestätigungen
+Tagesübersicht) an alle, die E-Mail statt Teams gewählt haben oder kein Teams nutzen, und die Bestätigungen
 von [Mail an Aufgabe](mail-an-aufgabe.md). Eingestellt wird das in der `.env` unter `Aufgaben__Mail__*`.
 
 ## Welcher Server, welcher Port?
 
 | Weg | Port | Anmeldung | Hinweis |
 |---|---|---|---|
-| **Exchange-Server direkt** (Empfangsconnector „Client Frontend“) | **587**, StartTls | Konto mit Postfach | **empfohlen** bei Exchange on-premises – so verschicken auch Outlook-Clients und Geräte |
+| **Exchange-Server direkt** (Empfangsconnector „Client Frontend“) | **587**, StartTls | Konto mit Postfach | **empfohlen** bei Exchange on-premises, so verschicken auch Outlook-Clients und Geräte |
 | Exchange-Server, Port 25 („Default Frontend“) | 25 | **keine** (`Username` leer) | nur an interne Empfänger; normale Konten können sich hier meist **nicht** anmelden (`535 5.7.3`) |
 | Mail-Gateway vor Exchange (z. B. FortiMail, Spamfilter) | 25 | meist keine Benutzerkonten | nur, wenn das Gateway die IP des Aufgaben-Servers als Relay zulässt |
 
 Ein Name wie `mail.example.de` kann je nach Netz auf verschiedene Ziele zeigen: von außen oft auf eine Firewall,
 die nach Port weiterleitet (z. B. 25 → Gateway, 587 → Exchange), intern direkt auf einen Server. Für den
 Aufgaben-Server zählt, **was von dort aus** erreichbar ist (siehe „Prüfen“). Steht er im selben Netz wie
-Exchange, ist der Exchange-Server direkt der einfachste Weg – ohne Firewall dazwischen.
+Exchange, ist der Exchange-Server direkt der einfachste Weg, ohne Firewall dazwischen.
 
 ## Einrichtung mit Exchange on-premises
 
@@ -32,10 +32,10 @@ Aufgaben__Mail__CertificateThumbprint=          # nur bei selbst ausgestelltem Z
 
 * Das Konto braucht ein Postfach und das Recht, mit der Adresse unter `From` zu senden (eigene Adresse oder
   „Senden als“).
-* Nimmt man dafür das Postfach von Mail an Aufgabe (`aufgaben@`), landen Antworten auf Bestätigungen dort – und
+* Nimmt man dafür das Postfach von Mail an Aufgabe (`aufgaben@`), landen Antworten auf Bestätigungen dort und
   werden wie weitergeleitete Mails zu Aufgaben. Wer das nicht möchte, nimmt ein eigenes Konto zum Senden.
 * Die App meldet sich mit Benutzername und Passwort an (LOGIN bzw. PLAIN), sobald die Verbindung verschlüsselt
-  ist – wie Outlook oder andere Programme. NTLM und Kerberos (GSSAPI), die Exchange zusätzlich anbietet, nutzt
+  ist, wie Outlook oder andere Programme. NTLM und Kerberos (GSSAPI), die Exchange zusätzlich anbietet, nutzt
   sie nur, wenn der Server nichts anderes anbietet.
 * Die `.env` wird nur beim Start gelesen: nach Änderungen `docker compose up -d`.
 
@@ -58,10 +58,10 @@ Aufgaben__Mail__CertificateThumbprint=AB:CD:…   # Ausgabe von oben, Doppelpunk
   Fingerabdruck nur dort eintragen, wo der Server dieses Zertifikat auch zeigt: Ein Fingerabdruck beim falschen
   Server (z. B. einem Gateway mit öffentlichem Zertifikat) lässt jede Verbindung scheitern.
 * Zeigt der Server ein gültiges öffentliches Zertifikat, bleibt die Zeile leer.
-* Wird das Exchange-Zertifikat erneuert, ändert sich der Fingerabdruck – dann den neuen eintragen. Das Ablaufdatum
+* Wird das Exchange-Zertifikat erneuert, ändert sich der Fingerabdruck, dann den neuen eintragen. Das Ablaufdatum
   zeigt `openssl x509 -noout -enddate`.
 
-## Prüfen – erst ohne Passwort
+## Prüfen: erst ohne Passwort
 
 Jeder fehlgeschlagene Anmeldeversuch zählt im Active Directory als Fehlanmeldung; viele davon sperren das Konto.
 Deshalb zuerst Erreichbarkeit, Anmeldeverfahren und Zertifikat prüfen, auf dem Aufgaben-Server:

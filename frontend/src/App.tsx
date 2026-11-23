@@ -26,7 +26,7 @@ import { TrashView } from "./components/TrashView";
 import { TaskDrawer } from "./components/TaskDrawer";
 import { ConfirmDialog, type ConfirmRequest } from "./components/ConfirmDialog";
 
-// Selten genutzte Bereiche erst bei Bedarf laden – kleinerer Start-Download.
+// Selten genutzte Bereiche erst bei Bedarf laden, kleinerer Start-Download.
 const TemplatesView = lazy(() => import("./components/TemplatesView").then((m) => ({ default: m.TemplatesView })));
 const SettingsDialog = lazy(() => import("./components/SettingsDialog").then((m) => ({ default: m.SettingsDialog })));
 const ChannelConfig = lazy(() => import("./components/ChannelConfig").then((m) => ({ default: m.ChannelConfig })));
@@ -40,7 +40,7 @@ function isTyping(target: EventTarget | null) {
   return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.tagName === "SELECT" || el.isContentEditable);
 }
 
-/** Taste kam aus einem Dialog – dann gehört z. B. Esc dem Dialog und schließt nicht noch die Aufgabe dahinter. */
+/** Taste kam aus einem Dialog, dann gehört z. B. Esc dem Dialog und schließt nicht noch die Aufgabe dahinter. */
 function inDialog(target: EventTarget | null) {
   return !!(target as HTMLElement | null)?.closest?.('[role="dialog"], [role="alertdialog"]');
 }
@@ -203,7 +203,7 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
   );
 
   // KI-Eingabe: Strg+V irgendwo auf der Seite (nicht in einem Eingabefeld oder Dialog) öffnet den Dialog
-  // gleich mit dem eingefügten Text oder Bildschirmfoto – etwa einer kopierten Teams-Nachricht.
+  // gleich mit dem eingefügten Text oder Bildschirmfoto, etwa einer kopierten Teams-Nachricht.
   const [aiInput, setAiInput] = useState<AiInput | null>(null);
   const openAi = useCallback((input?: AiInput) => setAiInput(input ?? {}), []);
   // Rückfragen: eine zur Zeit. Kommt eine neue, gilt die offene als abgebrochen.

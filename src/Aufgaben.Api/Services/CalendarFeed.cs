@@ -8,7 +8,7 @@ namespace Aufgaben.Api.Services;
 
 /// <summary>
 /// Persönlicher Kalender-Feed (iCalendar). Outlook kann ihn als zusätzlichen Kalender
-/// abonnieren – Aufgaben mit Termin erscheinen dann neben den echten Terminen, ohne
+/// abonnieren, Aufgaben mit Termin erscheinen dann neben den echten Terminen, ohne
 /// den eigenen Kalender zu füllen. Der Link enthält ein zufälliges Geheimnis; in der
 /// Datenbank liegt nur dessen SHA-256-Hash.
 /// </summary>

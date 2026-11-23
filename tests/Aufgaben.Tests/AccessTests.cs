@@ -55,7 +55,7 @@ public sealed class AccessTests(AppFixture app)
         var notified = await app.WithDbAsync(db => db.Notifications.CountAsync(n => n.Kind == NotificationOutbox.Access && (n.UserId == thomasId || n.UserId == mariaId)));
         Assert.True(notified >= 2);
 
-        // Jetzt sieht Maria Thomas' Aufgaben – aber nur lesend
+        // Jetzt sieht Maria Thomas' Aufgaben, aber nur lesend
         var mine = await Read<List<MyAccessDto>>(await viewer.GetAsync("/api/access/mine"));
         Assert.Contains(mine, m => m.Owner.Id == thomasId);
         var tasks = await Read<List<TaskDto>>(await viewer.GetAsync($"/api/tasks?view=person&id={thomasId}"));

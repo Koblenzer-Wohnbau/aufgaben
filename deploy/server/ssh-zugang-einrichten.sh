@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # =====================================================================
 # Richtet den SSH-Zugang von diesem Linux- oder macOS-Rechner (z. B. Fedora) zum
-# Aufgaben-Server ein – Gegenstück zu ssh-zugang-einrichten.ps1 für Windows.
+# Aufgaben-Server ein: Gegenstück zu ssh-zugang-einrichten.ps1 für Windows.
 #
 #   1. Erzeugt einen eigenen SSH-Schlüssel (ed25519), falls er noch nicht existiert.
 #   2. Kopiert den öffentlichen Schlüssel auf den Server (fragt dafür EINMAL nach dem Passwort).
 #   3. Prüft, ob die Anmeldung jetzt ohne Passwort klappt.
-#   4. Legt in ~/.ssh/config Kurznamen an – danach genügt "ssh <hostname der VM>".
+#   4. Legt in ~/.ssh/config Kurznamen an: danach genügt "ssh <hostname der VM>".
 #
 # Aufruf:
 #   bash deploy/server/ssh-zugang-einrichten.sh -s 192.168.1.50 -u itadmin
@@ -56,7 +56,7 @@ chmod 700 "$ssh_dir"
 # ---------------------------------------------------------------- 1. Schlüssel
 step "Schlüssel $key"
 if [[ -f "$key.pub" ]]; then
-  echo "vorhanden – wird wiederverwendet"
+  echo "vorhanden, wird wiederverwendet"
 else
   echo "Neuer Schlüssel. Eine Passphrase ist empfohlen (schützt den Schlüssel, falls jemand an den Rechner kommt)."
   echo "Ohne Passphrase: zweimal Enter drücken."
@@ -85,7 +85,7 @@ out=$(ssh -p "$port" -i "$key" -o IdentitiesOnly=yes -o PasswordAuthentication=n
   || fail "Anmeldung mit Schlüssel klappt noch nicht. haerten.sh NICHT ausführen."
 grep -qx "schluessel-ok" <<<"$out" || fail "Anmeldung mit Schlüssel klappt noch nicht. haerten.sh NICHT ausführen."
 printf '\033[32mAnmeldung mit Schlüssel klappt.\033[0m\n'
-# Echter Hostname der VM – damit auch "ssh <hostname>" funktioniert, ganz ohne DNS-Eintrag.
+# Echter Hostname der VM, damit auch "ssh <hostname>" funktioniert, ganz ohne DNS-Eintrag.
 remote_host=$(grep -vx "schluessel-ok" <<<"$out" | tail -n 1 | tr -d '[:space:]')
 
 # ---------------------------------------------------------------- 4. Kurznamen in ~/.ssh/config
@@ -106,7 +106,7 @@ for n in "${names[@]}"; do
   fi
 done
 if (( ${#taken[@]} > 0 )); then
-  echo "Schon in der Datei vorhanden: ${taken[*]} – nicht verändert. Bei Bedarf $config von Hand anpassen."
+  echo "Schon in der Datei vorhanden: ${taken[*]}, nicht verändert. Bei Bedarf $config von Hand anpassen."
 else
   {
     echo ""

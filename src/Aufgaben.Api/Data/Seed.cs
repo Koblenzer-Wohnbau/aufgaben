@@ -101,7 +101,7 @@ public static class Seed
         db.Users.AddRange(anna, thomas, maria, jonas);
 
         Project P(string number, string name, string team) => new() { Number = number, Name = name, TeamName = team, CreatedAt = now };
-        // Erfundene Beispielprojekte – Kanalnamen beginnen mit einer Projektnummer.
+        // Erfundene Beispielprojekte, Kanalnamen beginnen mit einer Projektnummer.
         var lindenpark = P("1001", "Lindenpark", "Neubau");
         var sonnenhang = P("1002", "Am Sonnenhang 5-9", "Neubau");
         var gartenstrasse = P("2001", "Gartenstraße 12-14", "Sanierung");
@@ -172,7 +172,7 @@ public static class Seed
         db.Tasks.Add(mailTask);
         await db.SaveChangesAsync(ct);
 
-        var content = System.Text.Encoding.UTF8.GetBytes("Beispielangebot – nur Testdaten.\nPosition 1: Fenster 120x140, 12 Stück\n");
+        var content = System.Text.Encoding.UTF8.GetBytes("Beispielangebot, nur Testdaten.\nPosition 1: Fenster 120x140, 12 Stück\n");
         var attachment = new TaskAttachment
         {
             TaskId = mailTask.Id,

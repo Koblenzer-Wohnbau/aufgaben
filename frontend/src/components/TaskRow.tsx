@@ -98,7 +98,7 @@ interface Props {
   /** Auswahlmodus: links ein runder Haken statt „erledigen“, ein Klick wählt aus statt zu öffnen. */
   selecting?: boolean;
   checked?: boolean;
-  /** range: mit Umschalt geklickt – alles seit dem letzten Klick auswählen */
+  /** range: mit Umschalt geklickt, alles seit dem letzten Klick auswählen */
   onSelect?: (id: number, range: boolean) => void;
 }
 
@@ -127,8 +127,8 @@ export function TaskRow({ task, selected, showAssignee, selecting = false, check
     try {
       if (next) {
         await api.completeTask(task.id);
-        if (task.isDelegated && task.createdBy.id !== me.id) notify(`Erledigt – ${task.createdBy.name.split(" ")[0]} wird benachrichtigt`);
-        else if (task.recurrence) notify("Erledigt – nächster Termin ist angelegt");
+        if (task.isDelegated && task.createdBy.id !== me.id) notify(`Erledigt, ${task.createdBy.name.split(" ")[0]} wird benachrichtigt`);
+        else if (task.recurrence) notify("Erledigt, nächster Termin ist angelegt");
       } else {
         await api.reopenTask(task.id);
       }
@@ -199,7 +199,7 @@ export function TaskRow({ task, selected, showAssignee, selecting = false, check
     >
       {selecting ? (
         <span className={styles.pick}>
-          {/* Der Klick läuft zur Zeile hoch und wählt dort aus – so wirkt auch Umschalt+Klick */}
+          {/* Der Klick läuft zur Zeile hoch und wählt dort aus, so wirkt auch Umschalt+Klick */}
           <Checkbox shape="circular" checked={checked} tabIndex={-1} aria-label={`„${task.title}“ auswählen`} />
         </span>
       ) : (

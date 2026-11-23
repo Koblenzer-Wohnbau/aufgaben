@@ -67,7 +67,7 @@ public class MailSubjectTests
     [Fact]
     public void Notification_html_uses_real_line_breaks_for_outlook()
     {
-        // Outlook am PC ignoriert white-space:pre-wrap und max-width – jede Zeile braucht ein <br>.
+        // Outlook am PC ignoriert white-space:pre-wrap und max-width, jede Zeile braucht ein <br>.
         var html = MailNotifier.Html("Neue Aufgabe", "Projekt: 1001 Lindenpark\r\nAnhaenge: 1\n<b>fett</b>", "https://aufgaben.example.test/#/aufgabe/7");
         Assert.Contains("Projekt: 1001 Lindenpark<br>Anhaenge: 1<br>&lt;b&gt;fett&lt;/b&gt;", html);
         Assert.DoesNotContain("pre-wrap", html);

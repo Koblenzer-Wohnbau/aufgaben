@@ -11,7 +11,7 @@ describe("Später und Warte auf …", () => {
     expect(weekdayDate("2026-11-24")).toBe("Di 24.11.");
   });
 
-  it("bietet freitags Montag statt „Morgen“ an – und jeden Tag nur einmal", () => {
+  it("bietet freitags Montag statt „Morgen“ an, und jeden Tag nur einmal", () => {
     expect(laterChoices("2026-11-20")).toEqual([
       { label: "Montag", date: "2026-11-23" },
       { label: "In einer Woche", date: "2026-11-27" },

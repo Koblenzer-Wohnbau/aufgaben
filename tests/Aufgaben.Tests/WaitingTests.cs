@@ -34,7 +34,7 @@ public class WaitingRuleTests
         });
         Assert.Equal("taskReminder", type);
         Assert.Equal("Nachhaken: Angebot Dachdecker", subject);
-        Assert.Equal("Noch keine Antwort von Fa. Müller – nachhaken?", preview);
+        Assert.Equal("Noch keine Antwort von Fa. Müller, nachhaken?", preview);
     }
 }
 
@@ -182,7 +182,7 @@ public sealed class WaitingApiTests(AppFixture app)
 
         var waiting = await Read<TaskDto>(await thomas.PatchAsJsonAsync($"/api/tasks/{task.Id}", new { waitingFor = "Hausmeister", snoozedUntil = Iso(Today.AddDays(4)) }));
         Assert.Equal(Iso(Today.AddDays(4)), waiting.SnoozedUntil);
-        // Für die delegierende Person bleibt die Aufgabe sichtbar – mit Stand
+        // Für die delegierende Person bleibt die Aufgabe sichtbar, mit Stand
         var delegated = await Read<List<TaskDto>>(await anna.GetAsync("/api/tasks?view=delegiert"));
         Assert.Equal("Hausmeister", Assert.Single(delegated, t => t.Id == task.Id).WaitingFor);
 

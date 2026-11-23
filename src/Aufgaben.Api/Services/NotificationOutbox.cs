@@ -17,7 +17,7 @@ public sealed class NotificationOutbox(AppDbContext db, AppClock clock)
     /// <summary>„Warte auf …“: Der Tag zum Nachhaken ist da. ActorName = auf wen gewartet wird.</summary>
     public const string FollowUp = "nachhaken";
     public const string Digest = "tagesuebersicht";
-    /// <summary>Mehrere Aufgaben auf einmal an die Urlaubsvertretung übergeben – eine Nachricht statt vieler.</summary>
+    /// <summary>Mehrere Aufgaben auf einmal an die Urlaubsvertretung übergeben, eine Nachricht statt vieler.</summary>
     public const string Handover = "vertretung";
     public const string ListShared = "liste-geteilt";
     public const string Access = "einsicht";

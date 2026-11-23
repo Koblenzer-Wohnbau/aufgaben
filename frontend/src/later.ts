@@ -46,7 +46,7 @@ function unique(choices: DateChoice[]): DateChoice[] {
   });
 }
 
-/** Zurückstellen: morgen, nächste Woche (Montag), in einer oder zwei Wochen – immer an einem Werktag. */
+/** Zurückstellen: morgen, nächste Woche (Montag), in einer oder zwei Wochen, immer an einem Werktag. */
 export function laterChoices(today: string): DateChoice[] {
   const tomorrow = addDays(today, 1);
   const next = workday(tomorrow);
@@ -105,7 +105,7 @@ export function laterAction(
     return { patch: { dueDate: date, myDay: false }, message: `Fälligkeit auf ${when} verschoben` };
   }
   if (task.dueDate && task.dueDate < date) {
-    return { patch: { snoozedUntil: date }, message: `Zurückgestellt – wegen der Fälligkeit schon am ${weekdayDate(task.dueDate)} wieder da` };
+    return { patch: { snoozedUntil: date }, message: `Zurückgestellt, wegen der Fälligkeit schon am ${weekdayDate(task.dueDate)} wieder da` };
   }
   return { patch: { snoozedUntil: date }, message: `Zurückgestellt bis ${when}` };
 }

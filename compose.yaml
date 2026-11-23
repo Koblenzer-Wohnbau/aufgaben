@@ -1,4 +1,4 @@
-# Aufgaben – Betrieb mit Docker Compose
+# Aufgaben: Betrieb mit Docker Compose
 #
 #   cp .env.example .env      # Werte eintragen
 #   docker compose pull       # fertiges Image aus den GitHub-Releases holen
@@ -6,7 +6,7 @@
 #
 # Selbst bauen statt herunterladen: siehe compose.build.yaml.
 #
-# Die App lauscht nur auf 127.0.0.1 – davor gehört ein Reverse Proxy (Nginx, siehe deploy/nginx).
+# Die App lauscht nur auf 127.0.0.1: davor gehört ein Reverse Proxy (Nginx, siehe deploy/nginx).
 # Die Datenbank hängt in einem internen Netz ohne Internetzugang und ohne veröffentlichten Port.
 
 name: aufgaben
@@ -40,7 +40,7 @@ services:
         max-file: "5"
 
   app:
-    # Fertiges Image aus den GitHub-Releases. Version in .env (APP_VERSION) festlegen –
+    # Fertiges Image aus den GitHub-Releases. Version in .env (APP_VERSION) festlegen:
     # für Updates und zum Zurückrollen nur diese Zahl ändern.
     image: ${APP_IMAGE:-ghcr.io/koblenzer-wohnbau/aufgaben}:${APP_VERSION:?APP_VERSION in .env setzen, z. B. 1.0.0}
     restart: unless-stopped

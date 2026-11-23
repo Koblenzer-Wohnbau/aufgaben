@@ -10,7 +10,7 @@ namespace Aufgaben.Api.Services;
 /// <summary>
 /// Nachrichtenerweiterung „Als Aufgabe“: Im „…“-Menü einer Teams-Nachricht ruft Teams über den Bot Framework
 /// den Endpunkt <see cref="Path"/> auf. Die App merkt sich den Text kurz als Entwurf und öffnet in Teams ein
-/// Fenster mit dem KI-Dialog. Angelegt wird – wie sonst auch – erst nach Bestätigung, mit der Anmeldung der Person.
+/// Fenster mit dem KI-Dialog. Angelegt wird, wie sonst auch, erst nach Bestätigung, mit der Anmeldung der Person.
 /// Der Bot schickt selbst nichts an Teams und braucht deshalb kein eigenes Geheimnis.
 /// </summary>
 public static partial class TeamsBot
@@ -42,7 +42,7 @@ public static partial class TeamsBot
     [GeneratedRegex(@"\n{3,}")]
     private static partial Regex ManyBreaks();
 
-    /// <summary>Nachrichtentext aus Teams (meist HTML) als lesbarer Text – Erwähnungen und Emojis bleiben als Text.</summary>
+    /// <summary>Nachrichtentext aus Teams (meist HTML) als lesbarer Text, Erwähnungen und Emojis bleiben als Text.</summary>
     public static string MessageText(string? content, string? contentType)
     {
         if (string.IsNullOrWhiteSpace(content))
@@ -63,7 +63,7 @@ public static partial class TeamsBot
         return ManyBreaks().Replace(text, "\n\n").Trim();
     }
 
-    /// <summary>Nur echte Teams-Links übernehmen – sie landen als Quelle in den Notizen der Aufgabe.</summary>
+    /// <summary>Nur echte Teams-Links übernehmen, sie landen als Quelle in den Notizen der Aufgabe.</summary>
     public static string? SafeLink(string? link) =>
         Uri.TryCreate(link, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps
         && (uri.Host.Equals("teams.microsoft.com", StringComparison.OrdinalIgnoreCase)
@@ -178,7 +178,7 @@ public sealed class TeamsDraftStore(TimeProvider time)
 
     private readonly ConcurrentDictionary<string, TeamsDraft> drafts = new();
 
-    /// <summary>Legt einen Entwurf an und gibt die Kennung zurück – oder null, wenn gerade zu viele offen sind.</summary>
+    /// <summary>Legt einen Entwurf an und gibt die Kennung zurück, oder null, wenn gerade zu viele offen sind.</summary>
     public string? Add(string userOid, string text, string? from, DateTimeOffset? sentAt, string? link)
     {
         var now = time.GetUtcNow();

@@ -1,4 +1,4 @@
-/** Regeln für selbst hochgeladene Anhänge – müssen zu AttachmentRules im Backend passen. */
+/** Regeln für selbst hochgeladene Anhänge, müssen zu AttachmentRules im Backend passen. */
 export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
 /** Nur diese Typen bekommen eine Vorschau; der Server prüft zusätzlich die ersten Bytes der Datei. */
@@ -11,7 +11,7 @@ export function isPreviewable(contentType: string): boolean {
 const pad = (n: number) => String(n).padStart(2, "0");
 
 /**
- * Name für eine Datei aus der Zwischenablage. Browser liefern Screenshots meist als „image.png“ –
+ * Name für eine Datei aus der Zwischenablage. Browser liefern Screenshots meist als „image.png“:
  * daraus wird „Bildschirmfoto 2026-11-21 14-05-09.png“, damit man sie später auseinanderhält.
  */
 export function uploadName(file: { name: string; type: string }, now: Date = new Date()): string {

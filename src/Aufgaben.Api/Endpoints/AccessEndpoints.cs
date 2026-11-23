@@ -166,7 +166,7 @@ public static class AccessEndpoints
             var grant = await db.AccessGrants.FirstOrDefaultAsync(g => g.Id == id, ct) ?? throw ApiException.NotFound("Freigabe");
             if (grant.Status != AccessGrant.Draft)
             {
-                throw ApiException.Conflict("Bestätigte Freigaben bleiben zur Nachvollziehbarkeit erhalten – bitte widerrufen.");
+                throw ApiException.Conflict("Bestätigte Freigaben bleiben zur Nachvollziehbarkeit erhalten, bitte widerrufen.");
             }
             db.AccessGrants.Remove(grant);
             await db.SaveChangesAsync(ct);

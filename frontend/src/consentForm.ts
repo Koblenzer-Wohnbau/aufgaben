@@ -25,7 +25,7 @@ export function consentFormHtml(g: AccessGrant): string {
     </div>`;
 
   return `<!doctype html>
-<html lang="de"><head><meta charset="utf-8"><title>Einverständniserklärung Einsicht in Aufgaben – Vorgang ${g.id}</title>
+<html lang="de"><head><meta charset="utf-8"><title>Einverständniserklärung Einsicht in Aufgaben (Vorgang ${g.id})</title>
 <style>
   @page { size: A4; margin: 18mm 18mm 16mm; }
   * { box-sizing: border-box; }
@@ -67,7 +67,7 @@ export function consentFormHtml(g: AccessGrant): string {
   (persönliche Aufgaben mit Notizen, Checklisten, Kommentaren und Anhängen).</p>
   <ul>
     <li>Die Einwilligung ist freiwillig. Aus einer Verweigerung oder einem Widerruf entstehen mir keine Nachteile.</li>
-    <li>Ich kann die Einwilligung jederzeit ohne Angabe von Gründen mit Wirkung für die Zukunft widerrufen – formlos bei der Verwaltung.</li>
+    <li>Ich kann die Einwilligung jederzeit ohne Angabe von Gründen mit Wirkung für die Zukunft widerrufen, formlos bei der Verwaltung.</li>
     <li>Jeder Zugriff über diese Freigabe wird protokolliert. Das Protokoll kann ich in der App unter „Einstellungen“ jederzeit einsehen.</li>
     <li>Die Freigabe endet automatisch zum angegebenen Enddatum.</li>
   </ul>
@@ -92,7 +92,7 @@ const PRINT_FRAME_ID = "aufgaben-formular-druck";
 
 /**
  * Druckt das Formular über einen unsichtbaren Rahmen in der Seite. Ein neues Fenster blockieren
- * Browser und Teams als Pop-up – vor allem, wenn der Druck erst nach dem Anlegen startet.
+ * Browser und Teams als Pop-up, vor allem, wenn der Druck erst nach dem Anlegen startet.
  * Der Rahmen bekommt das Formular ohne eigenes Skript; den Druck startet die App.
  * Gibt false zurück, wenn der Druck nicht gestartet werden konnte.
  */
@@ -117,7 +117,7 @@ export function printConsentForm(grant: AccessGrant): boolean {
         win.focus();
         win.print();
       } catch {
-        /* Druck abgelehnt – „Herunterladen“ bleibt als Weg */
+        /* Druck abgelehnt, „Herunterladen“ bleibt als Weg */
       }
     }, 300);
     return true;
@@ -132,7 +132,7 @@ export function consentFormFileName(g: Pick<AccessGrant, "id" | "owner">): strin
   return `Einsicht in Aufgaben - Nr. ${g.id}${owner ? ` - ${owner}` : ""}.html`;
 }
 
-/** Formular als HTML-Datei herunterladen – öffnet im Browser und lässt sich dort mit Strg+P drucken. */
+/** Formular als HTML-Datei herunterladen, öffnet im Browser und lässt sich dort mit Strg+P drucken. */
 export function downloadConsentForm(grant: AccessGrant) {
   const url = URL.createObjectURL(new Blob([consentFormHtml(grant)], { type: "text/html;charset=utf-8" }));
   const a = document.createElement("a");
