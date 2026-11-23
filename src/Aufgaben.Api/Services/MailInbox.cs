@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -88,7 +89,13 @@ public sealed partial class MailInboxProcessor(
         }
 
         current.Set(user, viaTeams: false);
-        var parsed = MailSubject.Parse(subject, clock.Today);
+        // Betreff wie die Schnelleingabe lesen, fehlende Angaben aus dem eigenen Text über der Weiterleitung ergänzen.
+        var now = TimeOnly.FromDateTime(clock.LocalNow);
+        var body = BodyText(message);
+        var ownText = MailSubject.OwnText(body);
+        var parsed = MailSubject.Merge(
+            MailSubject.Parse(subject, clock.Today, now),
+            ownText.Length > 0 ? MailSubject.ParseText(ownText, clock.Today, now) : null);
         var hints = new List<string>();
 
         int? projectId = null;
@@ -104,20 +111,20 @@ public sealed partial class MailInboxProcessor(
             if (assigneeId is null) hints.Add($"Person „@{uq}“ wurde nicht gefunden, die Aufgabe liegt bei dir.");
         }
 
-        var notes = BuildNotes(message, user, hints);
+        var notes = BuildNotes(message, body, user, hints);
         var created = await tasks.CreateAsync(new CreateTaskRequest(
             Title: parsed.Title,
             Notes: notes,
-            Priority: parsed.High ? "hoch" : "normal",
+            Priority: parsed.High ? "hoch" : parsed.Low ? "niedrig" : "normal",
             Kind: parsed.FollowUp ? "wiedervorlage" : "aufgabe",
             AssigneeId: assigneeId,
             ListId: null,
             ProjectId: projectId,
-            DueDate: parsed.DueDate?.ToString("yyyy-MM-dd"),
-            DueTime: null,
+            DueDate: parsed.DueDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            DueTime: parsed.DueDate is null ? null : parsed.DueTime?.ToString("HH:mm", CultureInfo.InvariantCulture),
             RemindAt: null,
             MyDay: null,
-            Recurrence: null,
+            Recurrence: parsed.Recurrence == "" ? null : parsed.Recurrence,
             Checklist: null), "mail", ct);
 
         var skipped = await SaveAttachmentsAsync(created.Id, message, o.MaxAttachmentMb, ct);
@@ -192,7 +199,18 @@ public sealed partial class MailInboxProcessor(
                ?? users.FirstOrDefault(u => u.Email != null && u.Email.ToLowerInvariant().StartsWith(q))?.Id;
     }
 
-    private string BuildNotes(MimeMessage message, User sender, List<string> hints)
+    /// <summary>Text der Mail; reine HTML-Mails werden zu Text.</summary>
+    private static string BodyText(MimeMessage message)
+    {
+        var body = message.TextBody;
+        if (string.IsNullOrWhiteSpace(body) && !string.IsNullOrWhiteSpace(message.HtmlBody))
+        {
+            body = HtmlToPlainText(message.HtmlBody);
+        }
+        return body ?? "";
+    }
+
+    private string BuildNotes(MimeMessage message, string body, User sender, List<string> hints)
     {
         var date = message.Date == DateTimeOffset.MinValue ? clock.UtcNow : message.Date;
         var sb = new StringBuilder();
@@ -203,12 +221,7 @@ public sealed partial class MailInboxProcessor(
             sb.Append("Hinweis: ").Append(hint).Append('\n');
         }
 
-        var body = message.TextBody;
-        if (string.IsNullOrWhiteSpace(body) && !string.IsNullOrWhiteSpace(message.HtmlBody))
-        {
-            body = HtmlToPlainText(message.HtmlBody);
-        }
-        body = ManyBlankLines().Replace((body ?? "").Replace("\r\n", "\n").Trim(), "\n\n");
+        body = ManyBlankLines().Replace(body.Replace("\r\n", "\n").Trim(), "\n\n");
         if (body.Length > 0)
         {
             sb.Append('\n').Append(body);

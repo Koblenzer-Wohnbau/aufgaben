@@ -61,6 +61,12 @@ function nextWeekday(today: Date, weekday: number, allowToday = false): Date {
   return addDays(today, diff);
 }
 
+/** Samstag und Sonntag → Montag, wie TaskService.Workday auf dem Server. */
+function workday(d: Date): Date {
+  const day = d.getDay();
+  return day === 6 ? addDays(d, 2) : day === 0 ? addDays(d, 1) : d;
+}
+
 function endOfMonth(today: Date): Date {
   return new Date(today.getFullYear(), today.getMonth() + 1, 0);
 }
@@ -150,22 +156,23 @@ const RULES: Rule[] = [
   },
   {
     type: "date",
-    pattern: re("übermorgen|uebermorgen"),
+    pattern: re("(?:bis\\s+)?(?:übermorgen|uebermorgen)"),
     apply: (_m, r, today) => ((r.dueDate = toIsoDate(addDays(today, 2))), true),
   },
   {
     type: "date",
-    pattern: re("heute"),
+    pattern: re("(?:bis\\s+)?heute"),
     apply: (_m, r, today) => ((r.dueDate = toIsoDate(today)), true),
   },
   {
     type: "date",
-    pattern: re("morgen"),
+    pattern: re("(?:bis\\s+)?morgen"),
     apply: (_m, r, today) => ((r.dueDate = toIsoDate(addDays(today, 1))), true),
   },
   {
     type: "date",
-    pattern: re("in\\s+(\\d{1,3})\\s+(tag|tagen|woche|wochen|monat|monaten)"),
+    // „in 5 Tagen“, auch kurz „5 Tage“ oder „2 Wochen“. Fällt das aufs Wochenende, gilt der Montag danach.
+    pattern: re("(?:in\\s+|innerhalb\\s+von\\s+|binnen\\s+)?(\\d{1,3})\\s+(tag|tage|tagen|woche|wochen|monat|monate|monaten)"),
     apply: (m, r, today) => {
       const n = Number(m[1]);
       const unit = m[2].toLowerCase();
@@ -173,7 +180,7 @@ const RULES: Rule[] = [
       if (unit.startsWith("tag")) d = addDays(today, n);
       else if (unit.startsWith("woche")) d = addDays(today, n * 7);
       else d = new Date(today.getFullYear(), today.getMonth() + n, today.getDate());
-      r.dueDate = toIsoDate(d);
+      r.dueDate = toIsoDate(workday(d));
       return true;
     },
   },
@@ -194,7 +201,7 @@ const RULES: Rule[] = [
   },
   {
     type: "date",
-    pattern: re("(?:am\\s+|nächsten\\s+|naechsten\\s+|kommenden\\s+)?(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)"),
+    pattern: re("(?:bis\\s+|am\\s+|nächsten\\s+|naechsten\\s+|kommenden\\s+)?(montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonntag)"),
     apply: (m, r, today) => ((r.dueDate = toIsoDate(nextWeekday(today, WEEKDAYS[m[1].toLowerCase()]))), true),
   },
   {
