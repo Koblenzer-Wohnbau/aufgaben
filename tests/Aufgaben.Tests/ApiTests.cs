@@ -256,7 +256,7 @@ public sealed class ApiTests(AppFixture app)
 
         var first = await Read<TaskDetailDto>(await anna.GetAsync($"/api/tasks/{result.TaskIds[0]}"));
         Assert.Equal("2027-03-01", first.Task.DueDate); // -30 Tage
-        Assert.EndsWith("- Whg. 9.9 Teststraße", first.Task.Title);
+        Assert.EndsWith(" · Whg. 9.9 Teststraße", first.Task.Title);
         Assert.Equal(maria, first.Task.Assignee.Id);
         Assert.NotEmpty(first.Task.Checklist);
     }

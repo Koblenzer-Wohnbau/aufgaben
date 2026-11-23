@@ -51,7 +51,7 @@ public sealed class TemplateService(AppDbContext db, CurrentUser me, AppClock cl
         var template = await db.Templates.Include(t => t.Steps).FirstOrDefaultAsync(t => t.Id == id, ct)
                        ?? throw ApiException.NotFound("Vorlage");
         var start = TaskService.ParseDate(req.StartDate) ?? throw ApiException.Invalid("Bitte einen Stichtag angeben.");
-        var suffix = string.IsNullOrWhiteSpace(req.TitleSuffix) ? "" : ", " + req.TitleSuffix.Trim();
+        var suffix = string.IsNullOrWhiteSpace(req.TitleSuffix) ? "" : " · " + req.TitleSuffix.Trim();
         var created = new List<int>();
 
         // Alle Schritte oder keiner: Bricht ein Schritt ab, bleiben keine halben Abläufe zurück.
