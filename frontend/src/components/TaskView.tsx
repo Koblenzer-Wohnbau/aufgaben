@@ -167,7 +167,15 @@ interface ViewInfo {
   empty: string;
 }
 
-export function TaskView({ route, compact }: { route: Extract<Route, { page: "tasks" }>; compact: boolean }) {
+interface TaskViewProps {
+  route: Extract<Route, { page: "tasks" }>;
+  compact: boolean;
+  tourActive?: boolean;
+  focusQuickAdd?: string;
+  onTaskCreated?: (task: Task) => void;
+}
+
+export function TaskView({ route, compact, tourActive, focusQuickAdd, onTaskCreated }: TaskViewProps) {
   const styles = useStyles();
   const { today, lists, projects, me, selectedTaskId, notify, openAi, confirm } = useApp();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -477,6 +485,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
           done={doneCount}
           total={openCount + doneCount}
           compact={compact}
+          tourActive={tourActive}
           suggestionsOpen={suggestionsOpen}
           onToggleSuggestions={() => setSuggestionsOpen((v) => !v)}
         />
@@ -583,7 +592,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
         route.view !== "warteschleife" && (
           <div className={`${styles.add} ${styles.addRow} ${compact ? styles.compactAdd : ""}`}>
             <div className={styles.addInput}>
-              <QuickAdd defaults={info.defaults} />
+              <QuickAdd defaults={info.defaults} focusRequest={focusQuickAdd} onCreated={onTaskCreated} />
             </div>
             {me.aiAvailable && (
               <Tooltip content="Mit KI erfassen oder einfach irgendwo Strg+V drücken" relationship="label">

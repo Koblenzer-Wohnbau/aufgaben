@@ -15,9 +15,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { clipboardInput } from "./ai";
 import { api, ApiError } from "./api";
 import { AppContext, type AppData } from "./context";
-import type { AiInput } from "./types";
+import { chaptersFor, GUIDE_ACTIONS, type GuideTopic } from "./guide";
+import type { AiInput, Task } from "./types";
 import { connectLive } from "./realtime";
-import { hrefFor, useRoute } from "./route";
+import { hrefFor, navigate, useRoute } from "./route";
 import { inChannelTab, inTeams, type TeamsInfo } from "./teams";
 import { LoginScreen } from "./components/LoginScreen";
 import { Sidebar } from "./components/Sidebar";
@@ -25,6 +26,7 @@ import { TaskView } from "./components/TaskView";
 import { TrashView } from "./components/TrashView";
 import { TaskDrawer } from "./components/TaskDrawer";
 import { ConfirmDialog, type ConfirmRequest } from "./components/ConfirmDialog";
+import { GuideCoach } from "./components/GuideCoach";
 
 // Selten genutzte Bereiche erst bei Bedarf laden, kleinerer Start-Download.
 const TemplatesView = lazy(() => import("./components/TemplatesView").then((m) => ({ default: m.TemplatesView })));
@@ -126,6 +128,7 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
   const [navOpen, setNavOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [absenceOpen, setAbsenceOpen] = useState(false);
+  const [tour, setTour] = useState<{ topic: GuideTopic; taskId?: number } | null>(null);
   const [online, setOnline] = useState(true);
   const [taskId, setTaskId] = useState<number | null>(() => {
     if (route.page === "tasks" && route.taskId) return route.taskId;
@@ -294,6 +297,38 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
   }
 
   const showSidebar = !inChannelTab;
+  const chapters = tour ? chaptersFor(data.me) : [];
+  const chapterIndex = chapters.findIndex((c) => c.id === tour?.topic);
+  const tourChapter = chapters[chapterIndex];
+  const nextChapter = chapterIndex >= 0 ? chapters[chapterIndex + 1] : undefined;
+  const tourInView = showSidebar && route.page === "tasks" && tourChapter;
+  const quickAddTopic = route.page === "tasks" && tourInView && route.view === GUIDE_ACTIONS[tourChapter.id].view
+    && (tourChapter.id === "start" || tourChapter.id === "erfassen" || tourChapter.id === "delegieren")
+    ? tourChapter.id
+    : undefined;
+
+  const startChapter = (topic: GuideTopic, guideTaskId?: number) => {
+    const view = topic === "mail" && data.me.showInbox ? "aufgaben" : GUIDE_ACTIONS[topic].view;
+    setTour({ topic, taskId: guideTaskId });
+    setTaskId(topic === "fristen" ? guideTaskId ?? null : null);
+    setNavOpen(narrow && (topic === "listen" || topic === "finden"));
+    navigate({ page: "tasks", view });
+    if (topic === "mail" || topic === "einstellungen") setSettingsOpen(true);
+    if (topic === "vertretung") setAbsenceOpen(true);
+    if (topic === "ki") openAi();
+  };
+
+  const rememberTourTask = (task: Task) => {
+    if (task.assignee.id === data.me.id) {
+      setTour((current) => current && { ...current, taskId: task.id });
+    }
+  };
+
+  const exitTour = () => {
+    setTour(null);
+    setTaskId(null);
+    navigate({ page: "anleitung", topic: tour?.topic });
+  };
 
   return (
     <AppContext.Provider value={data}>
@@ -319,9 +354,21 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
               onClick={() => setNavOpen(true)}
             />
           )}
+          {tourInView && (
+            <GuideCoach
+              chapter={tourChapter}
+              next={nextChapter}
+              taskId={tour?.taskId}
+              taskOpen={taskId !== null && taskId === tour?.taskId}
+              hint={tourChapter.id === "mail" && !data.me.mailInboxAddress ? "Das Aufgaben-Postfach ist auf diesem Server noch nicht eingerichtet." : undefined}
+              onOpenTask={setTaskId}
+              onNext={() => nextChapter && startChapter(nextChapter.id, tour?.taskId)}
+              onExit={exitTour}
+            />
+          )}
           <Suspense fallback={<Spinner style={{ marginTop: 48 }} />}>
             {route.page === "anleitung" ? (
-              <GuideView topic={route.topic} />
+              <GuideView topic={route.topic} onTry={startChapter} />
             ) : route.page === "vorlagen" ? (
               <TemplatesView />
             ) : route.page === "verwaltung" ? (
@@ -329,15 +376,26 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
             ) : route.view === "papierkorb" ? (
               <TrashView compact={inChannelTab} />
             ) : (
-              <TaskView route={route} compact={inChannelTab} />
+              <TaskView
+                route={route}
+                compact={inChannelTab}
+                tourActive={!!tourInView}
+                focusQuickAdd={quickAddTopic}
+                onTaskCreated={tourInView ? rememberTourTask : undefined}
+              />
             )}
           </Suspense>
         </main>
-        <TaskDrawer taskId={taskId} onClose={() => setTaskId(null)} overlay={drawerOverlay || inChannelTab} />
+        <TaskDrawer
+          taskId={taskId}
+          onClose={() => setTaskId(null)}
+          overlay={drawerOverlay || inChannelTab}
+          focusDueDate={!!tourInView && tourChapter.id === "fristen"}
+        />
       </div>
       {settingsOpen && (
         <Suspense fallback={null}>
-          <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} inTeams={inTeams} />
+          <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} inTeams={inTeams} focusMail={tour?.topic === "mail"} />
         </Suspense>
       )}
       {data.me.absencesEnabled && absenceOpen && (

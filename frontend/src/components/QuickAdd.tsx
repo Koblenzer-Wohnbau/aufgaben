@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, Button, makeStyles, Text, tokens } from "@fluentui/react-components";
 import {
   AddRegular,
@@ -15,7 +15,7 @@ import { api } from "../api";
 import { initials, matchProject, matchUser, mentionFor, useApp } from "../context";
 import { RECURRENCE_LABEL, relativeDay } from "../dates";
 import { activeMention, parseQuickAdd } from "../quickadd";
-import type { CreateTask } from "../types";
+import type { CreateTask, Task } from "../types";
 
 const useStyles = makeStyles({
   wrap: { position: "relative" },
@@ -83,9 +83,11 @@ const useStyles = makeStyles({
 interface Props {
   defaults: Partial<CreateTask>;
   placeholder?: string;
+  focusRequest?: string;
+  onCreated?: (task: Task) => void;
 }
 
-export function QuickAdd({ defaults, placeholder }: Props) {
+export function QuickAdd({ defaults, placeholder, focusRequest, onCreated }: Props) {
   const styles = useStyles();
   const { today, projects, users, me, notify } = useApp();
   const queryClient = useQueryClient();
@@ -94,6 +96,9 @@ export function QuickAdd({ defaults, placeholder }: Props) {
   const [busy, setBusy] = useState(false);
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (focusRequest) inputRef.current?.focus();
+  }, [focusRequest]);
 
   const todayDate = useMemo(() => {
     const [y, m, d] = today.split("-").map(Number);
@@ -159,8 +164,9 @@ export function QuickAdd({ defaults, placeholder }: Props) {
         projectId: project?.id ?? defaults.projectId ?? null,
         assigneeId: person?.id ?? defaults.assigneeId ?? null,
       };
-      await api.createTask(body);
+      const task = await api.createTask(body);
       setText("");
+      onCreated?.(task);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["tasks"] }),
         queryClient.invalidateQueries({ queryKey: ["counts"] }),

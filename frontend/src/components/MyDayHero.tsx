@@ -30,6 +30,7 @@ const useStyles = makeStyles({
     },
   },
   compact: { margin: "12px 16px 4px", padding: "16px" },
+  inTour: { "@media (max-width: 760px)": { marginTop: "12px" } },
   glow: {
     position: "absolute",
     right: "-60px",
@@ -94,12 +95,13 @@ interface Props {
   done: number;
   total: number;
   compact: boolean;
+  tourActive?: boolean;
   suggestionsOpen: boolean;
   onToggleSuggestions: () => void;
 }
 
 /** Kopf von "Mein Tag": Begrüßung, Datum, Fortschrittsring und Vorschläge. */
-export function MyDayHero({ name, today, done, total, compact, suggestionsOpen, onToggleSuggestions }: Props) {
+export function MyDayHero({ name, today, done, total, compact, tourActive, suggestionsOpen, onToggleSuggestions }: Props) {
   const styles = useStyles();
   const hour = new Date().getHours();
   const share = total === 0 ? 0 : done / total;
@@ -110,7 +112,7 @@ export function MyDayHero({ name, today, done, total, compact, suggestionsOpen, 
     total === 0 ? "Noch nichts geplant, hol dir Vorschläge." : done === total ? "Alles erledigt. Stark!" : `${total - done} von ${total} noch offen`;
 
   return (
-    <section className={`${styles.hero} ${compact ? styles.compact : ""}`} aria-label="Mein Tag">
+    <section className={`${styles.hero} ${compact ? styles.compact : ""} ${tourActive ? styles.inTour : ""}`} aria-label="Mein Tag">
       <span className={styles.glow} />
       <div className={styles.text}>
         <span className={styles.greeting}>

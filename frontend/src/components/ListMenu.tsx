@@ -26,7 +26,9 @@ import type { TaskList } from "../types";
 /** Menü einer eigenen Liste: umbenennen und löschen. Aufgaben bleiben beim Löschen erhalten. */
 export function ListMenu({ list }: { list: TaskList }) {
   const queryClient = useQueryClient();
-  const { notify } = useApp();
+  const { me, notify } = useApp();
+  const targetView = me.showInbox ? "aufgaben" : "geplant";
+  const targetLabel = me.showInbox ? "Aufgaben" : "Geplant";
   const [mode, setMode] = useState<"rename" | "delete" | null>(null);
   const [name, setName] = useState(list.name);
   const [busy, setBusy] = useState(false);
@@ -58,7 +60,7 @@ export function ListMenu({ list }: { list: TaskList }) {
     setBusy(true);
     try {
       await api.deleteList(list.id);
-      navigate({ page: "tasks", view: "aufgaben" });
+      navigate({ page: "tasks", view: targetView });
       await refresh();
       notify(`Liste „${list.name}“ gelöscht`, "success");
     } catch (e) {
@@ -112,8 +114,8 @@ export function ListMenu({ list }: { list: TaskList }) {
             <DialogTitle>Liste „{list.name}“ löschen?</DialogTitle>
             <DialogContent>
               <Text>
-                Die Aufgaben der Liste bleiben erhalten und stehen danach unter „Aufgaben“ bzw. bei den verantwortlichen
-                Personen. {list.members.length > 0 ? "Die Liste ist auch für die geteilten Personen weg." : ""}
+                Die Aufgaben der Liste bleiben erhalten. Eigene offene Aufgaben findest du danach unter „{targetLabel}“.
+                {list.members.length > 0 ? " Die Liste wird für alle Mitglieder entfernt." : ""}
               </Text>
             </DialogContent>
             <DialogActions>

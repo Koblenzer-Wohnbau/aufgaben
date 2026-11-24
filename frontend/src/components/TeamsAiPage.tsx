@@ -88,7 +88,7 @@ export function TeamsAiPage({ draftId }: { draftId: string }) {
 /** Ohne KI: Titel aus der ersten Zeile, die ganze Nachricht und der Link kommen in die Notizen. */
 function PlainCapture({ draft, onCreated }: { draft: TeamsDraft; onCreated: (message: string) => void }) {
   const styles = useStyles();
-  const { notify } = useApp();
+  const { me, notify } = useApp();
   const queryClient = useQueryClient();
   const [title, setTitle] = useState(() => plainTitle(draft.text));
   const [notes, setNotes] = useState([draft.from ? `Von ${draft.from}:` : null, draft.text, draft.link ? `Teams-Nachricht: ${draft.link}` : null].filter(Boolean).join("\n\n"));
@@ -100,7 +100,7 @@ function PlainCapture({ draft, onCreated }: { draft: TeamsDraft; onCreated: (mes
     try {
       await api.createTask({ title: title.trim(), notes: notes.trim() || undefined });
       await queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      onCreated("Aufgabe angelegt");
+      onCreated(me.showInbox ? "Aufgabe angelegt" : "Aufgabe unter „Geplant“ angelegt");
     } catch (e) {
       notify(e instanceof Error ? e.message : "Die Aufgabe ließ sich nicht anlegen.", "error");
       setSaving(false);

@@ -46,7 +46,7 @@ Von: Fa. Müller …
 * Eigene weitergeleitete Mails erscheinen unter **Geplant**. Wenn die Ansicht **Aufgaben** für dich freigeschaltet ist,
   findest du sie dort auch ohne Termin. Fehlt die Frist und hat die absendende oder verantwortliche Person keine
   Ansicht **Aufgaben**, setzt die App das Tagesdatum beim Abruf. Die Fälligkeit bleibt bearbeitbar.
-* Die interaktive Anleitung in der Seitenleiste zeigt den Ablauf und die konfigurierte Adresse zum Kopieren.
+* Die interaktive Anleitung in der Seitenleiste öffnet die Einstellung „Mail an Aufgabe“ mit der Adresse zum Kopieren.
 * Die absendende Person bekommt eine kurze Bestätigung mit Link (abschaltbar).
 
 ## Sicherheit

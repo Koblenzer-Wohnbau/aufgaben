@@ -214,10 +214,11 @@ export function AiCaptureDialog({
   const create = async () => {
     setSaving(true);
     let created = 0;
+    let createdForMe = false;
     const notified = new Set<string>();
     for (const d of chosen) {
       try {
-        await api.createTask({
+        const task = await api.createTask({
           title: d.title.trim(),
           notes: draftNotes(d, initial.link),
           priority: d.priority,
@@ -230,6 +231,7 @@ export function AiCaptureDialog({
           fromAi: true,
         });
         created++;
+        if (task.assignee.id === me.id) createdForMe = true;
         if (d.assignee && d.assignee.id !== me.id) notified.add(d.assignee.name);
       } catch (e) {
         notify(`„${d.title}“: ${e instanceof Error ? e.message : "nicht angelegt"}`, "error");
@@ -238,7 +240,8 @@ export function AiCaptureDialog({
     setSaving(false);
     await Promise.all([queryClient.invalidateQueries({ queryKey: ["tasks"] }), queryClient.invalidateQueries({ queryKey: ["counts"] })]);
     if (created > 0) {
-      const message = createdMessage(created, [...notified]);
+      const destination = !me.showInbox && createdForMe ? ". Eigene Aufgaben findest du unter „Geplant“." : "";
+      const message = createdMessage(created, [...notified]) + destination;
       if (onCreated) {
         onCreated(message);
       } else {

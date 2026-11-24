@@ -31,7 +31,7 @@ const useStyles = makeStyles({
   row: { display: "flex", gap: "8px", minWidth: 0, marginTop: "8px", "& .fui-Input": { flex: 1, minWidth: 0 } },
 });
 
-export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onClose: () => void; inTeams: boolean }) {
+export function SettingsDialog({ open, onClose, inTeams, focusMail }: { open: boolean; onClose: () => void; inTeams: boolean; focusMail?: boolean }) {
   const styles = useStyles();
   const { me, notify } = useApp();
   const queryClient = useQueryClient();
@@ -106,7 +106,7 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
                     : "Eigene weitergeleitete Mails findest du unter „Geplant“. Wenn du keine Frist angibst, setzt die App das Tagesdatum."}
                 </Text>
                 <div className={styles.row}>
-                  <Input readOnly value={me.mailInboxAddress} onFocus={(e) => e.currentTarget.select()} />
+                  <Input readOnly autoFocus={focusMail} value={me.mailInboxAddress} onFocus={(e) => e.currentTarget.select()} />
                   <Button
                     icon={<CopyRegular />}
                     onClick={() => navigator.clipboard.writeText(me.mailInboxAddress ?? "").then(() => notify("Adresse kopiert"))}

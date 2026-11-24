@@ -129,7 +129,7 @@ function AttachmentThumb({ taskId, attachment, onOpen }: { taskId: number; attac
   );
 }
 
-export function TaskDrawer({ taskId, onClose, overlay }: { taskId: number | null; onClose: () => void; overlay: boolean }) {
+export function TaskDrawer({ taskId, onClose, overlay, focusDueDate }: { taskId: number | null; onClose: () => void; overlay: boolean; focusDueDate?: boolean }) {
   const styles = useStyles();
   const { notify } = useApp();
   const queryClient = useQueryClient();
@@ -183,6 +183,7 @@ export function TaskDrawer({ taskId, onClose, overlay }: { taskId: number | null
             canEdit={query.data.canEdit}
             viaGrant={query.data.viaGrant}
             onDeleted={onClose}
+            focusDueDate={focusDueDate}
           />
         )}
       </DrawerBody>
@@ -211,9 +212,10 @@ interface EditorProps {
   /** true: nicht eigene Aufgabe, sichtbar über ein Einsichtsrecht. */
   viaGrant: boolean;
   onDeleted: () => void;
+  focusDueDate?: boolean;
 }
 
-function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps) {
+function TaskEditor({ task, events, canEdit, viaGrant, onDeleted, focusDueDate }: EditorProps) {
   const styles = useStyles();
   const { projects, lists, users, me, notify, confirm } = useApp();
   const queryClient = useQueryClient();
@@ -366,7 +368,7 @@ function TaskEditor({ task, events, canEdit, viaGrant, onDeleted }: EditorProps)
 
       <div className={styles.grid}>
         <Field label="Fällig am">
-          <Input type="date" value={task.dueDate ?? ""} onChange={(_, d) => patch({ dueDate: d.value || null })} />
+          <Input type="date" autoFocus={focusDueDate} value={task.dueDate ?? ""} onChange={(_, d) => patch({ dueDate: d.value || null })} />
         </Field>
         <Field label="Uhrzeit">
           <Input type="time" value={task.dueTime ?? ""} disabled={!task.dueDate} onChange={(_, d) => patch({ dueTime: d.value || null })} />

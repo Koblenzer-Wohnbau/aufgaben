@@ -12,8 +12,8 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 
 * **Persönliche Aufgaben**: Mein Tag mit **Vorschlägen** und Fortschrittsring, Wichtig, Geplant,
   eigene und **geteilte Listen**, Erinnerungen, Wiederholungen, Checklisten
-* **Interaktive Anleitung** in der Seitenleiste und unter Einstellungen. Mit Beispielen zum Abhaken,
-  Zuweisen, Planen und Weiterleiten einer E-Mail.
+* **Interaktive Anleitung** in der Seitenleiste und unter Einstellungen. Der Rundgang öffnet die
+  Ansichten, in denen du Aufgaben anlegst, planst, zuweist oder per E-Mail erfasst.
 * **Ziehen und Ablegen**: Aufgabe auf „Mein Tag“, „Wichtig“ oder eine Liste ziehen; Sortierung nach
   Fälligkeit, Wichtigkeit, Alphabet oder Datum; Tastenkürzel `n` (neue Aufgabe), `/` (Suche), `Esc`
 * **Delegieren mit Rückmeldung**: Benachrichtigung im Teams-Aktivitätsfeed oder per E-Mail, Status live
