@@ -38,6 +38,7 @@ import {
   PersonAddRegular,
   PeopleSwapRegular,
   PersonArrowLeftRegular,
+  QuestionCircleRegular,
   SearchRegular,
   SendRegular,
   SnoozeRegular,
@@ -50,9 +51,9 @@ import { api } from "../api";
 import { initials, useApp } from "../context";
 import { dueGroup, GROUP_LABEL, longDate, type DueGroup } from "../dates";
 import { followUpDue, laterAction, weekdayDate } from "../later";
-import type { Route } from "../route";
+import { hrefFor, type Route } from "../route";
 import { allState, bulkMessage, tasksLabel, toggleSelection, TRASH_DAYS } from "../selection";
-import type { BulkAction, CreateTask, Task } from "../types";
+import type { BulkAction, CreateTask, Task, ViewKey } from "../types";
 import { Confetti } from "./Confetti";
 import { EmptyState } from "./EmptyState";
 import { LaterMenu } from "./LaterMenu";
@@ -135,6 +136,19 @@ const SORT_LABEL: Record<SortKey, string> = {
   erstellt: "Neueste zuerst",
 };
 const PRIORITY_RANK = { hoch: 0, normal: 1, niedrig: 2 } as const;
+const HELP_TOPIC: Partial<Record<ViewKey, string>> = {
+  wichtig: "ansichten",
+  geplant: "ansichten",
+  aufgaben: "ansichten",
+  zugewiesen: "delegieren",
+  delegiert: "delegieren",
+  wiedervorlagen: "fristen",
+  liste: "listen",
+  suche: "finden",
+  erledigt: "finden",
+  vertretung: "vertretung",
+  person: "einstellungen",
+};
 
 function loadSort(view: string): SortKey {
   try {
@@ -199,7 +213,13 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
       case "wichtig":
         return { title: "Wichtig", icon: <StarRegular />, defaults: { priority: "hoch" }, empty: "Keine wichtigen Aufgaben offen." };
       case "geplant":
-        return { title: "Geplant", icon: <CalendarLtrRegular />, defaults: { dueDate: today }, empty: "Keine Aufgaben mit Termin." };
+        return {
+          title: "Geplant",
+          icon: <CalendarLtrRegular />,
+          subtitle: me.showInbox ? "Deine Fälligkeiten im Blick" : "Fälligkeiten und lose Aufgaben ohne Termin",
+          defaults: { dueDate: today },
+          empty: "Hier ist gerade nichts offen.",
+        };
       case "zugewiesen":
         return { title: "Mir zugewiesen", icon: <PersonArrowLeftRegular />, subtitle: "Aufgaben, die dir andere gegeben haben", defaults: {}, empty: "Niemand hat dir gerade etwas zugewiesen." };
       case "delegiert":
@@ -256,7 +276,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
           empty: "Keine offenen Aufgaben.",
         };
     }
-  }, [route, today, list, projects, grant, represented]);
+  }, [route, today, list, projects, grant, represented, me.showInbox]);
 
   const groups = useMemo(() => {
     const tasks = query.data ?? [];
@@ -437,6 +457,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
 
   const showAssignee = route.view === "projekt" || route.view === "delegiert" || route.view === "suche" || (route.view === "liste" && !!list && (list.members.length > 0 || !list.isOwner));
   const myDay = route.view === "mein-tag";
+  const helpTopic = HELP_TOPIC[route.view];
 
   const changeSort = (value: SortKey) => {
     setSort(value);
@@ -465,6 +486,11 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
             <div className={styles.titleRow}>
               <span className={styles.titleIcon}>{info.icon}</span>
               <Title2 as="h1">{info.title}</Title2>
+              {!compact && helpTopic && (
+                <Tooltip content={`Anleitung zu „${info.title}“`} relationship="label">
+                  <Button as="a" appearance="subtle" size="small" icon={<QuestionCircleRegular />} href={hrefFor({ page: "anleitung", topic: helpTopic })} />
+                </Tooltip>
+              )}
             </div>
             <Text className={styles.sub}>
               {info.subtitle ? `${info.subtitle} · ` : ""}

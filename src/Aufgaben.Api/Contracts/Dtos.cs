@@ -232,7 +232,8 @@ public sealed record MeDto(
     string Today,
     string? MailInboxAddress,
     bool DigestOnWeekends,
-    bool AiAvailable);
+    bool AiAvailable,
+    bool ShowInbox);
 
 public sealed record MeRequest(string? NotifyChannel, bool? DigestEnabled);
 

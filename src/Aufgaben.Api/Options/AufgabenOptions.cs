@@ -11,6 +11,14 @@ public sealed class AufgabenOptions
     /// <summary>IANA-Zeitzone für "heute", Erinnerungen und Tagesübersicht.</summary>
     public string TimeZone { get; set; } = "Europe/Berlin";
 
+    /// <summary>Kommagetrennte E-Mail-Adressen oder UPNs für die persönliche Ansicht „Aufgaben“.</summary>
+    public string InboxViewUsers { get; set; } = "";
+
+    public bool HasInboxView(string? email, string? upn) =>
+        InboxViewUsers.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Any(address => address.Equals(email, StringComparison.OrdinalIgnoreCase) ||
+                            address.Equals(upn, StringComparison.OrdinalIgnoreCase));
+
     public AuthOptions Auth { get; set; } = new();
     public TeamsOptions Teams { get; set; } = new();
     public MailOptions Mail { get; set; } = new();

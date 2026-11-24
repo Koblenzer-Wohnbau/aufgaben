@@ -18,11 +18,12 @@ import {
   Text,
   tokens,
 } from "@fluentui/react-components";
-import { CopyRegular, SignOutRegular } from "@fluentui/react-icons";
+import { BookOpenRegular, CopyRegular, SignOutRegular } from "@fluentui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../api";
 import { accessActionLabel } from "../accessText";
 import { useApp } from "../context";
+import { hrefFor } from "../route";
 
 const useStyles = makeStyles({
   content: { display: "flex", flexDirection: "column", gap: "18px", overflowX: "hidden" },
@@ -69,6 +70,17 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
         <DialogBody>
           <DialogTitle>Einstellungen</DialogTitle>
           <DialogContent className={styles.content}>
+            <Field label="Hilfe">
+              <Button
+                as="a"
+                href={hrefFor({ page: "anleitung" })}
+                onClick={onClose}
+                icon={<BookOpenRegular />}
+                style={{ alignSelf: "flex-start" }}
+              >
+                Interaktive Anleitung öffnen
+              </Button>
+            </Field>
             <Field label="Benachrichtigungen" hint="„Automatisch“ nutzt Teams, sobald du die App einmal in Teams geöffnet hast, sonst E-Mail.">
               <RadioGroup value={me.notifyChannel} onChange={(_, d) => update({ notifyChannel: d.value as typeof me.notifyChannel })}>
                 <Radio value="auto" label="Automatisch" />
@@ -88,8 +100,10 @@ export function SettingsDialog({ open, onClose, inTeams }: { open: boolean; onCl
               <Field label="Mail an Aufgabe">
                 <Text className={styles.muted}>
                   Leite eine E-Mail an diese Adresse weiter, daraus wird eine Aufgabe mit Text und Anhängen. Im Betreff und in deinem Text über der
-                  weitergeleiteten Mail funktioniert dasselbe wie in der Schnelleingabe: #Projekt, @Person, !hoch, „wv“, morgen, Freitag, 5 Tage
-                  oder ein Datum wie 30.11. Der Betreff geht vor.
+                  weitergeleiteten Mail kannst du eine Frist wie „Freitag“ oder „30.11.“ sowie @Person, !hoch und „wv“ angeben. Der Betreff geht vor.
+                  {" "}{me.showInbox
+                    ? "Eigene weitergeleitete Mails findest du unter „Aufgaben“, mit Frist zusätzlich unter „Geplant“."
+                    : "Eigene weitergeleitete Mails findest du unter „Geplant“. Wenn du keine Frist angibst, setzt die App das Tagesdatum."}
                 </Text>
                 <div className={styles.row}>
                   <Input readOnly value={me.mailInboxAddress} onFocus={(e) => e.currentTarget.select()} />

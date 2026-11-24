@@ -71,7 +71,8 @@ public static class AppEndpoints
         clock.Today.ToString("yyyy-MM-dd"),
         o.MailInbox.Enabled && !string.IsNullOrWhiteSpace(o.MailInbox.Address) ? o.MailInbox.Address : null,
         o.Worker.DigestOnWeekends,
-        ai.IsConfigured);
+        ai.IsConfigured,
+        o.HasInboxView(u.Email, u.Upn));
 
     // ------------------------------------------------------------------ Personen
 

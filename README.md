@@ -10,9 +10,11 @@ Microsoft To Do und die persönlichen Aufgaben in Planner setzen ein Exchange-On
 Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betreiben, gehen dabei leer aus.
 *Aufgaben* schließt diese Lücke als eigenständige, selbst gehostete App mit Teams-Integration.
 
-* **Persönliche Aufgaben** wie in To Do: Mein Tag mit **Vorschlägen** und Fortschrittsring, Wichtig, Geplant, Aufgaben,
+* **Persönliche Aufgaben**: Mein Tag mit **Vorschlägen** und Fortschrittsring, Wichtig, Geplant,
   eigene und **geteilte Listen**, Erinnerungen, Wiederholungen, Checklisten
-* **Ziehen und Ablegen**: Aufgabe auf „Mein Tag“, „Wichtig“, eine Liste oder ein Projekt ziehen; Sortierung nach
+* **Interaktive Anleitung** in der Seitenleiste und unter Einstellungen. Mit Beispielen zum Abhaken,
+  Zuweisen, Planen und Weiterleiten einer E-Mail.
+* **Ziehen und Ablegen**: Aufgabe auf „Mein Tag“, „Wichtig“ oder eine Liste ziehen; Sortierung nach
   Fälligkeit, Wichtigkeit, Alphabet oder Datum; Tastenkürzel `n` (neue Aufgabe), `/` (Suche), `Esc`
 * **Delegieren mit Rückmeldung**: Benachrichtigung im Teams-Aktivitätsfeed oder per E-Mail, Status live
 * **Projektaufgaben** als Tab im Teams-Kanal, für alle sichtbar
@@ -22,8 +24,8 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
   (IMAP, sicher auch mit Exchange Server on-premises, siehe [docs/mail-an-aufgabe.md](docs/mail-an-aufgabe.md))
 * **Anhänge direkt an der Aufgabe**: Screenshot mit `Strg+V` einfügen, Dateien hineinziehen oder auswählen,
   bis 10 MB pro Datei, Vorschau für Bilder, Programme und Skripte gesperrt, Download statt Anzeige im Browser
-* **Warte auf …** und **Später**: Aufgabe auf „Warte auf Fa. Müller“ setzen oder bis Montag zurückstellen, sie
-  verschwindet aus den Listen in die **Warteschleife** und steht am Tag zum Nachhaken wieder in „Mein Tag“,
+* **Warte auf …** und **Später**: Aufgabe auf „Warte auf Fa. Müller“ setzen oder bis Montag zurückstellen. Sie
+  ist über die Suche auffindbar und steht am Tag zum Nachhaken wieder in „Mein Tag“,
   mit Erinnerung per Teams oder E-Mail. Eine Fälligkeit holt sie immer früher zurück
 * **Urlaubsübergabe**: Urlaub mit Vertretung eintragen, dann für jede Aufgabe, die im Urlaub fällig wird, entscheiden:
   an die Vertretung übergeben (mit Hinweis) oder bis nach dem Urlaub zurückstellen, auf Wunsch alles mit einem Klick.
@@ -45,6 +47,12 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
   (Verwaltung → Einsichtsrechte, siehe [docs/einsichtsrechte.md](docs/einsichtsrechte.md))
 * **Installierbar** als App (PWA) am PC und auf dem Handy
 * Auch für Personen **ohne Teams-Lizenz** nutzbar (Browser und E-Mail)
+
+Die persönliche Ansicht **Aufgaben** ist standardmäßig ausgeblendet. Trage die Firmenadressen
+oder Entra-UPNs der gewünschten Personen kommagetrennt in `Aufgaben__InboxViewUsers` in `.env`
+ein und erstelle den App-Container neu. Für alle anderen enthält **Geplant** auch lose Aufgaben
+ohne Termin. Die Seitenleiste blendet Projektkanäle, Vorlagen und Warteschleife aus. Bestehende
+Teams-Kanaltabs und gespeicherte Direktlinks zu diesen Ansichten funktionieren weiter.
 
 ## Aufbau
 

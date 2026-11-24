@@ -1,5 +1,8 @@
+using System.Net.Http.Json;
 using System.Text;
+using Aufgaben.Api.Contracts;
 using Aufgaben.Api.Data;
+using Aufgaben.Api.Infrastructure;
 using Aufgaben.Api.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -209,6 +212,23 @@ public sealed class MailInboxTests(AppFixture app)
         Assert.Equal("Jonas Wagner", task.Assignee.DisplayName);
         var notified = await app.WithDbAsync(db => db.Notifications.AnyAsync(n => n.TaskId == task.Id && n.UserId == task.AssigneeId && n.Kind == NotificationOutbox.Assigned));
         Assert.True(notified);
+    }
+
+    [Theory]
+    [InlineData("dev-anna", "anna.schneider@example.test", true, "geplant")]
+    [InlineData("dev-thomas", "thomas.becker@example.test", false, "aufgaben")]
+    public async Task Forwarded_mail_without_a_date_is_visible_for_both_inbox_settings(
+        string oid, string sender, bool hasDefaultDueDate, string view)
+    {
+        var result = await Process(Mail(sender, "Interne Unterlagen prüfen"));
+        var task = await app.WithDbAsync(db => db.Tasks.SingleAsync(t => t.Id == result.TaskId));
+        var today = app.Factory.Services.GetRequiredService<AppClock>().Today;
+        Assert.Equal(hasDefaultDueDate ? today : (DateOnly?)null, task.DueDate);
+        Assert.Null(task.DueTime);
+
+        using var client = await app.LoginAsync(oid);
+        var tasks = await client.GetFromJsonAsync<List<TaskDto>>($"/api/tasks?view={view}");
+        Assert.Contains(tasks!, t => t.Id == result.TaskId);
     }
 
     [Fact]

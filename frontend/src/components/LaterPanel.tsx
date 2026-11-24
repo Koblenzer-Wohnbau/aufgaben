@@ -202,7 +202,7 @@ function WaitDialog({ task, patch, onClose }: { task: Task; patch: Patch; onClos
               </Field>
             )}
             <Caption1 className={styles.muted}>
-              Bis dahin ist die Aufgabe aus deinen Listen raus und steht in der „Warteschleife“. Am Tag zum Nachhaken ist sie wieder in
+              Bis dahin findest du die Aufgabe über die Suche. Am Tag zum Nachhaken ist sie wieder in
               „Mein Tag“, und du bekommst eine Erinnerung.
               {task.dueDate && date && task.dueDate < date && task.dueDate > today ? ` Wegen der Fälligkeit am ${weekdayDate(task.dueDate)} ist sie schon früher wieder da.` : ""}
             </Caption1>

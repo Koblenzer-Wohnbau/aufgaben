@@ -31,6 +31,7 @@ public sealed class AppFixture : IAsyncLifetime
             ["Aufgaben__Auth__AllowDevLogin"] = "true",
             ["Aufgaben__Worker__Enabled"] = "false",
             ["Aufgaben__Directory__SyncEnabled"] = "false",
+            ["Aufgaben__InboxViewUsers"] = " THOMAS.BECKER@example.test, jonas.wagner@example.test ",
             // Datenschutzhinweise: Speicherdauer fehlt absichtlich (siehe PrivacyPageApiTests)
             ["Aufgaben__Privacy__Controller"] = "Beispiel GmbH | Musterstraße 1 | 12345 Musterstadt",
             ["Aufgaben__Privacy__DpoContact"] = "<script>alert(1)</script> | datenschutz@example.test",
@@ -90,6 +91,27 @@ public sealed class ApiTests(AppFixture app)
         var client = app.Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var res = await client.GetAsync("/api/me");
         Assert.Equal(HttpStatusCode.Unauthorized, res.StatusCode);
+    }
+
+    [Fact]
+    public async Task Only_configured_accounts_can_open_the_inbox_and_others_find_unfiled_tasks_in_planned()
+    {
+        using var anna = await app.LoginAsync("dev-anna");
+        using var thomas = await app.LoginAsync("dev-thomas");
+        Assert.False((await Read<MeDto>(await anna.GetAsync("/api/me"))).ShowInbox);
+        Assert.True((await Read<MeDto>(await thomas.GetAsync("/api/me"))).ShowInbox);
+        Assert.Equal(HttpStatusCode.NotFound, (await anna.GetAsync("/api/tasks?view=aufgaben")).StatusCode);
+
+        var countBefore = (await Read<CountsDto>(await anna.GetAsync("/api/counts"))).Planned;
+        var task = await Read<TaskDto>(await anna.PostAsJsonAsync("/api/tasks", new { title = "Ohne Termin planen" }));
+        Assert.Null(task.DueDate);
+        Assert.Contains(await Read<List<TaskDto>>(await anna.GetAsync("/api/tasks?view=geplant")), t => t.Id == task.Id);
+        Assert.Equal(countBefore + 1, (await Read<CountsDto>(await anna.GetAsync("/api/counts"))).Planned);
+        Assert.DoesNotContain(await Read<List<TaskDto>>(await thomas.GetAsync("/api/tasks?view=geplant")), t => t.Id == task.Id);
+
+        var inboxTask = await Read<TaskDto>(await thomas.PostAsJsonAsync("/api/tasks", new { title = "Ohne Termin im Posteingang" }));
+        Assert.Contains(await Read<List<TaskDto>>(await thomas.GetAsync("/api/tasks?view=aufgaben")), t => t.Id == inboxTask.Id);
+        Assert.DoesNotContain(await Read<List<TaskDto>>(await thomas.GetAsync("/api/tasks?view=geplant")), t => t.Id == inboxTask.Id);
     }
 
     [Fact]

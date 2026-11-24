@@ -90,12 +90,14 @@ public sealed partial class MailInboxProcessor(
 
         current.Set(user, viaTeams: false);
         // Betreff wie die Schnelleingabe lesen, fehlende Angaben aus dem eigenen Text über der Weiterleitung ergänzen.
-        var now = TimeOnly.FromDateTime(clock.LocalNow);
+        var localNow = clock.LocalNow;
+        var now = TimeOnly.FromDateTime(localNow);
+        var today = DateOnly.FromDateTime(localNow);
         var body = BodyText(message);
         var ownText = MailSubject.OwnText(body);
         var parsed = MailSubject.Merge(
-            MailSubject.Parse(subject, clock.Today, now),
-            ownText.Length > 0 ? MailSubject.ParseText(ownText, clock.Today, now) : null);
+            MailSubject.Parse(subject, today, now),
+            ownText.Length > 0 ? MailSubject.ParseText(ownText, today, now) : null);
         var hints = new List<string>();
 
         int? projectId = null;
@@ -104,11 +106,17 @@ public sealed partial class MailInboxProcessor(
             projectId = await FindProjectAsync(pq, ct);
             if (projectId is null) hints.Add($"Projekt „#{pq}“ wurde nicht gefunden.");
         }
-        int? assigneeId = null;
-        if (parsed.PersonQuery is { } uq)
+        var assignee = parsed.PersonQuery is { } personQuery ? await FindUserAsync(personQuery, ct) : null;
+        if (assignee is null && parsed.PersonQuery is { } missingPerson)
         {
-            assigneeId = await FindUserAsync(uq, ct);
-            if (assigneeId is null) hints.Add($"Person „@{uq}“ wurde nicht gefunden, die Aufgabe liegt bei dir.");
+            hints.Add($"Person „@{missingPerson}“ wurde nicht gefunden, die Aufgabe liegt bei dir.");
+        }
+
+        var dueDate = parsed.DueDate;
+        if (dueDate is null && (!options.Value.HasInboxView(user.Email, user.Upn) ||
+                               (assignee is { } assigned && !options.Value.HasInboxView(assigned.Email, assigned.Upn))))
+        {
+            dueDate = today;
         }
 
         var notes = BuildNotes(message, body, user, hints);
@@ -117,11 +125,11 @@ public sealed partial class MailInboxProcessor(
             Notes: notes,
             Priority: parsed.High ? "hoch" : parsed.Low ? "niedrig" : "normal",
             Kind: parsed.FollowUp ? "wiedervorlage" : "aufgabe",
-            AssigneeId: assigneeId,
+            AssigneeId: assignee?.Id,
             ListId: null,
             ProjectId: projectId,
-            DueDate: parsed.DueDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            DueTime: parsed.DueDate is null ? null : parsed.DueTime?.ToString("HH:mm", CultureInfo.InvariantCulture),
+            DueDate: dueDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            DueTime: dueDate is null ? null : parsed.DueTime?.ToString("HH:mm", CultureInfo.InvariantCulture),
             RemindAt: null,
             MyDay: null,
             Recurrence: parsed.Recurrence == "" ? null : parsed.Recurrence,
@@ -189,14 +197,15 @@ public sealed partial class MailInboxProcessor(
                ?? await open.Where(p => p.Name.ToLower().StartsWith(q)).Select(p => (int?)p.Id).FirstOrDefaultAsync(ct);
     }
 
-    private async Task<int?> FindUserAsync(string query, CancellationToken ct)
+    private async Task<(int Id, string? Email, string? Upn)?> FindUserAsync(string query, CancellationToken ct)
     {
         var q = query.ToLowerInvariant();
         var users = await db.Users.Where(u => u.IsActive).OrderBy(u => u.DisplayName).ThenBy(u => u.Id)
-            .Select(u => new { u.Id, u.DisplayName, u.Email }).ToListAsync(ct);
-        return users.FirstOrDefault(u => u.DisplayName.ToLowerInvariant().Split(' ').Contains(q))?.Id
-               ?? users.FirstOrDefault(u => u.DisplayName.ToLowerInvariant().Split(' ').Any(p => p.StartsWith(q)))?.Id
-               ?? users.FirstOrDefault(u => u.Email != null && u.Email.ToLowerInvariant().StartsWith(q))?.Id;
+            .Select(u => new { u.Id, u.DisplayName, u.Email, u.Upn }).ToListAsync(ct);
+        var match = users.FirstOrDefault(u => u.DisplayName.ToLowerInvariant().Split(' ').Contains(q))
+                    ?? users.FirstOrDefault(u => u.DisplayName.ToLowerInvariant().Split(' ').Any(p => p.StartsWith(q)))
+                    ?? users.FirstOrDefault(u => u.Email != null && u.Email.ToLowerInvariant().StartsWith(q));
+        return match is null ? null : (match.Id, match.Email, match.Upn);
     }
 
     /// <summary>Text der Mail; reine HTML-Mails werden zu Text.</summary>

@@ -4,6 +4,7 @@ import type { ViewKey } from "./types";
 export type Route =
   | { page: "tasks"; view: ViewKey; id?: number; q?: string; taskId?: number }
   | { page: "vorlagen" }
+  | { page: "anleitung"; topic?: string }
   | { page: "verwaltung" }
   | { page: "teams-config" }
   /** Fenster in Teams nach „Als Aufgabe“ an einer Nachricht */
@@ -16,6 +17,7 @@ export function parseHash(hash: string): Route {
   const [first, second] = parts;
   if (!first) return { page: "tasks", view: "mein-tag" };
   if (first === "vorlagen") return { page: "vorlagen" };
+  if (first === "anleitung") return { page: "anleitung", topic: second };
   if (first === "verwaltung") return { page: "verwaltung" };
   if (first === "teams" && second === "config") return { page: "teams-config" };
   if (first === "teams" && second === "ki" && parts[2]) return { page: "teams-ki", draft: parts[2] };
@@ -28,6 +30,7 @@ export function parseHash(hash: string): Route {
 
 export function hrefFor(route: Route): string {
   if (route.page === "vorlagen") return "#/vorlagen";
+  if (route.page === "anleitung") return route.topic ? `#/anleitung/${encodeURIComponent(route.topic)}` : "#/anleitung";
   if (route.page === "verwaltung") return "#/verwaltung";
   if (route.page === "teams-config") return "#/teams/config";
   if (route.page === "teams-ki") return `#/teams/ki/${encodeURIComponent(route.draft)}`;

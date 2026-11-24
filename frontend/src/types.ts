@@ -257,6 +257,7 @@ export interface Me {
   digestOnWeekends: boolean;
   /** KI-Vorschläge (Mistral) auf diesem Server eingeschaltet */
   aiAvailable: boolean;
+  showInbox: boolean;
 }
 
 /** Eigener Urlaub mit Vertretung (from/until: erster und letzter freier Tag). */

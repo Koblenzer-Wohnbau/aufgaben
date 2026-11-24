@@ -17,7 +17,7 @@ import { api, ApiError } from "./api";
 import { AppContext, type AppData } from "./context";
 import type { AiInput } from "./types";
 import { connectLive } from "./realtime";
-import { useRoute } from "./route";
+import { hrefFor, useRoute, type Route } from "./route";
 import { inChannelTab, inTeams, type TeamsInfo } from "./teams";
 import { LoginScreen } from "./components/LoginScreen";
 import { Sidebar } from "./components/Sidebar";
@@ -28,6 +28,7 @@ import { ConfirmDialog, type ConfirmRequest } from "./components/ConfirmDialog";
 
 // Selten genutzte Bereiche erst bei Bedarf laden, kleinerer Start-Download.
 const TemplatesView = lazy(() => import("./components/TemplatesView").then((m) => ({ default: m.TemplatesView })));
+const GuideView = lazy(() => import("./components/GuideView").then((m) => ({ default: m.GuideView })));
 const SettingsDialog = lazy(() => import("./components/SettingsDialog").then((m) => ({ default: m.SettingsDialog })));
 const ChannelConfig = lazy(() => import("./components/ChannelConfig").then((m) => ({ default: m.ChannelConfig })));
 const AbsenceDialog = lazy(() => import("./components/AbsenceDialog").then((m) => ({ default: m.AbsenceDialog })));
@@ -109,7 +110,10 @@ export function App({ teams }: { teams: TeamsInfo | null }) {
 
 function Shell({ teams }: { teams: TeamsInfo | null }) {
   const styles = useStyles();
-  const route = useRoute();
+  const requestedRoute = useRoute();
+  const me = useQuery({ queryKey: ["me"], queryFn: api.me });
+  const hiddenInbox = requestedRoute.page === "tasks" && requestedRoute.view === "aufgaben" && !me.data?.showInbox;
+  const route: Route = hiddenInbox ? { page: "tasks", view: "geplant" } : requestedRoute;
   const queryClient = useQueryClient();
   const toasterId = useId("toaster");
   const { dispatchToast } = useToastController(toasterId);
@@ -125,14 +129,14 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
     return sub?.startsWith("task-") ? Number(sub.slice(5)) : null;
   });
 
-  const me = useQuery({ queryKey: ["me"], queryFn: api.me });
   const projects = useQuery({ queryKey: ["projects"], queryFn: api.projects });
   const users = useQuery({ queryKey: ["users"], queryFn: () => api.users() });
   const lists = useQuery({ queryKey: ["lists"], queryFn: api.lists });
 
   useEffect(() => {
-    if (route.page === "tasks" && route.taskId) setTaskId(route.taskId);
-  }, [route]);
+    if (requestedRoute.page === "tasks" && requestedRoute.taskId) setTaskId(requestedRoute.taskId);
+    if (hiddenInbox) window.location.replace(hrefFor({ page: "tasks", view: "geplant" }));
+  }, [requestedRoute, hiddenInbox]);
 
   useEffect(
     () =>
@@ -171,7 +175,7 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
         setTaskId(null);
         return;
       }
-      if (isTyping(e.target)) return;
+      if (isTyping(e.target) || inDialog(e.target)) return;
       if (e.key === "n") {
         const input = document.querySelector<HTMLInputElement>('input[aria-label="Neue Aufgabe"]');
         if (input) {
@@ -312,7 +316,9 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
             />
           )}
           <Suspense fallback={<Spinner style={{ marginTop: 48 }} />}>
-            {route.page === "vorlagen" ? (
+            {route.page === "anleitung" ? (
+              <GuideView topic={route.topic} />
+            ) : route.page === "vorlagen" ? (
               <TemplatesView />
             ) : route.page === "verwaltung" ? (
               <AdminView />

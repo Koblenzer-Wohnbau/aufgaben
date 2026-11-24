@@ -18,12 +18,10 @@ import {
   ClockAlarmRegular,
   DeleteRegular,
   DismissRegular,
-  DocumentBulletListRegular,
   EyeRegular,
   HomeRegular,
-  HourglassHalfRegular,
   ListRegular,
-  NumberSymbolRegular,
+  QuestionCircleRegular,
   PeopleRegular,
   PeopleSwapRegular,
   PersonArrowLeftRegular,
@@ -40,7 +38,6 @@ import { initials, useApp } from "../context";
 import { draggedTaskId, dropPatch, isTaskDrag } from "../dnd";
 import { weekdayDate } from "../later";
 import { hrefFor, navigate, type Route } from "../route";
-import type { Project } from "../types";
 
 const useStyles = makeStyles({
   nav: {
@@ -92,7 +89,6 @@ const useStyles = makeStyles({
   label: { flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
   icon: { fontSize: "20px", flexShrink: 0, display: "flex" },
   shared: { fontSize: "14px", color: tokens.colorNeutralForeground3 },
-  team: { padding: "8px 10px 2px", color: tokens.colorNeutralForeground3, fontSize: tokens.fontSizeBase200 },
   footer: {
     display: "flex",
     alignItems: "center",
@@ -166,6 +162,7 @@ function NavItem({ to, active, icon, label, count, accent, extra, onNavigate }: 
   return (
     <a
       href={hrefFor(to)}
+      aria-current={active ? "page" : undefined}
       className={mergeClasses(styles.item, active && styles.active, over && styles.dropTarget)}
       onClick={onNavigate}
       onDragOver={onDragOver}
@@ -192,7 +189,7 @@ interface Props {
 
 export function Sidebar({ route, open, overlay, online, onClose, onSettings, onAbsence }: Props) {
   const styles = useStyles();
-  const { me, projects, lists, notify } = useApp();
+  const { me, lists, notify } = useApp();
   const counts = useQuery({ queryKey: ["counts"], queryFn: api.counts, refetchInterval: 60_000 });
   const access = useQuery({ queryKey: ["access-mine"], queryFn: api.accessMine, staleTime: 60_000 });
   const absences = useQuery({ queryKey: ["absences"], queryFn: api.absenceStatus, staleTime: 60_000 });
@@ -208,7 +205,7 @@ export function Sidebar({ route, open, overlay, online, onClose, onSettings, onA
     <NavItem
       key={key ?? hrefFor(to)}
       to={to}
-      active={hrefFor(to) === current}
+      active={to.page === "anleitung" ? route.page === "anleitung" : hrefFor(to) === current}
       icon={icon}
       label={label}
       count={count}
@@ -217,12 +214,6 @@ export function Sidebar({ route, open, overlay, online, onClose, onSettings, onA
       onNavigate={() => overlay && onClose()}
     />
   );
-
-  const byTeam = new Map<string, Project[]>();
-  for (const p of projects) {
-    const key = p.teamName ?? "Weitere Projekte";
-    byTeam.set(key, [...(byTeam.get(key) ?? []), p]);
-  }
 
   const createList = async () => {
     const name = newList?.trim();
@@ -267,10 +258,9 @@ export function Sidebar({ route, open, overlay, online, onClose, onSettings, onA
         {item({ page: "tasks", view: "mein-tag" }, <WeatherSunnyRegular />, "Mein Tag", c?.myDay)}
         {item({ page: "tasks", view: "wichtig" }, <StarRegular />, "Wichtig", c?.important)}
         {item({ page: "tasks", view: "geplant" }, <CalendarLtrRegular />, "Geplant", c?.planned, !!c?.overdue)}
-        {item({ page: "tasks", view: "aufgaben" }, <HomeRegular />, "Aufgaben", c?.inbox)}
+        {me.showInbox && item({ page: "tasks", view: "aufgaben" }, <HomeRegular />, "Aufgaben", c?.inbox)}
         {item({ page: "tasks", view: "zugewiesen" }, <PersonArrowLeftRegular />, "Mir zugewiesen", c?.assigned)}
         {item({ page: "tasks", view: "delegiert" }, <SendRegular />, "Wartet auf andere", c?.delegated)}
-        {item({ page: "tasks", view: "warteschleife" }, <HourglassHalfRegular />, "Warteschleife", c?.waiting, !!c?.waitingDue)}
         {item({ page: "tasks", view: "wiedervorlagen" }, <ClockAlarmRegular />, "Wiedervorlagen", c?.followUps)}
         {item({ page: "tasks", view: "erledigt" }, <CheckmarkCircleRegular />, "Erledigt")}
         {item({ page: "tasks", view: "papierkorb" }, <DeleteRegular />, "Papierkorb", c?.trash)}
@@ -293,7 +283,6 @@ export function Sidebar({ route, open, overlay, online, onClose, onSettings, onA
               : "Urlaub und Vertretung"}
           </span>
         </button>
-        {item({ page: "vorlagen" }, <DocumentBulletListRegular />, "Vorlagen")}
         {me.isAdmin && item({ page: "verwaltung" }, <ShieldPersonRegular />, "Verwaltung")}
 
         <div className={styles.section}>
@@ -376,17 +365,9 @@ export function Sidebar({ route, open, overlay, online, onClose, onSettings, onA
           </>
         )}
 
-        <div className={styles.section}>
-          <Text size={200} weight="semibold">
-            Projektkanäle
-          </Text>
-        </div>
-        {[...byTeam.entries()].map(([team, items]) => (
-          <div key={team}>
-            <div className={styles.team}>{team}</div>
-            {items.map((p) => item({ page: "tasks", view: "projekt", id: p.id }, <NumberSymbolRegular />, p.label, c?.projects[p.id], false, undefined, `p${p.id}`))}
-          </div>
-        ))}
+      </div>
+      <div style={{ padding: "4px 8px" }}>
+        {item({ page: "anleitung" }, <QuestionCircleRegular />, "Anleitung")}
       </div>
       <div className={styles.footer}>
         <Avatar name={me.name} initials={initials(me.name)} size={28} color="colorful" />
