@@ -192,7 +192,7 @@ export function Sidebar({ route, open, overlay, online, onClose, onSettings, onA
   const { me, lists, notify } = useApp();
   const counts = useQuery({ queryKey: ["counts"], queryFn: api.counts, refetchInterval: 60_000 });
   const access = useQuery({ queryKey: ["access-mine"], queryFn: api.accessMine, staleTime: 60_000 });
-  const absences = useQuery({ queryKey: ["absences"], queryFn: api.absenceStatus, staleTime: 60_000 });
+  const absences = useQuery({ queryKey: ["absences"], queryFn: api.absenceStatus, staleTime: 60_000, enabled: me.absencesEnabled });
   const queryClient = useQueryClient();
   const [search, setSearch] = useState(route.page === "tasks" && route.view === "suche" ? route.q ?? "" : "");
   const [newList, setNewList] = useState<string | null>(null);
@@ -264,25 +264,27 @@ export function Sidebar({ route, open, overlay, online, onClose, onSettings, onA
         {item({ page: "tasks", view: "wiedervorlagen" }, <ClockAlarmRegular />, "Wiedervorlagen", c?.followUps)}
         {item({ page: "tasks", view: "erledigt" }, <CheckmarkCircleRegular />, "Erledigt")}
         {item({ page: "tasks", view: "papierkorb" }, <DeleteRegular />, "Papierkorb", c?.trash)}
-        <button
-          type="button"
-          className={mergeClasses(styles.item, styles.action)}
-          onClick={() => {
-            onAbsence();
-            if (overlay) onClose();
-          }}
-        >
-          <span className={styles.icon}>
-            <BeachRegular />
-          </span>
-          <span className={styles.label}>
-            {absences.data?.current
-              ? absences.data.current.started
-                ? `Im Urlaub bis ${weekdayDate(absences.data.current.until)}`
-                : `Urlaub ab ${weekdayDate(absences.data.current.from)}`
-              : "Urlaub und Vertretung"}
-          </span>
-        </button>
+        {me.absencesEnabled && (
+          <button
+            type="button"
+            className={mergeClasses(styles.item, styles.action)}
+            onClick={() => {
+              onAbsence();
+              if (overlay) onClose();
+            }}
+          >
+            <span className={styles.icon}>
+              <BeachRegular />
+            </span>
+            <span className={styles.label}>
+              {absences.data?.current
+                ? absences.data.current.started
+                  ? `Im Urlaub bis ${weekdayDate(absences.data.current.until)}`
+                  : `Urlaub ab ${weekdayDate(absences.data.current.from)}`
+                : "Urlaub und Vertretung"}
+            </span>
+          </button>
+        )}
         {me.isAdmin && item({ page: "verwaltung" }, <ShieldPersonRegular />, "Verwaltung")}
 
         <div className={styles.section}>
@@ -323,14 +325,14 @@ export function Sidebar({ route, open, overlay, online, onClose, onSettings, onA
           ),
         )}
 
-        {(absences.data?.deputy.length ?? 0) > 0 && (
+        {me.absencesEnabled && !!absences.data?.deputy.length && (
           <>
             <div className={styles.section}>
               <Text size={200} weight="semibold">
                 Vertretung
               </Text>
             </div>
-            {absences.data!.deputy.map((d) =>
+            {absences.data.deputy.map((d) =>
               item(
                 { page: "tasks", view: "vertretung", id: d.absenceId },
                 <PeopleSwapRegular />,

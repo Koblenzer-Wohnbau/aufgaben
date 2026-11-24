@@ -18,7 +18,6 @@ type Chapter = {
   title: string;
   intro: string;
   steps: Step[];
-  example?: { label: string; lines: string[] };
   exercise?: Exercise;
 };
 
@@ -27,122 +26,119 @@ function chaptersFor(me: Me): Chapter[] {
   return [
     {
       id: "start", label: "Mein Tag", title: "Was steht heute an?",
-      intro: "In „Mein Tag“ siehst du, was heute fällig oder bereits überfällig ist. Du kannst weitere Aufgaben für heute dazunehmen.",
+      intro: "Hier stehen fällige Aufgaben und alles, was du für heute eingeplant hast.",
       steps: [
-        ["Aufgabe hinzufügen", "Gib einen Titel ein und drücke Enter. Mit n springst du direkt in die Eingabe."],
-        ["Vorschläge öffnen", "Hol dir mit dem Plus eine offene Aufgabe in deinen Tag. Ihre Fälligkeit bleibt erhalten."],
-        ["Erledigen", "Klicke den Kreis links neben einer Aufgabe an. Einen versehentlichen Klick kannst du dort rückgängig machen."],
+        ["Aufgabe hinzufügen", "Titel eingeben und Enter drücken."],
+        ["Vorschläge öffnen", "Mit dem Plus eine Aufgabe dazunehmen."],
+        ["Erledigen", "Kreis links neben der Aufgabe anklicken."],
       ],
       exercise: { prompt: "Protokoll gegenlesen", action: "Beispielaufgabe abhaken", result: "Erledigt. Dein Fortschritt für heute ist aktualisiert.", icon: "check" },
     },
     {
       id: "ansichten", label: "Wichtig und Geplant", title: "Finde die passende Ansicht",
-      intro: "Eine Aufgabe kann gleichzeitig in mehreren Ansichten stehen. Wenn du sie bearbeitest, ändert sich überall dieselbe Aufgabe.",
+      intro: "Eine Aufgabe kann in mehreren Ansichten auftauchen.",
       steps: [
-        ["Wichtig", "Sterne markieren Aufgaben mit hoher Priorität. Du findest sie gesammelt unter „Wichtig“."],
-        ["Geplant", me.showInbox ? "Hier stehen deine offenen Aufgaben mit Fälligkeit, nach Tagen gruppiert." : "Hier stehen deine offenen Aufgaben mit Fälligkeit. Lose Aufgaben ohne Datum findest du unter „Ohne Termin“."],
-        ...(me.showInbox ? [["Aufgaben", "Hier siehst du deine Aufgaben, die in keiner persönlichen Liste liegen."]] satisfies Step[] : []),
+        ["Wichtig", "Deine Aufgaben mit Stern."],
+        ["Geplant", me.showInbox ? "Deine offenen Fälligkeiten." : "Deine offenen Fälligkeiten und lose Aufgaben unter „Ohne Termin“."],
+        ...(me.showInbox ? [["Aufgaben", "Deine Aufgaben ohne Liste."]] satisfies Step[] : []),
       ],
       exercise: { prompt: "Freigabe für den Rollout", action: "Als wichtig markieren", result: "Der Stern ist gesetzt. Die Aufgabe erscheint jetzt auch unter „Wichtig“.", icon: "star" },
     },
     {
       id: "erfassen", label: "Schnelleingabe", title: "Titel, Termin und Person in einer Zeile",
-      intro: "Die Eingabe erkennt Angaben wie morgen, Freitag, 10 Uhr, @Name, !hoch und wv.",
+      intro: "Schreib Titel und Frist einfach zusammen.",
       steps: [
-        ["In einem Satz schreiben", "Tippe den Arbeitsauftrag und ergänze, was du schon weißt."],
-        ["Erkannte Angaben prüfen", "Unter dem Feld erscheinen Vorschläge für Datum, Uhrzeit und Person. Bei @ kannst du eine Person aus der Liste auswählen."],
-        ["Mit Enter speichern", "Klicke die neue Aufgabe an, um Notizen, Checkliste, Anhänge oder eine Erinnerung zu ergänzen."],
+        ["Termin angeben", "Zum Beispiel „morgen 10 Uhr“."],
+        ["Person und Priorität ergänzen", "@Name weist zu. !hoch markiert als wichtig."],
+        ["Mit Enter speichern", "Vorher die erkannten Angaben unter dem Feld prüfen."],
       ],
     },
     {
       id: "fristen", label: "Fristen und Erinnerungen", title: "Lege fest, wann du etwas brauchst",
-      intro: "Eine Fälligkeit sagt, bis wann etwas erledigt sein soll. Eine Erinnerung legt fest, wann du einen Hinweis bekommst.",
+      intro: "Öffne eine Aufgabe, um ihre Termine zu ändern.",
       steps: [
-        ["Fälligkeit setzen", "Öffne die Aufgabe und wähle unter „Fällig am“ Datum und bei Bedarf Uhrzeit."],
-        ["Erinnerung eintragen", "Wähle einen Zeitpunkt, zu dem du an die Aufgabe erinnert werden willst."],
-        ["Wiedervorlage oder Wiederholung wählen", "Eine Wiedervorlage sammelt Dinge zum Nachfassen. Eine Wiederholung erzeugt nach dem Erledigen den nächsten Termin."],
+        ["Fällig am", "Bis wann soll die Aufgabe fertig sein?"],
+        ["Erinnerung", "Wann möchtest du einen Hinweis bekommen?"],
+        ["Wiedervorlage und Wiederholung", "Etwas nachfassen oder den nächsten Termin automatisch anlegen."],
       ],
       exercise: { prompt: "Freigabe nachfragen", action: "Für heute planen", result: "Heute ist als Fälligkeit gesetzt. Die Aufgabe wäre in „Geplant“ und in „Mein Tag“ sichtbar.", icon: "date" },
     },
     {
       id: "mail", label: "Mail weiterleiten", title: "Mach aus einer Mail eine Aufgabe",
-      intro: "Die App übernimmt den Betreff als Titel, den Mailtext als Notiz und die unterstützten Anhänge in die Aufgabe.",
+      intro: "Betreff, Mailtext und Anhänge werden zur Aufgabe.",
       steps: [
-        ["Aufgaben-Adresse kopieren", me.mailInboxAddress ? "Verwende die eingeblendete Adresse und öffne in Outlook die gewünschte Mail." : "Wenn das Aufgaben-Postfach eingerichtet ist, steht die Adresse unter „Einstellungen → Mail an Aufgabe“."],
-        ["In Outlook weiterleiten", "Setze die Aufgaben-Adresse als Empfänger ein. Schreib die Frist in den Betreff oder in deinen Text oberhalb der Originalmail."],
+        ["In Outlook weiterleiten", me.mailInboxAddress ? "Aufgaben-Adresse kopieren und als Empfänger einsetzen." : "Die Adresse steht nach Einrichtung unter „Einstellungen → Mail an Aufgabe“."],
+        ["Frist ergänzen", "Zum Beispiel „bis Freitag“ in den Betreff schreiben."],
         ["Aufgabe öffnen", me.showInbox
-          ? "Eigene weitergeleitete Mails findest du in „Aufgaben“. Mit Fälligkeit stehen sie auch in „Geplant“."
-          : "Eigene weitergeleitete Mails findest du in „Geplant“. Fehlt die Frist, trägt die App das Datum des Eingangs ein. Du kannst es ändern."],
+          ? "Unter „Aufgaben“, mit Fälligkeit auch unter „Geplant“."
+          : "Unter „Geplant“. Ohne Frist setzt die App beim Abruf das Tagesdatum."],
       ],
-      example: { label: "Beispiel für den Betreff", lines: ["WG: Angebot prüfen bis Freitag !hoch", "Fällig: Freitag · Priorität: hoch"] },
       exercise: { prompt: "WG: Angebot prüfen", action: "Weiterleitung ausprobieren", result: me.showInbox
         ? `Beispiel erfasst. „Angebot prüfen“ wäre unter „${mailDestination}“ sichtbar.`
         : `Beispiel erfasst. „Angebot prüfen“ wäre unter „${mailDestination}“ mit der Fälligkeit heute sichtbar.`, icon: "mail" },
     },
     {
       id: "delegieren", label: "Zuweisen und nachhalten", title: "Wer kümmert sich darum?",
-      intro: "Delegierte Aufgaben haben eine verantwortliche Person. Beide Seiten sehen den aktuellen Stand.",
+      intro: "Wenn du eine Aufgabe delegierst, sehen beide Seiten den Stand.",
       steps: [
-        ["Person einsetzen", "Tippe @Name in der Schnelleingabe oder ändere in einer geöffneten Aufgabe „Verantwortlich“."],
-        ["Auftrag übergeben", "Die Person erhält je nach Einstellung eine Benachrichtigung und findet die Aufgabe unter „Mir zugewiesen“."],
-        ["Rückmeldung verfolgen", "Unter „Wartet auf andere“ siehst du Aufgaben, die du anderen gegeben hast."],
+        ["Zuweisen", "@Name tippen oder „Verantwortlich“ ändern."],
+        ["Mir zugewiesen", "Hier sieht die andere Person den Auftrag."],
+        ["Wartet auf andere", "Hier verfolgst du delegierte Aufgaben."],
       ],
       exercise: { prompt: "Termin für die Abstimmung finden", action: "An Alex zuweisen", result: "Alex ist verantwortlich. Du würdest den Auftrag unter „Wartet auf andere“ wiederfinden.", icon: "person" },
     },
     {
       id: "bearbeiten", label: "Aufgabe bearbeiten", title: "Alles zur Aufgabe an einem Ort",
-      intro: "Ein Klick auf die Zeile öffnet die Aufgaben-Details.",
+      intro: "Klicke auf die Aufgabe, um ihre Details zu öffnen.",
       steps: [
-        ["Notizen und Teilaufgaben ergänzen", "Halte den Hintergrund in den Notizen fest und teile größere Arbeiten in Checklistenpunkte."],
-        ["Dateien hinzufügen", "Dateien lassen sich auswählen oder hineinziehen. Bilder aus der Zwischenablage kannst du mit Strg+V hinzufügen."],
-        ["Auf Antwort warten oder zurückstellen", "Unter „Warte auf …“ kannst du festhalten, von wem eine Antwort fehlt. Mit „Später“ legst du dir die Aufgabe wieder vor."],
-        ["Aufgabenverlauf ansehen", "Im Verlauf siehst du Änderungen und Kommentare. Mit Esc schließt du die Details."],
+        ["Notiz und Checkliste", "Hintergrund festhalten und Teilschritte abhaken."],
+        ["Anhänge", "Dateien auswählen, hineinziehen oder Bilder mit Strg+V einfügen."],
+        ["Warte auf … und Später", "Auf eine Antwort warten oder die Aufgabe zurückstellen."],
       ],
     },
     {
       id: "listen", label: "Listen", title: "Halte zusammen, was zusammengehört",
-      intro: "Eine Liste eignet sich für ein Thema, zum Beispiel die nächste Teams-Schulung oder die Büroausstattung.",
+      intro: "Eine Liste bündelt Aufgaben zu einem Thema.",
       steps: [
-        ["Liste anlegen", "Klicke neben „Listen“ auf das Plus und gib einen Namen ein."],
-        ["Aufgaben einsortieren", "Lege sie in der geöffneten Liste an oder ziehe eine vorhandene Aufgabe auf die Liste in der Seitenleiste."],
-        ["Bei Bedarf teilen", "Öffne „Teilen“ in der Liste und wähle die Kolleginnen und Kollegen aus, die sie sehen und mitbearbeiten sollen."],
+        ["Liste anlegen", "Plus neben „Listen“ anklicken."],
+        ["Aufgabe einsortieren", "Direkt anlegen oder auf die Liste ziehen."],
+        ["Liste teilen", "Über „Teilen“ Personen zur Mitarbeit einladen."],
       ],
     },
     ...(me.aiAvailable ? [{
       id: "ki", label: "Mit KI erfassen", title: "Aus Text werden Aufgabenentwürfe",
-      intro: "Aus einem Text oder Bildschirmfoto kann die App eine oder mehrere Aufgaben vorschlagen.",
+      intro: "Die KI macht aus Text oder einem Screenshot einen Entwurf.",
       steps: [
-        ["Inhalt übernehmen", "Kopiere einen Text oder einen Screenshot. Klicke auf „KI“ oder füge den Inhalt mit Strg+V außerhalb eines Eingabefelds ein."],
-        ["Vorschläge prüfen", "Prüfe Titel, Verantwortliche und Fristen und ergänze, was fehlt."],
-        ["Auswahl bestätigen", "Markiere die Vorschläge, die du tatsächlich anlegen möchtest."],
+        ["Inhalt einfügen", "„KI“ anklicken oder außerhalb eines Felds Strg+V drücken."],
+        ["Entwurf prüfen", "Titel, Person und Frist kontrollieren."],
+        ["Aufgaben anlegen", "Passende Vorschläge auswählen und bestätigen."],
       ] satisfies Step[],
     }] : []),
     {
       id: "finden", label: "Suche und Papierkorb", title: "Finde Aufgaben wieder",
-      intro: "Die Suche findet Wörter in Titeln und Notizen. Sie hilft auch, wenn eine Aufgabe zurückgestellt oder in einer anderen Ansicht steht.",
+      intro: "Auch zurückgestellte und gelöschte Aufgaben lassen sich wiederfinden.",
       steps: [
-        ["Suchen", "Drücke / oder verwende das Suchfeld. Gib einen Begriff ein und drücke Enter."],
-        ["Erledigte ansehen", "Unter „Erledigt“ findest du erledigte Aufgaben aus den letzten 30 Tagen."],
-        ["Papierkorb prüfen", "Gelöschte Aufgaben bleiben 30 Tage im Papierkorb. Dort kannst du sie wiederherstellen."],
+        ["Suchen", "Mit / starten. Die Suche findet Titel und Notizen."],
+        ["Erledigt", "Zeigt die letzten 30 Tage."],
+        ["Papierkorb", "Aufgaben lassen sich 30 Tage lang wiederherstellen."],
       ],
     },
-    {
+    ...(me.absencesEnabled ? [{
       id: "vertretung", label: "Urlaub und Vertretung", title: "Übergib, was während deines Urlaubs fällig wird",
-      intro: "Wähle Zeitraum und Vertretung. Die App hilft dir, die in dieser Zeit fälligen Aufgaben durchzugehen.",
+      intro: "Plane, wer sich während deiner Abwesenheit kümmert.",
       steps: [
-        ["Urlaub eintragen", "Öffne „Urlaub und Vertretung“ und trage Zeitraum und Vertretung ein."],
-        ["Aufgaben durchgehen", "Entscheide pro Aufgabe, ob sie übergeben oder bis nach dem Urlaub zurückgestellt werden soll."],
-        ["Rückkehr prüfen", "„Mein Tag“ zeigt nach dem Urlaub, was passiert ist. Offene Aufgaben kannst du zurückholen."],
-      ],
-    },
+        ["Urlaub eintragen", "Zeitraum und Vertretung wählen."],
+        ["Aufgaben einplanen", "Übergeben oder bis zur Rückkehr zurückstellen."],
+        ["Aufgaben zurückholen", "Nach dem Urlaub die Übersicht in „Mein Tag“ öffnen."],
+      ] satisfies Step[],
+    }] : []),
     {
       id: "einstellungen", label: "Einstellungen", title: "Richte Aufgaben für dich ein",
-      intro: "Die Einstellungen findest du über das Zahnrad unten in der Seitenleiste.",
+      intro: "Das Zahnrad unten öffnet deine Einstellungen.",
       steps: [
-        ["Benachrichtigungen einstellen", "Wähle Teams, E-Mail oder „Automatisch“, je nachdem, was bei euch eingerichtet ist. Die Tagesübersicht kannst du separat umstellen."],
-        ["Kalender abonnieren", "Erzeuge bei Bedarf deinen persönlichen Outlook-Kalenderlink und füge ihn in Outlook als Internetkalender hinzu."],
-        ["Freigaben ansehen", "Unter „Wer darf meine Aufgaben sehen?“ siehst du deine erteilten Einsichtsrechte und letzte Zugriffe."],
-        ["Anleitung erneut öffnen", "Klicke in der Seitenleiste oder in den Einstellungen auf „Anleitung“ und springe zum gewünschten Kapitel."],
+        ["Benachrichtigungen", "Kanal und Tagesübersicht einstellen."],
+        ["Outlook-Kalender", "Persönlichen Kalenderlink erstellen und in Outlook abonnieren."],
+        ["Einsichtsrechte", "Erteilte Freigaben und letzte Zugriffe ansehen."],
       ],
     },
   ];
@@ -152,7 +148,7 @@ const useStyles = makeStyles({
   view: { flex: 1, overflowY: "auto", minWidth: 0, color: tokens.colorNeutralForeground1 },
   heading: {
     display: "flex", alignItems: "center", gap: "10px", margin: 0,
-    padding: "22px 28px 14px", fontSize: tokens.fontSizeBase500, fontWeight: tokens.fontWeightSemibold,
+    padding: "22px 28px 14px", fontSize: tokens.fontSizeBase600, fontWeight: tokens.fontWeightSemibold,
     "@media (max-width: 760px)": { padding: "16px 16px 12px 56px" },
   },
   headingIcon: { color: tokens.colorBrandForeground1, fontSize: "22px" },
@@ -174,10 +170,10 @@ const useStyles = makeStyles({
   label: { fontWeight: tokens.fontWeightSemibold, color: tokens.colorNeutralForeground1 },
   title: {
     margin: 0, maxWidth: "22ch", color: tokens.colorNeutralForeground1,
-    fontSize: "clamp(26px, 4vw, 38px)", lineHeight: 1.12, fontWeight: tokens.fontWeightSemibold,
+    fontSize: "clamp(30px, 4vw, 44px)", lineHeight: 1.12, fontWeight: tokens.fontWeightSemibold,
     overflowWrap: "anywhere",
   },
-  intro: { maxWidth: "60ch", color: tokens.colorNeutralForeground2, lineHeight: "23px" },
+  intro: { maxWidth: "52ch", color: tokens.colorNeutralForeground2, fontSize: "18px", lineHeight: "26px" },
   content: {
     display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(185px, 0.8fr)", gap: "24px",
     padding: "clamp(16px, 4vw, 30px)",
@@ -188,9 +184,9 @@ const useStyles = makeStyles({
   marker: {
     display: "grid", placeItems: "center", width: "24px", height: "24px",
     borderRadius: "50%", backgroundColor: tokens.colorBrandBackground2, color: tokens.colorNeutralForeground1,
-    fontSize: tokens.fontSizeBase200, fontWeight: tokens.fontWeightSemibold,
+    fontSize: tokens.fontSizeBase300, fontWeight: tokens.fontWeightSemibold,
   },
-  stepDetail: { color: tokens.colorNeutralForeground2, lineHeight: "21px" },
+  stepDetail: { color: tokens.colorNeutralForeground2, lineHeight: "24px" },
   side: { minWidth: 0, display: "grid", alignContent: "start", gap: "12px" },
   example: {
     display: "grid", gap: "8px", padding: "14px",
@@ -202,7 +198,7 @@ const useStyles = makeStyles({
     borderRadius: tokens.borderRadiusMedium, backgroundColor: tokens.colorNeutralBackground1,
   },
   practiceIcon: { flexShrink: 0, fontSize: "20px", color: tokens.colorBrandForeground1 },
-  feedback: { lineHeight: "20px", minHeight: "20px" },
+  feedback: { lineHeight: "22px", minHeight: "22px" },
   address: { display: "flex", flexWrap: "wrap", gap: "8px", alignItems: "center", overflowWrap: "anywhere" },
   footer: {
     display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: "8px",
@@ -214,6 +210,7 @@ const useStyles = makeStyles({
   },
   chapter: {
     padding: "8px 10px", color: tokens.colorNeutralForeground2, textDecorationLine: "none",
+    fontSize: tokens.fontSizeBase400, lineHeight: "22px",
     borderRadius: tokens.borderRadiusMedium, ":hover": { backgroundColor: tokens.colorNeutralBackground1Hover },
   },
   active: { color: tokens.colorBrandForeground1, backgroundColor: tokens.colorNeutralBackground1, fontWeight: tokens.fontWeightSemibold },
@@ -234,17 +231,17 @@ function Practice({ exercise, today }: { exercise: Exercise; today: string }) {
   const [done, setDone] = useState(false);
   return (
     <div className={styles.example}>
-      <Text weight="semibold">Hier ausprobieren</Text>
+      <Text size={400} weight="semibold">Hier ausprobieren</Text>
       <div className={styles.practiceRow}>
         <span className={styles.practiceIcon} aria-hidden="true">{practiceIcon(exercise.icon, done)}</span>
         <div>
-          <Text block strikethrough={done && exercise.icon === "check"}>{exercise.prompt}</Text>
-          {done && exercise.icon === "date" && <Text size={200}>{longDate(today)}</Text>}
-          {done && exercise.icon === "person" && <Text size={200}>Verantwortlich: Alex</Text>}
+          <Text block size={400} strikethrough={done && exercise.icon === "check"}>{exercise.prompt}</Text>
+          {done && exercise.icon === "date" && <Text>{longDate(today)}</Text>}
+          {done && exercise.icon === "person" && <Text>Verantwortlich: Alex</Text>}
         </div>
       </div>
-      <Button onClick={() => setDone(!done)}>{done ? "Beispiel zurücksetzen" : exercise.action}</Button>
-      <Text size={200} className={styles.feedback} role="status">{done ? exercise.result : "Übung mit Beispieldaten."}</Text>
+      <Button size="large" onClick={() => setDone(!done)}>{done ? "Beispiel zurücksetzen" : exercise.action}</Button>
+      <Text className={styles.feedback} role="status">{done ? exercise.result : "Übung mit Beispieldaten."}</Text>
     </div>
   );
 }
@@ -261,14 +258,14 @@ function QuickAddPractice({ today }: { today: string }) {
   ].filter(Boolean);
   return (
     <div className={styles.example}>
-      <Field label="Schnelleingabe ausprobieren" hint="Ändere „morgen“ zu „Freitag“ und sieh dir das Ergebnis an.">
-        <Input value={input} onChange={(_, data) => setInput(data.value)} />
+      <Field size="large" label="Schnelleingabe ausprobieren" hint="Ersetze „morgen“ durch „Freitag“.">
+        <Input size="large" value={input} onChange={(_, data) => setInput(data.value)} />
       </Field>
       <div className={styles.example} aria-live="polite">
         {input.trim() ? (
           <>
-            <Text weight="semibold">{parsed.title}</Text>
-            {details.map((detail) => <Text key={detail}>{detail}</Text>)}
+            <Text size={400} weight="semibold">{parsed.title}</Text>
+            {details.map((detail) => <Text size={400} key={detail}>{detail}</Text>)}
           </>
         ) : <Text>Gib einen Titel und zum Beispiel eine Frist ein.</Text>}
       </div>
@@ -309,7 +306,7 @@ export function GuideView({ topic }: { topic?: string }) {
       <div className={styles.layout}>
         <article className={styles.slide} aria-labelledby="guide-chapter">
           <header className={styles.banner}>
-            <Text className={styles.label}>{chapter.label}</Text>
+            <Text size={400} className={styles.label}>{chapter.label}</Text>
             <h2 className={styles.title} id="guide-chapter" ref={heading} tabIndex={-1}>{chapter.title}</h2>
             <Text className={styles.intro}>{chapter.intro}</Text>
           </header>
@@ -319,8 +316,8 @@ export function GuideView({ topic }: { topic?: string }) {
                 <li key={action} className={styles.step}>
                   <span className={styles.marker} aria-hidden="true">{i + 1}</span>
                   <div>
-                    <Text block weight="semibold">{action}</Text>
-                    <Text block className={styles.stepDetail}>{detail}</Text>
+                    <Text block size={400} weight="semibold">{action}</Text>
+                    <Text block size={400} className={styles.stepDetail}>{detail}</Text>
                   </div>
                 </li>
               ))}
@@ -329,17 +326,11 @@ export function GuideView({ topic }: { topic?: string }) {
               {chapter.id === "erfassen" && <QuickAddPractice today={me.today} />}
               {chapter.id === "mail" && me.mailInboxAddress && (
                 <div className={styles.example}>
-                  <Text weight="semibold">Dein Aufgaben-Postfach</Text>
+                  <Text size={400} weight="semibold">Dein Aufgaben-Postfach</Text>
                   <div className={styles.address}>
-                    <Text>{me.mailInboxAddress}</Text>
-                    <Button size="small" onClick={() => void copyAddress()}>Adresse kopieren</Button>
+                    <Text size={400}>{me.mailInboxAddress}</Text>
+                    <Button onClick={() => void copyAddress()}>Adresse kopieren</Button>
                   </div>
-                </div>
-              )}
-              {chapter.example && (
-                <div className={styles.example}>
-                  <Text weight="semibold">{chapter.example.label}</Text>
-                  {chapter.example.lines.map((line) => <Text key={line}>{line}</Text>)}
                 </div>
               )}
               {chapter.exercise && <Practice key={chapter.id} exercise={chapter.exercise} today={me.today} />}
@@ -347,13 +338,13 @@ export function GuideView({ topic }: { topic?: string }) {
           </div>
           <footer className={styles.footer}>
             {previous ? (
-              <Button as="a" href={chapterHref(previous)} icon={<ArrowLeftRegular />}>Zurück</Button>
+              <Button as="a" size="large" href={chapterHref(previous)} icon={<ArrowLeftRegular />}>Zurück</Button>
             ) : <span />}
-            <Text size={200} aria-label={`Kapitel ${index + 1} von ${chapters.length}`}>{index + 1} / {chapters.length}</Text>
+            <Text aria-label={`Kapitel ${index + 1} von ${chapters.length}`}>{index + 1} / {chapters.length}</Text>
             {next ? (
-              <Button as="a" appearance="primary" href={chapterHref(next)} icon={<ArrowRightRegular />} iconPosition="after">Weiter</Button>
+              <Button as="a" size="large" appearance="primary" href={chapterHref(next)} icon={<ArrowRightRegular />} iconPosition="after">Weiter</Button>
             ) : (
-              <Button as="a" appearance="primary" href={hrefFor({ page: "tasks", view: "mein-tag" })}>Zu „Mein Tag“</Button>
+              <Button as="a" size="large" appearance="primary" href={hrefFor({ page: "tasks", view: "mein-tag" })}>Zu „Mein Tag“</Button>
             )}
           </footer>
         </article>

@@ -258,6 +258,7 @@ export interface Me {
   /** KI-Vorschläge (Mistral) auf diesem Server eingeschaltet */
   aiAvailable: boolean;
   showInbox: boolean;
+  absencesEnabled: boolean;
 }
 
 /** Eigener Urlaub mit Vertretung (from/until: erster und letzter freier Tag). */

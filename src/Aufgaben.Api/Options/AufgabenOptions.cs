@@ -14,6 +14,8 @@ public sealed class AufgabenOptions
     /// <summary>Kommagetrennte E-Mail-Adressen oder UPNs für die persönliche Ansicht „Aufgaben“.</summary>
     public string InboxViewUsers { get; set; } = "";
 
+    public bool AbsencesEnabled { get; set; }
+
     public bool HasInboxView(string? email, string? upn) =>
         InboxViewUsers.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
             .Any(address => address.Equals(email, StringComparison.OrdinalIgnoreCase) ||

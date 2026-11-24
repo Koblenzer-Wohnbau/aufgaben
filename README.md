@@ -27,7 +27,7 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 * **Warte auf …** und **Später**: Aufgabe auf „Warte auf Fa. Müller“ setzen oder bis Montag zurückstellen. Sie
   ist über die Suche auffindbar und steht am Tag zum Nachhaken wieder in „Mein Tag“,
   mit Erinnerung per Teams oder E-Mail. Eine Fälligkeit holt sie immer früher zurück
-* **Urlaubsübergabe**: Urlaub mit Vertretung eintragen, dann für jede Aufgabe, die im Urlaub fällig wird, entscheiden:
+* **Urlaubsübergabe** (optional, `Aufgaben__AbsencesEnabled=true`): Urlaub mit Vertretung eintragen, dann für jede Aufgabe, die im Urlaub fällig wird, entscheiden:
   an die Vertretung übergeben (mit Hinweis) oder bis nach dem Urlaub zurückstellen, auf Wunsch alles mit einem Klick.
   Die Vertretung sieht ein Banner mit den übergebenen Aufgaben; nach der Rückkehr zeigt „Mein Tag“, was passiert ist,
   und holt Offenes mit „Zurück an mich“ zurück. Im Urlaub kommt keine Tagesübersicht
@@ -53,6 +53,10 @@ oder Entra-UPNs der gewünschten Personen kommagetrennt in `Aufgaben__InboxViewU
 ein und erstelle den App-Container neu. Für alle anderen enthält **Geplant** auch lose Aufgaben
 ohne Termin. Die Seitenleiste blendet Projektkanäle, Vorlagen und Warteschleife aus. Bestehende
 Teams-Kanaltabs und gespeicherte Direktlinks zu diesen Ansichten funktionieren weiter.
+
+**Urlaub und Vertretung** ist standardmäßig ausgeschaltet. Setze `Aufgaben__AbsencesEnabled=true` in
+`.env` und erstelle den App-Container neu, um die Funktion zu aktivieren. Beim Ausschalten bleiben
+bestehende Urlaubspläne und bereits erfolgte Zuweisungen gespeichert.
 
 ## Aufbau
 

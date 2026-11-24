@@ -228,7 +228,10 @@ api.MapTaskEndpoints();
 api.MapAppEndpoints();
 api.MapAiEndpoints();
 api.MapAccessEndpoints();
-api.MapAbsenceEndpoints();
+if (app.Services.GetRequiredService<IOptions<AufgabenOptions>>().Value.AbsencesEnabled)
+{
+    api.MapAbsenceEndpoints();
+}
 api.MapEventStream();
 api.MapTeamsDrafts();
 app.MapTeamsBot(opts);

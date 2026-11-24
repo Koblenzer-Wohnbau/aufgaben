@@ -219,6 +219,10 @@ public sealed class TaskService(
                 q = Trash();
                 break;
             case "vertretung":
+                if (!options.Value.AbsencesEnabled)
+                {
+                    throw ApiException.NotFound("Ansicht");
+                }
                 // Was mir jemand für seinen Urlaub übergeben hat, nur, was mir (noch) zugewiesen ist.
                 var absenceId = id ?? throw ApiException.Invalid("Abwesenheit fehlt.");
                 var handedOver = AbsenceTask.HandedOver;

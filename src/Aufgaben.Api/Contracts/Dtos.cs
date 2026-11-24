@@ -233,7 +233,8 @@ public sealed record MeDto(
     string? MailInboxAddress,
     bool DigestOnWeekends,
     bool AiAvailable,
-    bool ShowInbox);
+    bool ShowInbox,
+    bool AbsencesEnabled);
 
 public sealed record MeRequest(string? NotifyChannel, bool? DigestEnabled);
 

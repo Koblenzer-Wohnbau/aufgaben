@@ -97,7 +97,8 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
         var db = sp.GetRequiredService<AppDbContext>();
         var clock = sp.GetRequiredService<AppClock>();
         var outbox = sp.GetRequiredService<NotificationOutbox>();
-        var opts = sp.GetRequiredService<IOptions<AufgabenOptions>>().Value.Worker;
+        var settings = sp.GetRequiredService<IOptions<AufgabenOptions>>().Value;
+        var opts = settings.Worker;
 
         var local = clock.LocalNow;
         var today = clock.Today;
@@ -110,12 +111,14 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
             return;
         }
 
-        var users = await db.Users
-            .Where(u => u.IsActive && u.DigestEnabled && u.NotifyChannel != "aus" && (u.LastDigestOn == null || u.LastDigestOn < today))
-            // Im Urlaub keine Tagesübersicht
-            .Where(u => !db.Absences.Any(a => a.UserId == u.Id && a.ClosedAt == null && a.From <= today && a.Until >= today))
-            .Take(500)
-            .ToListAsync(ct);
+        var eligible = db.Users
+            .Where(u => u.IsActive && u.DigestEnabled && u.NotifyChannel != "aus" && (u.LastDigestOn == null || u.LastDigestOn < today));
+        if (settings.AbsencesEnabled)
+        {
+            // Nur bei aktivierter Urlaubsfunktion fällt die Tagesübersicht im Urlaub aus.
+            eligible = eligible.Where(u => !db.Absences.Any(a => a.UserId == u.Id && a.ClosedAt == null && a.From <= today && a.Until >= today));
+        }
+        var users = await eligible.Take(500).ToListAsync(ct);
         foreach (var user in users)
         {
             user.LastDigestOn = today;

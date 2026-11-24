@@ -201,7 +201,7 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
   const access = useQuery({ queryKey: ["access-mine"], queryFn: api.accessMine, enabled: route.view === "person", staleTime: 60_000 });
   const grant = route.view === "person" ? access.data?.find((a) => a.owner.id === route.id) : undefined;
   // Urlaubsübergabe: Banner der Vertretung und „Was ist passiert?“ in „Mein Tag“, Titel der Ansicht „Vertretung“
-  const absences = useQuery({ queryKey: ["absences"], queryFn: api.absenceStatus, staleTime: 60_000 });
+  const absences = useQuery({ queryKey: ["absences"], queryFn: api.absenceStatus, staleTime: 60_000, enabled: me.absencesEnabled });
   const represented = route.view === "vertretung" ? absences.data?.deputy.find((d) => d.absenceId === route.id) : undefined;
 
   const info: ViewInfo = useMemo(() => {
@@ -597,8 +597,8 @@ export function TaskView({ route, compact }: { route: Extract<Route, { page: "ta
       )}
 
       <div className={`${styles.list} ${compact ? styles.compactList : ""}`}>
-        {myDay && absences.data?.returned && <ReturnSummary absence={absences.data.returned} />}
-        {myDay && absences.data?.deputy.map((d) => <DeputyBanner key={d.absenceId} deputy={d} />)}
+        {myDay && me.absencesEnabled && absences.data?.returned && <ReturnSummary absence={absences.data.returned} />}
+        {myDay && me.absencesEnabled && absences.data?.deputy.map((d) => <DeputyBanner key={d.absenceId} deputy={d} />)}
         {query.isLoading && <Spinner style={{ marginTop: 32 }} />}
         {query.error && (
           <MessageBar intent="error">

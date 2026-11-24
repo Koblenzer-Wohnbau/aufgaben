@@ -17,7 +17,7 @@ import { api, ApiError } from "./api";
 import { AppContext, type AppData } from "./context";
 import type { AiInput } from "./types";
 import { connectLive } from "./realtime";
-import { hrefFor, useRoute, type Route } from "./route";
+import { hrefFor, useRoute } from "./route";
 import { inChannelTab, inTeams, type TeamsInfo } from "./teams";
 import { LoginScreen } from "./components/LoginScreen";
 import { Sidebar } from "./components/Sidebar";
@@ -112,8 +112,12 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
   const styles = useStyles();
   const requestedRoute = useRoute();
   const me = useQuery({ queryKey: ["me"], queryFn: api.me });
-  const hiddenInbox = requestedRoute.page === "tasks" && requestedRoute.view === "aufgaben" && !me.data?.showInbox;
-  const route: Route = hiddenInbox ? { page: "tasks", view: "geplant" } : requestedRoute;
+  let route = requestedRoute;
+  if (requestedRoute.page === "tasks") {
+    if (requestedRoute.view === "aufgaben" && !me.data?.showInbox) route = { page: "tasks", view: "geplant" };
+    if (requestedRoute.view === "vertretung" && !me.data?.absencesEnabled) route = { page: "tasks", view: "zugewiesen" };
+  }
+  const redirect = route !== requestedRoute ? hrefFor(route) : null;
   const queryClient = useQueryClient();
   const toasterId = useId("toaster");
   const { dispatchToast } = useToastController(toasterId);
@@ -135,8 +139,8 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
 
   useEffect(() => {
     if (requestedRoute.page === "tasks" && requestedRoute.taskId) setTaskId(requestedRoute.taskId);
-    if (hiddenInbox) window.location.replace(hrefFor({ page: "tasks", view: "geplant" }));
-  }, [requestedRoute, hiddenInbox]);
+    if (redirect) window.location.replace(redirect);
+  }, [requestedRoute, redirect]);
 
   useEffect(
     () =>
@@ -336,7 +340,7 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
           <SettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} inTeams={inTeams} />
         </Suspense>
       )}
-      {absenceOpen && (
+      {data.me.absencesEnabled && absenceOpen && (
         <Suspense fallback={null}>
           <AbsenceDialog onClose={() => setAbsenceOpen(false)} />
         </Suspense>

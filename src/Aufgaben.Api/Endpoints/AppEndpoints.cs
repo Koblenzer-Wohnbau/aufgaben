@@ -72,7 +72,8 @@ public static class AppEndpoints
         o.MailInbox.Enabled && !string.IsNullOrWhiteSpace(o.MailInbox.Address) ? o.MailInbox.Address : null,
         o.Worker.DigestOnWeekends,
         ai.IsConfigured,
-        o.HasInboxView(u.Email, u.Upn));
+        o.HasInboxView(u.Email, u.Upn),
+        o.AbsencesEnabled);
 
     // ------------------------------------------------------------------ Personen
 

@@ -3,9 +3,11 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Aufgaben.Api.Contracts;
 using Aufgaben.Api.Data;
+using Aufgaben.Api.Options;
 using Aufgaben.Api.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
@@ -18,6 +20,7 @@ public sealed class AppFixture : IAsyncLifetime
     private readonly PostgreSqlContainer _db = new PostgreSqlBuilder("postgres:17-alpine").Build();
 
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
+    public WebApplicationFactory<Program> WithAbsences { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
@@ -42,6 +45,8 @@ public sealed class AppFixture : IAsyncLifetime
         }
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b.UseEnvironment("Testing"));
         _ = Factory.Server; // App starten (Migration + Testdaten)
+        WithAbsences = Factory.WithWebHostBuilder(b => b.ConfigureTestServices(services =>
+            services.PostConfigure<AufgabenOptions>(o => o.AbsencesEnabled = true)));
     }
 
     public async Task DisposeAsync()
@@ -51,9 +56,9 @@ public sealed class AppFixture : IAsyncLifetime
     }
 
     /// <summary>HTTP-Client, der als Testperson angemeldet ist.</summary>
-    public async Task<HttpClient> LoginAsync(string oid)
+    public async Task<HttpClient> LoginAsync(string oid, WebApplicationFactory<Program>? factory = null)
     {
-        var client = Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+        var client = (factory ?? Factory).CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
         var res = await client.GetAsync($"/auth/dev-login?oid={oid}");
         Assert.Equal(HttpStatusCode.Redirect, res.StatusCode);
         client.DefaultRequestHeaders.Add("X-Aufgaben-Request", "1");
