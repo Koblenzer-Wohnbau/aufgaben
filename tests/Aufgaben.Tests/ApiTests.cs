@@ -3,11 +3,9 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Aufgaben.Api.Contracts;
 using Aufgaben.Api.Data;
-using Aufgaben.Api.Options;
 using Aufgaben.Api.Services;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Testcontainers.PostgreSql;
@@ -17,10 +15,10 @@ namespace Aufgaben.Tests;
 /// <summary>Startet PostgreSQL in Docker und die App einmal für alle API-Tests.</summary>
 public sealed class AppFixture : IAsyncLifetime
 {
+    public const string ConfiguredAdminOid = "2a91ec19-fffe-4b10-83ec-fec22d29c212";
     private readonly PostgreSqlContainer _db = new PostgreSqlBuilder("postgres:17-alpine").Build();
 
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
-    public WebApplicationFactory<Program> WithAbsences { get; private set; } = null!;
 
     public async Task InitializeAsync()
     {
@@ -35,6 +33,7 @@ public sealed class AppFixture : IAsyncLifetime
             ["Aufgaben__Worker__Enabled"] = "false",
             ["Aufgaben__Directory__SyncEnabled"] = "false",
             ["Aufgaben__InboxViewUsers"] = " THOMAS.BECKER@example.test, jonas.wagner@example.test ",
+            ["Aufgaben__Auth__AdminObjectId"] = ConfiguredAdminOid,
             // Datenschutzhinweise: Speicherdauer fehlt absichtlich (siehe PrivacyPageApiTests)
             ["Aufgaben__Privacy__Controller"] = "Beispiel GmbH | Musterstraße 1 | 12345 Musterstadt",
             ["Aufgaben__Privacy__DpoContact"] = "<script>alert(1)</script> | datenschutz@example.test",
@@ -45,8 +44,6 @@ public sealed class AppFixture : IAsyncLifetime
         }
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b => b.UseEnvironment("Testing"));
         _ = Factory.Server; // App starten (Migration + Testdaten)
-        WithAbsences = Factory.WithWebHostBuilder(b => b.ConfigureTestServices(services =>
-            services.PostConfigure<AufgabenOptions>(o => o.AbsencesEnabled = true)));
     }
 
     public async Task DisposeAsync()
@@ -56,9 +53,9 @@ public sealed class AppFixture : IAsyncLifetime
     }
 
     /// <summary>HTTP-Client, der als Testperson angemeldet ist.</summary>
-    public async Task<HttpClient> LoginAsync(string oid, WebApplicationFactory<Program>? factory = null)
+    public async Task<HttpClient> LoginAsync(string oid)
     {
-        var client = (factory ?? Factory).CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
+        var client = Factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, HandleCookies = true });
         var res = await client.GetAsync($"/auth/dev-login?oid={oid}");
         Assert.Equal(HttpStatusCode.Redirect, res.StatusCode);
         client.DefaultRequestHeaders.Add("X-Aufgaben-Request", "1");

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import {
+  Avatar,
   Badge,
   Button,
   Caption1,
@@ -19,6 +20,7 @@ import {
   Radio,
   RadioGroup,
   Spinner,
+  Switch,
   Tab,
   TabList,
   Text,
@@ -36,6 +38,7 @@ import {
   MailInboxRegular,
   PrintRegular,
   ProhibitedRegular,
+  SearchRegular,
   ShieldPersonRegular,
 } from "@fluentui/react-icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -48,8 +51,14 @@ import type { AccessGrant, UserRef } from "../types";
 import { PersonPicker } from "./PersonPicker";
 
 const useStyles = makeStyles({
-  view: { flex: 1, overflowY: "auto", padding: "20px 32px 48px" },
-  header: { display: "flex", alignItems: "center", gap: "12px", marginBottom: "4px" },
+  view: {
+    flex: 1, overflowY: "auto", padding: "20px 32px 48px",
+    "@media (max-width: 760px)": { padding: "14px 16px 32px" },
+  },
+  header: {
+    display: "flex", alignItems: "center", gap: "12px", marginBottom: "4px",
+    "@media (max-width: 760px)": { paddingLeft: "38px" },
+  },
   icon: { fontSize: "28px", color: tokens.colorBrandForeground1, display: "flex" },
   muted: { color: tokens.colorNeutralForeground3 },
   toolbar: { display: "flex", gap: "8px", margin: "16px 0", flexWrap: "wrap", alignItems: "center" },
@@ -79,16 +88,18 @@ function statusBadge(g: AccessGrant) {
   return g.isCurrentlyActive ? <Badge appearance="tint" color="success">Aktiv</Badge> : <Badge appearance="tint" color="informative">Bestätigt, nicht im Zeitraum</Badge>;
 }
 
+type AdminTab = "einsicht" | "funktionen" | "system";
+
 export function AdminView() {
   const styles = useStyles();
   const { me } = useApp();
-  const [tab, setTab] = useState<"einsicht" | "system">("einsicht");
+  const [tab, setTab] = useState<AdminTab>("einsicht");
 
   if (!me.isAdmin) {
     return (
       <div className={styles.view}>
         <MessageBar intent="warning">
-          <MessageBarBody>Dieser Bereich ist nur für die Verwaltung (App-Rolle Aufgaben.Admin).</MessageBarBody>
+          <MessageBarBody>Dieser Bereich ist nur für die Verwaltung.</MessageBarBody>
         </MessageBar>
       </div>
     );
@@ -102,11 +113,109 @@ export function AdminView() {
         </span>
         <Title2 as="h1">Verwaltung</Title2>
       </div>
-      <TabList selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as "einsicht" | "system")}>
+      <TabList selectedValue={tab} onTabSelect={(_, d) => setTab(d.value as AdminTab)} style={{ flexWrap: "wrap" }}>
         <Tab value="einsicht">Einsichtsrechte</Tab>
+        <Tab value="funktionen">Funktionen</Tab>
         <Tab value="system">System</Tab>
       </TabList>
-      {tab === "einsicht" ? <AccessSection /> : <SystemSection />}
+      {tab === "einsicht" && <AccessSection />}
+      {tab === "funktionen" && <FeatureSection />}
+      {tab === "system" && <SystemSection />}
+    </div>
+  );
+}
+
+const useFeatureStyles = makeStyles({
+  panel: { display: "grid", gap: "16px", maxWidth: "760px", marginTop: "18px" },
+  section: { padding: "16px", gap: "12px" },
+  row: { display: "flex", alignItems: "center", gap: "10px", justifyContent: "space-between" },
+  subtitle: { margin: 0 },
+  person: { display: "flex", alignItems: "center", gap: "10px", minWidth: 0 },
+  name: { overflowWrap: "anywhere" },
+  list: { listStyleType: "none", margin: 0, padding: 0 },
+  listRow: { padding: "8px 0", borderTop: `1px solid ${tokens.colorNeutralStroke2}` },
+});
+
+function FeatureSection() {
+  const styles = useFeatureStyles();
+  const { me, notify } = useApp();
+  const queryClient = useQueryClient();
+  const config = useQuery({ queryKey: ["admin-features"], queryFn: api.adminFeatures });
+  const [search, setSearch] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const save = async (change: () => Promise<void>, updateMyViews: boolean) => {
+    setSaving(true);
+    try {
+      await change();
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["admin-features"] }),
+        ...(updateMyViews ? [queryClient.invalidateQueries({ queryKey: ["me"] })] : []),
+      ]);
+      notify("Freigabe gespeichert");
+    } catch (e) {
+      notify(e instanceof Error ? e.message : "Speichern fehlgeschlagen", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (config.isPending) return <Spinner label="Lade Funktionen …" />;
+  if (config.isError) {
+    return (
+      <MessageBar intent="error">
+        <MessageBarBody>{config.error.message}</MessageBarBody>
+      </MessageBar>
+    );
+  }
+
+  const q = search.trim().toLocaleLowerCase("de");
+  const people = config.data.users.filter(({ person }) => [person.name, person.email].some((value) => value?.toLocaleLowerCase("de").includes(q)));
+  const enabledCount = config.data.users.filter((user) => user.inboxEnabled).length;
+
+  return (
+    <div className={styles.panel}>
+      <Card className={styles.section}>
+        <div className={styles.row}>
+          <div>
+            <Text as="h2" size={500} weight="semibold" className={styles.subtitle}>Urlaub und Vertretung</Text>
+            <Text block>Gilt für die gesamte Organisation.</Text>
+          </div>
+          <Switch
+            aria-label="Urlaub und Vertretung"
+            checked={config.data.absencesEnabled}
+            disabled={saving}
+            onChange={(_, d) => void save(() => api.setAbsencesEnabled(d.checked), true)}
+          />
+        </div>
+      </Card>
+      <Card className={styles.section}>
+        <Text as="h2" size={500} weight="semibold" className={styles.subtitle}>Ansicht „Aufgaben“</Text>
+        <Text>Freigabe pro Person. Sonst sind offene Aufgaben ohne Liste unter „Geplant“ zu finden.</Text>
+        <Input aria-label="Person suchen" placeholder="Name oder E-Mail" contentBefore={<SearchRegular />} value={search}
+          onChange={(_, d) => setSearch(d.value)} />
+        <Text size={200}>{enabledCount} von {config.data.users.length} freigegeben</Text>
+        {people.length === 0 && <Text>Keine Personen gefunden.</Text>}
+        <ul className={styles.list} role="list">
+          {people.map(({ person, inboxEnabled }) => (
+            <li key={person.id} className={`${styles.row} ${styles.listRow}`}>
+              <div className={styles.person}>
+                <Avatar name={person.name} size={32} color="colorful" />
+                <div className={styles.name}>
+                  <Text block weight="semibold">{person.name}{person.id === me.id ? " (du)" : ""}</Text>
+                  {person.email && <Text block size={200}>{person.email}</Text>}
+                </div>
+              </div>
+              <Switch
+                aria-label={`Ansicht Aufgaben für ${person.name}`}
+                checked={inboxEnabled}
+                disabled={saving}
+                onChange={(_, d) => void save(() => api.setInboxEnabled(person.id, d.checked), person.id === me.id)}
+              />
+            </li>
+          ))}
+        </ul>
+      </Card>
     </div>
   );
 }

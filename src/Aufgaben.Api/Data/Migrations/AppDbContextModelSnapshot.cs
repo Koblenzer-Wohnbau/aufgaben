@@ -250,6 +250,23 @@ namespace Aufgaben.Api.Data.Migrations
                     b.ToTable("checklist_items", (string)null);
                 });
 
+            modelBuilder.Entity("Aufgaben.Api.Data.FeatureSettings", b =>
+                {
+                    b.Property<int>("Id")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("AbsencesEnabled")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ImportedInboxUsers")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("feature_settings", (string)null);
+                });
+
             modelBuilder.Entity("Aufgaben.Api.Data.InboundMail", b =>
                 {
                     b.Property<long>("Id")
@@ -780,6 +797,9 @@ namespace Aufgaben.Api.Data.Migrations
                     b.Property<string>("IcsTokenHash")
                         .HasMaxLength(64)
                         .HasColumnType("character varying(64)");
+
+                    b.Property<bool?>("InboxViewEnabled")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");

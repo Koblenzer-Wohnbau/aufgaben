@@ -9,18 +9,20 @@ namespace Aufgaben.Api.Auth;
 public sealed class CurrentUser
 {
     private User? _user;
+    private bool _configuredAdmin;
 
     public bool IsSet => _user is not null;
     public bool ViaTeams { get; private set; }
 
     public User User => _user ?? throw new ApiException(401, "Bitte zuerst anmelden.");
     public int Id => User.Id;
-    public bool IsAdmin => User.IsAdmin;
+    public bool IsAdmin => User.IsAdmin || _configuredAdmin;
 
-    internal void Set(User user, bool viaTeams)
+    internal void Set(User user, bool viaTeams, bool configuredAdmin = false)
     {
         _user = user;
         ViaTeams = viaTeams;
+        _configuredAdmin = configuredAdmin;
     }
 }
 
@@ -180,7 +182,7 @@ public sealed class CurrentUserMiddleware(RequestDelegate next)
             }
             else
             {
-                current.Set(user, bearer);
+                current.Set(user, bearer, options.Value.Auth.IsConfiguredAdmin(ctx.User.Oid()));
             }
         }
         await next(ctx);

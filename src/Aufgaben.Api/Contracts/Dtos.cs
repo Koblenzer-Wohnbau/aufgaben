@@ -238,6 +238,12 @@ public sealed record MeDto(
 
 public sealed record MeRequest(string? NotifyChannel, bool? DigestEnabled);
 
+public sealed record UserFeaturesDto(UserRef Person, bool InboxEnabled);
+
+public sealed record AdminFeaturesDto(bool AbsencesEnabled, List<UserFeaturesDto> Users);
+
+public sealed record FeatureToggleRequest(bool? Enabled);
+
 public sealed record CalendarFeedDto(string Url);
 
 public sealed record TemplateStepDto(int Id, int Position, string Title, string Notes, int OffsetDays, string Priority, List<string> Checklist, string RoleHint);

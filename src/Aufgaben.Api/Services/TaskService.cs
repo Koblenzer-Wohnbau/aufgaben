@@ -5,10 +5,8 @@ using Aufgaben.Api.Auth;
 using Aufgaben.Api.Contracts;
 using Aufgaben.Api.Data;
 using Aufgaben.Api.Infrastructure;
-using Aufgaben.Api.Options;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
-using Microsoft.Extensions.Options;
 
 namespace Aufgaben.Api.Services;
 
@@ -25,7 +23,7 @@ public sealed class TaskService(
     AppClock clock,
     RealtimeHub hub,
     NotificationOutbox outbox,
-    IOptions<AufgabenOptions> options)
+    FeatureSettingsStore features)
 {
     public const int MaxTitle = 500;
     public const int MaxNotes = 20000;
@@ -47,8 +45,6 @@ public sealed class TaskService(
     /// </summary>
     private static Expression<Func<TaskItem, bool>> Present(DateOnly today) =>
         t => t.SnoozedUntil == null || t.SnoozedUntil <= today || t.DueDate <= today;
-
-    private bool HasInboxView => options.Value.HasInboxView(me.User.Email, me.User.Upn);
 
     internal IQueryable<TaskItem> Base() => Base(db.Tasks);
 
@@ -160,7 +156,7 @@ public sealed class TaskService(
                 break;
             case "geplant":
                 // Ohne eigenen Posteingang bleiben lose Aufgaben unter „Geplant“ auffindbar.
-                var includeUnfiled = !HasInboxView;
+                var includeUnfiled = !(await features.GetAsync(ct)).HasInboxView(me.User);
                 q = q.Where(t => t.AssigneeId == u && t.Status == open
                     && (t.DueDate != null || (includeUnfiled && t.ListId == null))).Where(present);
                 break;
@@ -178,7 +174,7 @@ public sealed class TaskService(
                 q = q.Where(t => t.AssigneeId == u && t.Status == open && (t.WaitingFor != "" || t.SnoozedUntil > today));
                 break;
             case "aufgaben":
-                if (!HasInboxView)
+                if (!(await features.GetAsync(ct)).HasInboxView(me.User))
                 {
                     throw ApiException.NotFound("Ansicht");
                 }
@@ -219,7 +215,7 @@ public sealed class TaskService(
                 q = Trash();
                 break;
             case "vertretung":
-                if (!options.Value.AbsencesEnabled)
+                if (!(await features.GetAsync(ct)).AbsencesEnabled)
                 {
                     throw ApiException.NotFound("Ansicht");
                 }
@@ -284,7 +280,7 @@ public sealed class TaskService(
         var mine = db.Tasks.Where(t => t.Status == open && (t.AssigneeId == u || t.CreatedById == u));
 
         // Was in den eigenen Ansichten zu sehen ist: Zurückgestelltes zählt erst ab seinem Tag (siehe Present).
-        var includeUnfiled = !HasInboxView;
+        var includeUnfiled = !(await features.GetAsync(ct)).HasInboxView(me.User);
         var own = await mine
             .Where(t => t.AssigneeId == u)
             .Where(Present(today))

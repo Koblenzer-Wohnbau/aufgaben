@@ -1,6 +1,6 @@
 import type {
   Absence, AbsenceDecision, AbsenceItem, AbsencePlan, AbsenceStatus, AbsenceSummary,
-  AccessGrant, AccessLogEntry, AdminStatus, AiSuggestion, Attachment, AuthConfig, BulkAction, BulkResult, Counts, MyAccess, CreateTask, Me, Project, Suggestions, Task, TaskDetail, TaskEvent, TaskList, TeamsDraft, Template, UserRef, ViewKey,
+  AccessGrant, AccessLogEntry, AdminFeatures, AdminStatus, AiSuggestion, Attachment, AuthConfig, BulkAction, BulkResult, Counts, MyAccess, CreateTask, Me, Project, Suggestions, Task, TaskDetail, TaskEvent, TaskList, TeamsDraft, Template, UserRef, ViewKey,
 } from "./types";
 
 export class ApiError extends Error {
@@ -208,6 +208,9 @@ export const api = {
   deleteAccess: (id: number) => request<void>("DELETE", `/api/admin/access/${id}`),
   accessLog: (id: number) => request<AccessLogEntry[]>("GET", `/api/admin/access/${id}/log`),
   adminStatus: () => request<AdminStatus>("GET", "/api/admin/status"),
+  adminFeatures: () => request<AdminFeatures>("GET", "/api/admin/features"),
+  setAbsencesEnabled: (enabled: boolean) => request<void>("PATCH", "/api/admin/features/absences", { enabled }),
+  setInboxEnabled: (userId: number, enabled: boolean) => request<void>("PATCH", `/api/admin/features/users/${userId}/inbox`, { enabled }),
   directorySync: () => request<{ added: number; updated: number; deactivated: number }>("POST", "/api/admin/directory-sync"),
   pollInbox: () => request<{ created: number; result: string }>("POST", "/api/admin/mail-inbox/poll"),
   downloadTeamsPackage: () => download("/api/admin/teams-package"),

@@ -23,6 +23,7 @@ public sealed class User
     public string? JobTitle { get; set; }
     public bool IsActive { get; set; } = true;
     public bool IsAdmin { get; set; }
+    public bool? InboxViewEnabled { get; set; }
     public string NotifyChannel { get; set; } = "auto";
     public bool DigestEnabled { get; set; } = true;
     public DateOnly? LastDigestOn { get; set; }
@@ -30,6 +31,20 @@ public sealed class User
     public DateTimeOffset? LastLoginAt { get; set; }
     public string? IcsTokenHash { get; set; }
     public DateTimeOffset CreatedAt { get; set; }
+}
+
+public sealed class FeatureSettings
+{
+    public const int SingletonId = 1;
+    public int Id { get; set; }
+    public bool AbsencesEnabled { get; set; }
+    public string ImportedInboxUsers { get; set; } = "";
+
+    public bool HasInboxView(User user) =>
+        user.InboxViewEnabled ?? ImportedInboxUsers
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Any(address => address.Equals(user.Email, StringComparison.OrdinalIgnoreCase) ||
+                            address.Equals(user.Upn, StringComparison.OrdinalIgnoreCase));
 }
 
 public sealed class Project

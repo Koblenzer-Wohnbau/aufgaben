@@ -122,6 +122,7 @@ builder.Services.AddScoped<CurrentUser>();
 builder.Services.AddScoped<UserProvisioning>();
 builder.Services.AddScoped<NotificationOutbox>();
 builder.Services.AddScoped<TaskService>();
+builder.Services.AddScoped<FeatureSettingsStore>();
 builder.Services.AddScoped<AbsenceService>();
 builder.Services.AddScoped<TemplateService>();
 builder.Services.AddScoped<DirectorySync>();
@@ -162,6 +163,7 @@ await using (var scope = app.Services.CreateAsyncScope())
     {
         await db.Database.MigrateAsync();
     }
+    await FeatureSettingsStore.SeedAsync(db, opts, CancellationToken.None);
     if (opts.Auth.IsDev)
     {
         await Seed.DevDataAsync(db, clock, CancellationToken.None);
@@ -228,10 +230,7 @@ api.MapTaskEndpoints();
 api.MapAppEndpoints();
 api.MapAiEndpoints();
 api.MapAccessEndpoints();
-if (app.Services.GetRequiredService<IOptions<AufgabenOptions>>().Value.AbsencesEnabled)
-{
-    api.MapAbsenceEndpoints();
-}
+api.MapAbsenceEndpoints();
 api.MapEventStream();
 api.MapTeamsDrafts();
 app.MapTeamsBot(opts);

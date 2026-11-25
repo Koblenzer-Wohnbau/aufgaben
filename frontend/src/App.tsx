@@ -166,6 +166,13 @@ function Shell({ teams }: { teams: TeamsInfo | null }) {
           if (m.type === "absences") {
             void queryClient.invalidateQueries({ queryKey: ["absences"] });
           }
+          if (m.type === "features") {
+            void queryClient.invalidateQueries({ queryKey: ["admin-features"] });
+            void queryClient.invalidateQueries({ queryKey: ["me"] }).then(() => {
+              void queryClient.invalidateQueries({ queryKey: ["tasks"] });
+              void queryClient.invalidateQueries({ queryKey: ["counts"] });
+            });
+          }
           if (m.type === "verbunden") {
             void queryClient.invalidateQueries();
           }

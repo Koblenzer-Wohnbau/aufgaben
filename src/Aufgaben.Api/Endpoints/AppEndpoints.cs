@@ -29,10 +29,12 @@ public static class AppEndpoints
 
     private static void MapMe(RouteGroupBuilder api)
     {
-        api.MapGet("/me", (CurrentUser me, AppClock clock, TeamsNotifier teams, MailNotifier mail, MistralClient ai, IOptions<AufgabenOptions> opts) =>
-            ToMe(me.User, clock, teams, mail, ai, opts.Value));
+        api.MapGet("/me", async (CurrentUser me, AppClock clock, TeamsNotifier teams, MailNotifier mail, MistralClient ai,
+            IOptions<AufgabenOptions> opts, FeatureSettingsStore features, CancellationToken ct) =>
+            ToMe(me, clock, teams, mail, ai, opts.Value, await features.GetAsync(ct)));
 
-        api.MapPatch("/me", async (MeRequest req, CurrentUser me, AppDbContext db, AppClock clock, TeamsNotifier teams, MailNotifier mail, MistralClient ai, IOptions<AufgabenOptions> opts, CancellationToken ct) =>
+        api.MapPatch("/me", async (MeRequest req, CurrentUser me, AppDbContext db, AppClock clock, TeamsNotifier teams, MailNotifier mail,
+            MistralClient ai, IOptions<AufgabenOptions> opts, FeatureSettingsStore features, CancellationToken ct) =>
         {
             var user = me.User;
             if (req.NotifyChannel is not null)
@@ -46,7 +48,7 @@ public static class AppEndpoints
                 user.DigestEnabled = digest;
             }
             await db.SaveChangesAsync(ct);
-            return ToMe(user, clock, teams, mail, ai, opts.Value);
+            return ToMe(me, clock, teams, mail, ai, opts.Value, await features.GetAsync(ct));
         });
 
         api.MapPost("/me/calendar-feed", async (CurrentUser me, AppDbContext db, IOptions<AufgabenOptions> opts, CancellationToken ct) =>
@@ -65,15 +67,20 @@ public static class AppEndpoints
         });
     }
 
-    private static MeDto ToMe(User u, AppClock clock, TeamsNotifier teams, MailNotifier mail, MistralClient ai, AufgabenOptions o) => new(
-        u.Id, u.DisplayName, u.Email, u.IsAdmin, u.NotifyChannel, u.DigestEnabled,
-        u.TeamsSeenAt is not null, u.IcsTokenHash is not null, mail.IsAvailable, teams.IsAvailable,
-        clock.Today.ToString("yyyy-MM-dd"),
-        o.MailInbox.Enabled && !string.IsNullOrWhiteSpace(o.MailInbox.Address) ? o.MailInbox.Address : null,
-        o.Worker.DigestOnWeekends,
-        ai.IsConfigured,
-        o.HasInboxView(u.Email, u.Upn),
-        o.AbsencesEnabled);
+    private static MeDto ToMe(CurrentUser me, AppClock clock, TeamsNotifier teams, MailNotifier mail, MistralClient ai,
+        AufgabenOptions o, FeatureSettings features)
+    {
+        var u = me.User;
+        return new MeDto(
+            u.Id, u.DisplayName, u.Email, me.IsAdmin, u.NotifyChannel, u.DigestEnabled,
+            u.TeamsSeenAt is not null, u.IcsTokenHash is not null, mail.IsAvailable, teams.IsAvailable,
+            clock.Today.ToString("yyyy-MM-dd"),
+            o.MailInbox.Enabled && !string.IsNullOrWhiteSpace(o.MailInbox.Address) ? o.MailInbox.Address : null,
+            o.Worker.DigestOnWeekends,
+            ai.IsConfigured,
+            features.HasInboxView(u),
+            features.AbsencesEnabled);
+    }
 
     // ------------------------------------------------------------------ Personen
 
@@ -387,9 +394,41 @@ public static class AppEndpoints
             var me = ctx.HttpContext.RequestServices.GetRequiredService<CurrentUser>();
             if (!me.IsAdmin)
             {
-                throw ApiException.Forbidden("Nur für die Verwaltung (App-Rolle Aufgaben.Admin).");
+                throw ApiException.Forbidden("Nur für die Verwaltung.");
             }
             return await next(ctx);
+        });
+
+        admin.MapGet("/features", async (AppDbContext db, FeatureSettingsStore features, CancellationToken ct) =>
+        {
+            var settings = await features.GetAsync(ct);
+            var users = await db.Users.AsNoTracking().Where(u => u.IsActive)
+                .OrderBy(u => u.DisplayName).ThenBy(u => u.Id).ToListAsync(ct);
+            return new AdminFeaturesDto(settings.AbsencesEnabled,
+                users.Select(u => new UserFeaturesDto(UserRef.From(u), settings.HasInboxView(u))).ToList());
+        });
+
+        admin.MapPatch("/features/absences", async (FeatureToggleRequest req, AppDbContext db, RealtimeHub hub, CancellationToken ct) =>
+        {
+            var enabled = req.Enabled ?? throw ApiException.Invalid("Status fehlt.");
+            await db.FeatureSettings.Where(s => s.Id == FeatureSettings.SingletonId)
+                .ExecuteUpdateAsync(set => set.SetProperty(s => s.AbsencesEnabled, enabled), ct);
+            hub.Broadcast(new { type = "features" });
+            return Results.NoContent();
+        });
+
+        admin.MapPatch("/features/users/{id:int}/inbox", async (int id, FeatureToggleRequest req,
+            AppDbContext db, RealtimeHub hub, CancellationToken ct) =>
+        {
+            var enabled = req.Enabled ?? throw ApiException.Invalid("Status fehlt.");
+            var changed = await db.Users.Where(u => u.Id == id && u.IsActive)
+                .ExecuteUpdateAsync(set => set.SetProperty(u => u.InboxViewEnabled, (bool?)enabled), ct);
+            if (changed == 0)
+            {
+                throw ApiException.NotFound("Person");
+            }
+            hub.Publish([id], new { type = "features" });
+            return Results.NoContent();
         });
 
         admin.MapGet("/status", async (AppDbContext db, GraphClient graph, MailNotifier mail, TeamsNotifier teams, MailInboxPoller inbox, AppClock clock,

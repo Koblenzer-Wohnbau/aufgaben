@@ -7,6 +7,7 @@ namespace Aufgaben.Api.Data;
 public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options), IDataProtectionKeyContext
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<FeatureSettings> FeatureSettings => Set<FeatureSettings>();
     public DbSet<Project> Projects => Set<Project>();
     public DbSet<TaskList> TaskLists => Set<TaskList>();
     public DbSet<TaskListMember> TaskListMembers => Set<TaskListMember>();
@@ -32,6 +33,12 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
 
     protected override void OnModelCreating(ModelBuilder b)
     {
+        b.Entity<FeatureSettings>(e =>
+        {
+            e.ToTable("feature_settings");
+            e.Property(x => x.Id).ValueGeneratedNever();
+        });
+
         b.Entity<User>(e =>
         {
             e.ToTable("users");

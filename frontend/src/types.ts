@@ -216,6 +216,11 @@ export interface MyAccess {
   validUntil: string | null;
 }
 
+export interface AdminFeatures {
+  absencesEnabled: boolean;
+  users: { person: UserRef; inboxEnabled: boolean }[];
+}
+
 export interface AdminStatus {
   graphConfigured: boolean;
   mailConfigured: boolean;

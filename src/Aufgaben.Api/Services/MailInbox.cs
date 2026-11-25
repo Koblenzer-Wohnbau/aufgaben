@@ -41,6 +41,7 @@ public sealed partial class MailInboxProcessor(
     AppClock clock,
     TaskService tasks,
     MailNotifier mail,
+    FeatureSettingsStore features,
     IOptions<AufgabenOptions> options,
     ILogger<MailInboxProcessor> log)
 {
@@ -113,10 +114,13 @@ public sealed partial class MailInboxProcessor(
         }
 
         var dueDate = parsed.DueDate;
-        if (dueDate is null && (!options.Value.HasInboxView(user.Email, user.Upn) ||
-                               (assignee is { } assigned && !options.Value.HasInboxView(assigned.Email, assigned.Upn))))
+        if (dueDate is null)
         {
-            dueDate = today;
+            var settings = await features.GetAsync(ct);
+            if (!settings.HasInboxView(user) || (assignee is not null && !settings.HasInboxView(assignee)))
+            {
+                dueDate = today;
+            }
         }
 
         var notes = BuildNotes(message, body, user, hints);
@@ -197,15 +201,14 @@ public sealed partial class MailInboxProcessor(
                ?? await open.Where(p => p.Name.ToLower().StartsWith(q)).Select(p => (int?)p.Id).FirstOrDefaultAsync(ct);
     }
 
-    private async Task<(int Id, string? Email, string? Upn)?> FindUserAsync(string query, CancellationToken ct)
+    private async Task<User?> FindUserAsync(string query, CancellationToken ct)
     {
         var q = query.ToLowerInvariant();
-        var users = await db.Users.Where(u => u.IsActive).OrderBy(u => u.DisplayName).ThenBy(u => u.Id)
-            .Select(u => new { u.Id, u.DisplayName, u.Email, u.Upn }).ToListAsync(ct);
-        var match = users.FirstOrDefault(u => u.DisplayName.ToLowerInvariant().Split(' ').Contains(q))
-                    ?? users.FirstOrDefault(u => u.DisplayName.ToLowerInvariant().Split(' ').Any(p => p.StartsWith(q)))
-                    ?? users.FirstOrDefault(u => u.Email != null && u.Email.ToLowerInvariant().StartsWith(q));
-        return match is null ? null : (match.Id, match.Email, match.Upn);
+        var users = await db.Users.AsNoTracking().Where(u => u.IsActive)
+            .OrderBy(u => u.DisplayName).ThenBy(u => u.Id).ToListAsync(ct);
+        return users.FirstOrDefault(u => u.DisplayName.ToLowerInvariant().Split(' ').Contains(q))
+               ?? users.FirstOrDefault(u => u.DisplayName.ToLowerInvariant().Split(' ').Any(p => p.StartsWith(q)))
+               ?? users.FirstOrDefault(u => u.Email != null && u.Email.ToLowerInvariant().StartsWith(q));
     }
 
     /// <summary>Text der Mail; reine HTML-Mails werden zu Text.</summary>

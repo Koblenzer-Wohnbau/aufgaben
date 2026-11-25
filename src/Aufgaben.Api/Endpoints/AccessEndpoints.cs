@@ -46,7 +46,7 @@ public static class AccessEndpoints
         {
             if (!ctx.HttpContext.RequestServices.GetRequiredService<CurrentUser>().IsAdmin)
             {
-                throw ApiException.Forbidden("Nur für die Verwaltung (App-Rolle Aufgaben.Admin).");
+                throw ApiException.Forbidden("Nur für die Verwaltung.");
             }
             return await next(ctx);
         });

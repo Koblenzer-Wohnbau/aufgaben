@@ -11,15 +11,11 @@ public sealed class AufgabenOptions
     /// <summary>IANA-Zeitzone für "heute", Erinnerungen und Tagesübersicht.</summary>
     public string TimeZone { get; set; } = "Europe/Berlin";
 
-    /// <summary>Kommagetrennte E-Mail-Adressen oder UPNs für die persönliche Ansicht „Aufgaben“.</summary>
+    /// <summary>Bisherige Freigabeliste für die einmalige Übernahme in die Datenbank.</summary>
     public string InboxViewUsers { get; set; } = "";
 
+    /// <summary>Bisherige Einstellung für die einmalige Übernahme in die Datenbank.</summary>
     public bool AbsencesEnabled { get; set; }
-
-    public bool HasInboxView(string? email, string? upn) =>
-        InboxViewUsers.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
-            .Any(address => address.Equals(email, StringComparison.OrdinalIgnoreCase) ||
-                            address.Equals(upn, StringComparison.OrdinalIgnoreCase));
 
     public AuthOptions Auth { get; set; } = new();
     public TeamsOptions Teams { get; set; } = new();
@@ -48,6 +44,13 @@ public sealed class AuthOptions
 
     /// <summary>Name der App-Rolle für Verwaltungsfunktionen.</summary>
     public string AdminRole { get; set; } = "Aufgaben.Admin";
+
+    /// <summary>Optionale Entra-Objekt-ID eines zusätzlichen Administrators im eigenen Mandanten.</summary>
+    public string AdminObjectId { get; set; } = "";
+
+    public bool IsConfiguredAdmin(string? oid) =>
+        Guid.TryParse(AdminObjectId, out var admin) && admin != Guid.Empty &&
+        Guid.TryParse(oid, out var account) && account == admin;
 
     /// <summary>Gültigkeit der Browser-Sitzung in Stunden.</summary>
     public int SessionHours { get; set; } = 10;

@@ -1,4 +1,5 @@
 using Aufgaben.Api.Contracts;
+using Aufgaben.Api.Infrastructure;
 using Aufgaben.Api.Services;
 
 namespace Aufgaben.Api.Endpoints;
@@ -8,7 +9,16 @@ public static class AbsenceEndpoints
 {
     public static void MapAbsenceEndpoints(this RouteGroupBuilder api)
     {
-        var absences = api.MapGroup("/absences");
+        var absences = api.MapGroup("/absences").AddEndpointFilter(async (ctx, next) =>
+        {
+            var http = ctx.HttpContext;
+            var features = http.RequestServices.GetRequiredService<FeatureSettingsStore>();
+            if (!(await features.GetAsync(http.RequestAborted)).AbsencesEnabled)
+            {
+                throw ApiException.NotFound("Urlaub und Vertretung");
+            }
+            return await next(ctx);
+        });
 
         absences.MapGet("/status", (AbsenceService svc, CancellationToken ct) => svc.StatusAsync(ct));
 

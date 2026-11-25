@@ -113,7 +113,7 @@ public sealed class BackgroundWorker(IServiceScopeFactory scopes, IOptions<Aufga
 
         var eligible = db.Users
             .Where(u => u.IsActive && u.DigestEnabled && u.NotifyChannel != "aus" && (u.LastDigestOn == null || u.LastDigestOn < today));
-        if (settings.AbsencesEnabled)
+        if ((await sp.GetRequiredService<FeatureSettingsStore>().GetAsync(ct)).AbsencesEnabled)
         {
             // Nur bei aktivierter Urlaubsfunktion fällt die Tagesübersicht im Urlaub aus.
             eligible = eligible.Where(u => !db.Absences.Any(a => a.UserId == u.Id && a.ClosedAt == null && a.From <= today && a.Until >= today));

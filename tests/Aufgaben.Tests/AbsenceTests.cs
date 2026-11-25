@@ -57,8 +57,14 @@ public class AbsenceRuleTests
 }
 
 [Collection("api")]
-public sealed class AbsenceApiTests(AppFixture app)
+public sealed class AbsenceApiTests(AppFixture app) : IAsyncLifetime
 {
+    public Task InitializeAsync() => SetAbsencesAsync(true);
+    public Task DisposeAsync() => SetAbsencesAsync(false);
+
+    private Task<int> SetAbsencesAsync(bool enabled) =>
+        app.WithDbAsync(db => db.FeatureSettings.ExecuteUpdateAsync(set => set.SetProperty(s => s.AbsencesEnabled, enabled)));
+
     private static async Task<T> Read<T>(HttpResponseMessage res)
     {
         var body = await res.Content.ReadAsStringAsync();
@@ -96,21 +102,7 @@ public sealed class AbsenceApiTests(AppFixture app)
             await db.SaveChangesAsync();
             return user.Id;
         });
-        return (await app.LoginAsync(oid, app.WithAbsences), id);
-    }
-
-    [Fact]
-    public async Task Absence_endpoints_and_the_deputy_view_are_disabled_by_default()
-    {
-        using var client = await app.LoginAsync("dev-thomas");
-        Assert.False((await Read<MeDto>(await client.GetAsync("/api/me"))).AbsencesEnabled);
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/absences/status")).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await client.PostAsJsonAsync("/api/absences", new { from = Iso(Today), until = Iso(Today) })).StatusCode);
-        Assert.Equal(HttpStatusCode.NotFound, (await client.GetAsync("/api/tasks?view=vertretung&id=1")).StatusCode);
-
-        using var enabled = await app.LoginAsync("dev-thomas", app.WithAbsences);
-        Assert.True((await Read<MeDto>(await enabled.GetAsync("/api/me"))).AbsencesEnabled);
-        Assert.Equal(HttpStatusCode.OK, (await enabled.GetAsync("/api/absences/status")).StatusCode);
+        return (await app.LoginAsync(oid), id);
     }
 
     [Fact]

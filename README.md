@@ -27,7 +27,7 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 * **Warte auf …** und **Später**: Aufgabe auf „Warte auf Fa. Müller“ setzen oder bis Montag zurückstellen. Sie
   ist über die Suche auffindbar und steht am Tag zum Nachhaken wieder in „Mein Tag“,
   mit Erinnerung per Teams oder E-Mail. Eine Fälligkeit holt sie immer früher zurück
-* **Urlaubsübergabe** (optional, `Aufgaben__AbsencesEnabled=true`): Urlaub mit Vertretung eintragen, dann für jede Aufgabe, die im Urlaub fällig wird, entscheiden:
+* **Urlaubsübergabe** (optional): Urlaub mit Vertretung eintragen, dann für jede Aufgabe, die im Urlaub fällig wird, entscheiden:
   an die Vertretung übergeben (mit Hinweis) oder bis nach dem Urlaub zurückstellen, auf Wunsch alles mit einem Klick.
   Die Vertretung sieht ein Banner mit den übergebenen Aufgaben; nach der Rückkehr zeigt „Mein Tag“, was passiert ist,
   und holt Offenes mit „Zurück an mich“ zurück. Im Urlaub kommt keine Tagesübersicht
@@ -48,15 +48,20 @@ Organisationen, die ihre Postfächer noch auf einem eigenen Exchange Server betr
 * **Installierbar** als App (PWA) am PC und auf dem Handy
 * Auch für Personen **ohne Teams-Lizenz** nutzbar (Browser und E-Mail)
 
-Die persönliche Ansicht **Aufgaben** ist standardmäßig ausgeblendet. Trage die Firmenadressen
-oder Entra-UPNs der gewünschten Personen kommagetrennt in `Aufgaben__InboxViewUsers` in `.env`
-ein und erstelle den App-Container neu. Für alle anderen enthält **Geplant** auch lose Aufgaben
-ohne Termin. Die Seitenleiste blendet Projektkanäle, Vorlagen und Warteschleife aus. Bestehende
-Teams-Kanaltabs und gespeicherte Direktlinks zu diesen Ansichten funktionieren weiter.
+Unter **Verwaltung → Funktionen** lässt sich die persönliche Ansicht **Aufgaben** pro Person
+freigeben. Für alle anderen zeigt **Geplant** auch lose Aufgaben ohne Termin.
+**Urlaub und Vertretung** lässt sich dort für die ganze Organisation ein- oder ausschalten.
+Eine Neuinstallation startet mit beiden Funktionen ausgeschaltet.
 
-**Urlaub und Vertretung** ist standardmäßig ausgeschaltet. Setze `Aufgaben__AbsencesEnabled=true` in
-`.env` und erstelle den App-Container neu, um die Funktion zu aktivieren. Beim Ausschalten bleiben
-bestehende Urlaubspläne und bereits erfolgte Zuweisungen gespeichert.
+Für ein zusätzliches Verwaltungskonto die **Objekt-ID des Benutzers** aus Entra ID in
+`Aufgaben__Auth__AdminObjectId` in `.env` eintragen und den App-Container neu erstellen.
+Die Entra-App-Rolle `Aufgaben.Admin` berechtigt ebenfalls zur Verwaltung.
+Beim ersten Start nach dem Update übernimmt die App frühere Werte aus
+`Aufgaben__InboxViewUsers` und `Aufgaben__AbsencesEnabled`. Danach werden Änderungen in der
+App gespeichert und gelten ohne Neustart.
+
+Die Seitenleiste blendet Projektkanäle, Vorlagen und Warteschleife aus. Alte Teams-Kanaltabs
+und Direktlinks zu diesen Ansichten funktionieren weiter.
 
 ## Aufbau
 
